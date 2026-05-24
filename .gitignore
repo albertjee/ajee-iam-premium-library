@@ -1,0 +1,8 @@
+# Working files — not pushed
+identity-attack-recovery-simulator.html
+identity-attack-recovery-simulator-v02.html
+identity-attack-recovery-simulator-v03.html
+identity-attack-recovery-simulator-v04a.html
+*.tmp
+*.bak
+.claude/

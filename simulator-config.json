@@ -1,0 +1,132 @@
+{
+  "_comment": "Identity Attack & Recovery Simulator — scenario config v0.1",
+  "_usage": "Simulator reads this file at load time. Update image paths and text here without touching simulator code.",
+
+  "scenario": {
+    "tenant_name": "Contoso Identity Lab",
+    "attacker_app_name": "Nano-Cents AI",
+    "attacker_app_tagline": "Because overspending on licenses doesn't make cents.",
+    "attacker_app_value_prop": "Our AI analyzes your tenant usage patterns in real-time to save you up to 30% on your license costs.",
+    "attacker_app_social_proof": "Trusted by 10,000+ organizations worldwide",
+    "attacker_domain": "nano-cents-ai.com",
+    "victim_user": "Ethan Hunt",
+    "victim_email": "ethan.hunt@contoso.com",
+    "victim_role": "Global Admin",
+    "backdoor_user": "humphrey.dumpty",
+    "backdoor_password_hint": "Eggshells2024*",
+    "device_code": "IXA9RZ3NL",
+    "device_code_url": "https://login.microsoft.com/device"
+  },
+
+  "lure_page": {
+    "_comment": "Screen 1 — fake landing page the victim sees after clicking the LinkedIn ad",
+    "enabled": true,
+    "layout": "centered-card",
+    "logo": {
+      "src": "",
+      "_placeholder": "PLACEHOLDER — drop cleaned logo crop here",
+      "_fallback": "initials",
+      "_fallback_text": "NC",
+      "_fallback_bg": "#1a6ed8"
+    },
+    "hero_image": {
+      "src": "assets/screenshots/screen1-lure-page.png",
+      "_placeholder": "Screen 1 — Nano-Cents AI landing page with Connect with Microsoft 365 CTA",
+      "_fallback": "none"
+    },
+    "cta_button_label": "Connect with Microsoft 365",
+    "cta_button_style": "microsoft-blue",
+    "footer_text": "By connecting, you agree to our Terms of Service and Privacy Policy.",
+    "testimonials": [
+      "Saved us 28% on licensing in 90 days — IT Director, Financial Services",
+      "Identified 400 unused seats we didn't know we had — CTO, Healthcare",
+      "Paid for itself in the first month — VP Infrastructure, Retail"
+    ]
+  },
+
+  "device_code_page": {
+    "_comment": "Screen 2 — device code phishing page shown after victim clicks Connect",
+    "enabled": true,
+    "layout": "centered-card",
+    "logo": {
+      "src": "",
+      "_placeholder": "PLACEHOLDER — same logo as lure page",
+      "_fallback": "initials",
+      "_fallback_text": "NC",
+      "_fallback_bg": "#1a6ed8"
+    },
+    "instruction_text": "To verify your identity and for use to securely connect, please visit:",
+    "device_url_display": "https://login.microsoft.com/device",
+    "spinner_label": "Waiting for you to sign in...",
+    "screenshot": {
+      "src": "assets/screenshots/screen2-lure-page.png",
+      "_placeholder": "Screen 2 — device code page with IXA9RZ3NL code and waiting spinner",
+      "_fallback": "render"
+    }
+  },
+
+  "microsoft_consent_page": {
+    "_comment": "Screen 3 — real Microsoft device login page (shown as a mockup/screenshot embed)",
+    "enabled": true,
+    "mode": "mockup",
+    "screenshot": {
+      "src": "assets/screenshots/screen3-lure-page.png",
+      "_placeholder": "Screen 3 — real Microsoft Enter code to allow access page",
+      "_fallback": "render"
+    },
+    "warning_text": "Do not enter codes from sources you don't trust.",
+    "narrator_callout": "This is a real Microsoft page. The warning is real. The victim ignores it because the previous page looked legitimate."
+  },
+
+  "placeholders": {
+    "_comment": "When an image src is empty, simulator renders these SVG placeholders instead. Replace src values above when screenshots are ready.",
+    "style": "dark-outlined",
+    "label_color": "#C6A75E",
+    "border_color": "#334155",
+    "bg_color": "#111827",
+    "show_filename_hint": true
+  },
+
+  "attack_stages": {
+    "_comment": "Labels and timing used by the attack simulation tab. Edit text here, not in the HTML.",
+    "stage1": {
+      "label": "Consent Granted",
+      "short": "OAuth token issued via device code flow",
+      "app_id": "7f3c-a912",
+      "scopes": ["Mail.Read", "Files.Read.All", "User.Read"]
+    },
+    "stage2": {
+      "label": "Persistence Established",
+      "short": "Service principal registered with admin consent",
+      "permission": "Directory.ReadWrite.All"
+    },
+    "stage3": {
+      "label": "Identity Control Plane Damaged",
+      "short": "Backdoor admin created · CA disabled · MFA stripped",
+      "ca_policy_disabled": "Require MFA — All Admins"
+    },
+    "stage4": {
+      "label": "Lateral SaaS Movement",
+      "short": "M365 files corrupted · Salesforce records deleted",
+      "saas_targets": ["SharePoint", "OneDrive", "Salesforce", "Workday"]
+    }
+  },
+
+  "recovery_steps": {
+    "_comment": "Labels for the five recovery steps. Edit here to match your narrative.",
+    "step1": "Preserve Evidence",
+    "step2": "Remove Unauthorized Access",
+    "step3": "Restore Identity State",
+    "step4": "Restore Policy State",
+    "step5": "Restore SaaS / M365 Data"
+  },
+
+  "export": {
+    "audit_log_filename": "identity-audit-log",
+    "recovery_report_filename": "recovery-report",
+    "tenant_label": "Contoso Identity Lab"
+  },
+
+  "version": "0.2",
+  "last_updated": "2026-05-22"
+}

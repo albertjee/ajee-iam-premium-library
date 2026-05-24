@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Identity Attack &amp; Recovery Simulator v0.2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0B0F1A;--surface:#111827;--surface2:#1A2235;--border:#1E2D45;--border2:#273548;
+  --text:#E8EDF4;--text2:#8A9BB5;--text3:#4A5A72;
+  --gold:#C6A75E;--gold2:#E8C87A;--teal:#2DD4BF;--teal2:#14B8A6;
+  --red:#EF4444;--red2:#DC2626;--amber:#F59E0B;--green:#22C55E;
+  --danger-bg:#1A0A0A;--danger-border:#7F1D1D;
+  --warn-bg:#1A1200;--warn-border:#78350F;
+  --ok-bg:#0A1A0A;--ok-border:#14532D;
+}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;min-height:100vh}
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tb-left{display:flex;align-items:center;gap:10px}
+.tb-title{font-size:12px;font-weight:500;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace}
+.sim-tag{background:#2A1A00;border:1px solid #5A3A10;color:var(--amber);font-size:9px;font-weight:500;padding:2px 7px;border-radius:3px;letter-spacing:.06em;text-transform:uppercase}
+.tenant-info{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace}
+#status-badge{font-size:10px;font-weight:500;padding:3px 9px;border-radius:3px;letter-spacing:.04em;text-transform:uppercase;transition:all .3s}
+.sb-baseline{background:#0A1A0A;border:1px solid #14532D;color:var(--green)}
+.sb-attack{background:#1A0A0A;border:1px solid var(--danger-border);color:var(--red)}
+.sb-recovered{background:#001A18;border:1px solid #0F6E56;color:var(--teal)}
+#tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 18px;gap:0}
+.tab{padding:9px 16px;font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.05em;text-transform:uppercase;user-select:none;transition:all .2s;font-family:'IBM Plex Mono',monospace}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.main-grid{display:grid;grid-template-columns:190px 1fr 185px;gap:10px;padding:12px 18px}
+.full-pad{padding:12px 18px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:11px}
+.p-title{font-size:9px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:9px;display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace}
+.stage-item{padding:7px 8px;border-radius:4px;margin-bottom:5px;border:1px solid transparent;transition:all .2s}
+.stage-item:hover{border-color:var(--border2)}
+.s-num{font-size:9px;color:var(--text3);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace}
+.s-name{font-size:12px;font-weight:500;margin:2px 0}
+.s-desc{font-size:10px;color:var(--text3)}
+.s-pending .s-name{color:var(--text3)}
+.s-active{background:var(--surface2);border-color:var(--border2)}
+.s-active .s-name{color:var(--amber)}
+.s-done .s-name{color:var(--green)}
+.s-done .s-desc{color:#15803D}
+.s-crit .s-name{color:var(--red)}
+.s-crit .s-desc{color:var(--red2)}
+.rbar-wrap{margin:5px 0}
+.rbar-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px}
+.rbar{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.rbar-fill{height:100%;border-radius:2px;transition:width .5s ease,background .5s ease}
+.obj-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.ocard{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:7px;transition:all .3s}
+.ocard.danger{border-color:var(--danger-border);background:var(--danger-bg)}
+.ocard.warning{border-color:var(--warn-border);background:var(--warn-bg)}
+.ocard.ok{border-color:var(--ok-border);background:var(--ok-bg)}
+.oc-type{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-family:'IBM Plex Mono',monospace}
+.oc-name{font-size:11px;font-weight:500;margin:2px 0;color:var(--text2)}
+.oc-meta{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;font-family:'IBM Plex Mono',monospace}
+.bd-danger{background:#7F1D1D;color:#FCA5A5}
+.bd-warning{background:#78350F;color:#FCD34D}
+.bd-ok{background:#14532D;color:#86EFAC}
+.bd-info{background:#0C2D54;color:#7DD3FC}
+.bd-neutral{background:var(--surface2);color:var(--text3)}
+
+/* ── ITEM 01: NODE MAP + PROPAGATION ANIMATION ── */
+.node-map{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:8px}
+.map-row{display:flex;gap:5px;justify-content:center;margin-bottom:5px;flex-wrap:wrap}
+.mnode{
+  background:var(--surface2);border:1px solid var(--border2);border-radius:3px;
+  padding:3px 7px;font-size:10px;color:var(--text2);white-space:nowrap;
+  font-family:'IBM Plex Mono',monospace;
+  transition:background .4s ease, border-color .4s ease, color .4s ease;
+}
+.mnode.anchor{background:#2A1A00;border-color:var(--gold);color:var(--gold);font-weight:500}
+.mnode.restored{background:var(--ok-bg);border-color:var(--green);color:#86EFAC;transition:background .4s ease,border-color .4s ease,color .4s ease}
+
+/* propagation: node fires a ripple outward then settles into pulse */
+.mnode.propagating{
+  background:#3D0A0A;
+  border-color:#FF6B6B;
+  color:#FFAAAA;
+  animation: propagate-in .5s ease forwards;
+}
+.mnode.hit{
+  background:var(--danger-bg);
+  border-color:var(--red);
+  color:#FCA5A5;
+  animation: pls 2s infinite;
+}
+@keyframes propagate-in{
+  0%  {background:#5A0A0A;border-color:#FF8080;transform:scale(1.08)}
+  60% {background:#2D0A0A;border-color:#EF4444;transform:scale(1.02)}
+  100%{background:var(--danger-bg);border-color:var(--red);transform:scale(1)}
+}
+@keyframes pls{
+  0%,100%{border-color:var(--red)}
+  50%{border-color:#7F1D1D}
+}
+
+/* ── METRICS ── */
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px}
+.metric{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:7px 9px}
+.mv{font-size:20px;font-weight:500;line-height:1;transition:color .3s}
+.ml{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;font-family:'IBM Plex Mono',monospace}
+.console{background:#070B12;border:1px solid var(--border);border-radius:4px;padding:9px;font-family:'IBM Plex Mono',monospace;font-size:10px;height:110px;overflow-y:auto}
+.ll{padding:2px 0;display:flex;gap:8px;line-height:1.5;border-bottom:1px solid #0B0F18}
+.lt{color:var(--text3);flex-shrink:0;min-width:58px}
+.ls{flex-shrink:0;min-width:44px;font-weight:500}
+.ls-info{color:#38BDF8}.ls-warn{color:var(--amber)}.ls-crit{color:var(--red)}.ls-ok{color:var(--green)}
+.lm{color:var(--text2)}
+.btn{padding:6px 12px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid;transition:all .2s;user-select:none;font-family:'IBM Plex Mono',monospace;letter-spacing:.02em}
+.btn:disabled{opacity:.3;cursor:default}
+.btn-atk{background:var(--danger-bg);border-color:var(--danger-border);color:#FCA5A5}
+.btn-atk:hover:not(:disabled){background:#2D0A0A}
+.btn-rec{background:var(--ok-bg);border-color:var(--ok-border);color:#86EFAC}
+.btn-rec:hover:not(:disabled){background:#0F2A0F}
+.btn-neutral{background:var(--surface2);border-color:var(--border2);color:var(--text2)}
+.btn-neutral:hover{background:var(--border2)}
+.btn-export{background:#2A1A00;border-color:#7A4A10;color:var(--gold)}
+.btn-export:hover{background:#3A2500}
+.sec-h{font-size:9px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px;font-family:'IBM Plex Mono',monospace}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.rec-step{background:var(--bg);border-left:3px solid var(--border2);border-radius:0 4px 4px 0;padding:8px 10px;margin-bottom:6px;transition:all .3s}
+.rec-step.done{border-left-color:var(--green)}
+.rec-step.active{border-left-color:var(--amber)}
+.rs-num{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-family:'IBM Plex Mono',monospace}
+.rs-name{font-size:12px;font-weight:500;color:var(--text);margin:2px 0}
+.rs-desc{font-size:10px;color:var(--text3)}
+.ev-item{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:8px;margin-bottom:6px}
+.ev-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ev-ts{font-size:9px;color:var(--text3);font-family:'IBM Plex Mono',monospace}
+.ev-body{font-size:11px;color:var(--text2)}
+.ev-obj{font-size:10px;color:var(--text3);margin-top:2px;font-family:'IBM Plex Mono',monospace}
+.atk-warn{background:var(--surface);border:1px solid #7C3A10;border-radius:6px;padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+
+/* ── ITEM 02: BEFORE/AFTER DIFF STYLES ── */
+.diff-card{background:var(--bg);border:1px solid var(--border);border-radius:4px;margin-bottom:6px;overflow:hidden}
+.diff-header{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;user-select:none;transition:background .15s}
+.diff-header:hover{background:var(--surface2)}
+.diff-header-left{display:flex;align-items:center;gap:8px}
+.diff-type{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-family:'IBM Plex Mono',monospace}
+.diff-name{font-size:12px;font-weight:500;color:var(--text2)}
+.diff-chevron{font-size:10px;color:var(--text3);transition:transform .2s;font-family:'IBM Plex Mono',monospace}
+.diff-chevron.open{transform:rotate(90deg)}
+.diff-body{display:none;border-top:1px solid var(--border);padding:0}
+.diff-body.open{display:block}
+.diff-cols{display:grid;grid-template-columns:1fr 1fr}
+.diff-col{padding:8px 10px}
+.diff-col-label{font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;font-family:'IBM Plex Mono',monospace}
+.diff-col.before .diff-col-label{color:var(--text3)}
+.diff-col.after .diff-col-label{color:var(--red);border-left:1px solid var(--border)}
+.diff-col.after.restored .diff-col-label{color:var(--green)}
+.diff-col.after{border-left:1px solid var(--border)}
+.diff-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border);font-size:10px}
+.diff-row:last-child{border-bottom:none}
+.diff-field{color:var(--text3);font-family:'IBM Plex Mono',monospace}
+.diff-val-before{color:var(--text2);font-family:'IBM Plex Mono',monospace}
+.diff-val-after{color:var(--red);font-family:'IBM Plex Mono',monospace;font-weight:500}
+.diff-val-after.restored{color:var(--green)}
+.diff-val-new{color:var(--red);font-style:italic}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── PRESENTER MODE ── */
+#presenter-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
+#pr-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:36px 44px;max-width:820px;width:100%;display:flex;flex-direction:column;gap:20px;max-height:calc(100vh - 48px);overflow-y:auto}
+.pr-stage-lbl{font-size:10px;font-weight:500;color:var(--gold);text-transform:uppercase;letter-spacing:.12em;font-family:'IBM Plex Mono',monospace}
+.pr-title-text{font-size:30px;font-weight:500;color:var(--text);line-height:1.2;letter-spacing:-.01em}
+.pr-narr{font-size:14px;color:var(--text2);line-height:1.75;border-left:3px solid var(--border2);padding-left:14px}
+.pr-action-wrap{margin:4px 0}
+.pr-metrics-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.pr-metric-card{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:12px 16px;text-align:center}
+.pr-mv{font-size:26px;font-weight:500;line-height:1;transition:color .4s}
+.pr-ml{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-top:5px;font-family:'IBM Plex Mono',monospace}
+.pr-nav-row{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border)}
+.pr-pos{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;letter-spacing:.04em}
+
+/* ── LURE FLOW MODAL ── */
+#lure-overlay{position:fixed;inset:0;background:rgba(7,11,18,.92);z-index:300;display:none;align-items:center;justify-content:center;padding:24px}
+#lure-overlay.active{display:flex}
+#lure-modal{background:var(--surface);border:1px solid var(--border);border-radius:8px;max-width:680px;width:100%;max-height:calc(100vh - 48px);overflow-y:auto;display:flex;flex-direction:column}
+.lure-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.lure-step-label{font-size:9px;font-weight:500;color:var(--gold);text-transform:uppercase;letter-spacing:.10em;font-family:'IBM Plex Mono',monospace}
+.lure-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 6px;font-family:'IBM Plex Mono',monospace}
+.lure-close:hover{color:var(--text)}
+.lure-screen{display:none;flex-direction:column}
+.lure-screen.active{display:flex}
+.lure-img-wrap{background:#f0f2f5;display:flex;align-items:center;justify-content:center;min-height:260px}
+.lure-img-wrap img{max-width:100%;max-height:400px;object-fit:contain;display:block}
+.lure-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px;min-height:260px;background:var(--bg);border:1px dashed var(--border2);margin:12px;border-radius:6px}
+.lure-ph-icon{font-size:28px}
+.lure-ph-label{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;text-align:center;line-height:1.5}
+.lure-ph-file{font-size:10px;color:var(--gold);font-family:'IBM Plex Mono',monospace}
+.lure-body{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.lure-narr{font-size:12px;color:var(--text2);line-height:1.65;border-left:3px solid var(--border2);padding-left:12px}
+.lure-callout{font-size:11px;color:var(--amber);background:#1A1200;border:1px solid var(--warn-border);border-radius:4px;padding:8px 12px;font-family:'IBM Plex Mono',monospace}
+.lure-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lure-dots{display:flex;gap:6px;align-items:center}
+.lure-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:background .2s}
+.lure-dot.active{background:var(--gold)}
+.lure-nav{display:flex;gap:8px}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="tb-left">
+    <span class="tb-title">Identity Attack &amp; Recovery Simulator</span>
+    <span class="sim-tag">Simulated · No real tenant</span>
+    <span style="font-size:9px;color:#334155;font-family:'IBM Plex Mono',monospace">v0.2</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="tenant-info">Contoso Identity Lab</span>
+    <span id="status-badge" class="sb-baseline">Baseline</span>
+    <button class="btn btn-neutral" id="btn-present" onclick="togglePresenter()" style="padding:4px 10px;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em">⊞ Present</button>
+  </div>
+</div>
+
+<div id="tabs">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="attack">Attack Simulation</div>
+  <div class="tab" data-tab="blast">Blast Radius</div>
+  <div class="tab" data-tab="recovery">Recovery</div>
+  <div class="tab" data-tab="evidence">Evidence</div>
+</div>
+
+<!-- OVERVIEW -->
+<div id="pane-overview" class="tab-pane active">
+  <div class="main-grid">
+    <div>
+      <div class="panel" style="margin-bottom:10px">
+        <div class="p-title">◆ Attack Timeline</div>
+        <div id="stage-list"></div>
+      </div>
+      <div class="panel">
+        <div class="p-title">◆ Identity Posture</div>
+        <div class="rbar-wrap">
+          <div class="rbar-lbl"><span>Trust Score</span><span id="v-trust">100</span></div>
+          <div class="rbar"><div class="rbar-fill" id="f-trust" style="width:100%;background:var(--green)"></div></div>
+        </div>
+        <div class="rbar-wrap">
+          <div class="rbar-lbl"><span>Risk Level</span><span id="v-risk">0</span></div>
+          <div class="rbar"><div class="rbar-fill" id="f-risk" style="width:0%;background:var(--red)"></div></div>
+        </div>
+        <div class="rbar-wrap">
+          <div class="rbar-lbl"><span>Recovery</span><span id="v-rec">0%</span></div>
+          <div class="rbar"><div class="rbar-fill" id="f-rec" style="width:0%;background:var(--teal)"></div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel" style="margin-bottom:10px">
+        <div class="p-title">◆ Identity Control Plane</div>
+        <div class="node-map" id="node-map-main"></div>
+        <div class="sec-h">Entra ID Objects</div>
+        <div class="obj-grid" id="obj-grid-main"></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel" style="margin-bottom:10px">
+        <div class="p-title">◆ Risk Status</div>
+        <div class="metric-grid">
+          <div class="metric"><div class="mv" id="mv-changed" style="color:var(--green)">0</div><div class="ml">Objects Changed</div></div>
+          <div class="metric"><div class="mv" id="mv-priv" style="color:var(--green)">0</div><div class="ml">Privilege Drift</div></div>
+        </div>
+        <div class="metric-grid">
+          <div class="metric"><div class="mv" id="mv-policy" style="color:var(--green)">0</div><div class="ml">Policy Drift</div></div>
+          <div class="metric"><div class="mv" id="mv-saas" style="color:var(--green)">0</div><div class="ml">SaaS Impact</div></div>
+        </div>
+        <div class="sec-h">Last Event</div>
+        <div id="last-event" style="font-size:10px;color:var(--text3);background:var(--bg);padding:6px;border-radius:4px;border:1px solid var(--border);min-height:36px">Baseline captured — known-good state active</div>
+      </div>
+      <div class="panel">
+        <button class="btn btn-atk" style="width:100%;margin-bottom:5px" onclick="openLure()">🎣 Lure Mode — Begin Attack Scenario</button>
+        <button class="btn btn-neutral" style="width:100%;margin-bottom:5px" onclick="goTab('attack')">→ Run Attack Simulation</button>
+        <button class="btn btn-neutral" style="width:100%" onclick="resetAll()">↺ Reset to Baseline</button>
+      </div>
+    </div>
+  </div>
+  <div style="padding:0 18px 12px">
+    <div class="panel">
+      <div class="p-title">◆ Event Console</div>
+      <div class="console" id="con-main"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ATTACK -->
+<div id="pane-attack" class="tab-pane">
+  <div class="full-pad">
+    <div class="atk-warn">
+      <span class="badge bd-warning">Simulated</span>
+      <span style="font-size:11px;color:var(--text2)">No real OAuth flows, tokens, credentials, or tenant mutations. All state changes are local to this browser session only.</span>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="sec-h">Stage 1 — Consent granted</div>
+        <div class="panel" style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px">A user at Contoso authorizes <strong style="color:var(--text)">NovaSync AI</strong> via a fake OAuth consent page. Token issued. Delegated read access granted to email, files, and user profile data.</div>
+          <div class="ocard warning" style="margin-bottom:8px">
+            <div class="oc-type">App Registration</div>
+            <div class="oc-name">NovaSync AI</div>
+            <div class="oc-meta">AppId: 7f3c-a912 · nosync.ai</div>
+            <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap"><span class="badge bd-warning">Delegated Consent</span><span class="badge bd-danger">Mail.Read · Files.Read.All</span></div>
+          </div>
+          <button class="btn btn-atk" id="btn-s1" onclick="runStage(1)" style="width:100%">▶ Run Stage 1 — Consent Granted</button>
+        </div>
+        <div class="sec-h">Stage 2 — Persistence established</div>
+        <div class="panel" style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Malicious app registers itself with admin-level permissions. App-role grants survive password resets and MFA changes. Credential secret added.</div>
+          <div class="ocard danger" style="margin-bottom:8px">
+            <div class="oc-type">Service Principal</div>
+            <div class="oc-name">NovaSync AI (persistent)</div>
+            <div class="oc-meta">Directory.ReadWrite.All · global scope</div>
+            <div style="margin-top:4px;display:flex;gap:4px"><span class="badge bd-danger">Admin Consent</span><span class="badge bd-danger">Credential Active</span></div>
+          </div>
+          <button class="btn btn-atk" id="btn-s2" onclick="runStage(2)" disabled style="width:100%">▶ Run Stage 2 — Persistence Established</button>
+        </div>
+      </div>
+      <div>
+        <div class="sec-h">Stage 3 — Identity control plane damaged</div>
+        <div class="panel" style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Backdoor admin created. Legitimate Global Admin deleted. Conditional Access disabled. MFA stripped from privileged accounts.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px">
+            <div class="ocard danger"><div class="oc-type">Backdoor User</div><div class="oc-name">humphrey.dumpty</div><div class="oc-meta">GA role · rogue</div></div>
+            <div class="ocard danger"><div class="oc-type">CA Policy</div><div class="oc-name">Require MFA — Admins</div><div class="oc-meta">Status: DISABLED</div></div>
+          </div>
+          <button class="btn btn-atk" id="btn-s3" onclick="runStage(3)" disabled style="width:100%">▶ Run Stage 3 — Identity Damaged</button>
+        </div>
+        <div class="sec-h">Stage 4 — Lateral SaaS movement</div>
+        <div class="panel">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px">SSO-trusting workloads accessed via hijacked identity. M365 files corrupted. Salesforce records deleted. Blast radius expands across all connected workloads.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px">
+            <div class="ocard danger"><div class="oc-type">SharePoint</div><div class="oc-name">Q1-Strategy.docx</div><div class="oc-meta">CORRUPTED</div></div>
+            <div class="ocard danger"><div class="oc-type">Salesforce</div><div class="oc-name">Contoso Deal $2.4M</div><div class="oc-meta">DELETED</div></div>
+          </div>
+          <button class="btn btn-atk" id="btn-s4" onclick="runStage(4)" disabled style="width:100%">▶ Run Stage 4 — Lateral Movement</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="panel">
+        <div class="p-title">◆ Attack Console</div>
+        <div class="console" id="con-attack"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BLAST RADIUS -->
+<div id="pane-blast" class="tab-pane">
+  <div class="full-pad">
+    <div class="three-col" style="margin-bottom:10px">
+      <div class="metric"><div class="mv" id="bm-drift" style="color:var(--gold)">0</div><div class="ml">Identity Drift</div></div>
+      <div class="metric"><div class="mv" id="bm-priv" style="color:var(--green)">0</div><div class="ml">Privilege Changes</div></div>
+      <div class="metric"><div class="mv" id="bm-pol" style="color:var(--green)">0</div><div class="ml">Policy Changes</div></div>
+      <div class="metric"><div class="mv" id="bm-saas" style="color:var(--green)">0</div><div class="ml">SaaS Objects</div></div>
+      <div class="metric"><div class="mv" id="bm-data" style="color:var(--green)">0</div><div class="ml">Data Changed</div></div>
+      <div class="metric"><div class="mv" id="bm-evid" style="color:var(--teal)">—</div><div class="ml">Evidence Events</div></div>
+    </div>
+    <div class="two-col">
+      <div>
+        <!-- ITEM 02: diff view replaces simple list -->
+        <div class="sec-h">Changed Objects — Before / After Diff <span style="color:var(--text3);font-weight:400">↓ click to expand</span></div>
+        <div id="blast-objs">
+          <span style="font-size:11px;color:var(--text3)">No drift — tenant matches baseline</span>
+        </div>
+      </div>
+      <div>
+        <div class="sec-h">Affected Workloads</div>
+        <div class="node-map" id="node-map-blast" style="margin-bottom:10px"></div>
+        <div class="sec-h">Blast Radius Narrative</div>
+        <div id="blast-narr" class="panel" style="font-size:11px;color:var(--text2);line-height:1.6;min-height:80px">Tenant is in baseline state. No blast radius to report.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RECOVERY -->
+<div id="pane-recovery" class="tab-pane">
+  <div class="full-pad">
+    <div style="background:var(--surface);border:1px solid var(--ok-border);border-radius:6px;padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="badge bd-ok">Recovery Mode</span>
+        <span style="font-size:11px;color:var(--text2)">Execute each step in sequence. Each step validates against the known-good baseline before marking complete.</span>
+      </div>
+      <button class="btn btn-export" onclick="exportReport()">↓ Export Recovery Report</button>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="sec-h">Recovery Steps</div>
+        <div id="rec-steps"></div>
+      </div>
+      <div>
+        <div class="sec-h">Recovery Progress</div>
+        <div class="metric-grid" style="margin-bottom:10px">
+          <div class="metric"><div class="mv" id="rm-steps" style="color:var(--text3)">0/5</div><div class="ml">Steps Complete</div></div>
+          <div class="metric"><div class="mv" id="rm-conf" style="color:var(--text3)">—</div><div class="ml">Confidence</div></div>
+        </div>
+        <div class="sec-h">Validation Log</div>
+        <div class="console" id="con-rec" style="height:170px"></div>
+        <div style="margin-top:10px">
+          <button class="btn btn-rec" id="btn-full-rec" onclick="runFullRecovery()" style="width:100%;margin-bottom:6px" disabled>▶ Run All Recovery Steps</button>
+          <button class="btn btn-neutral" onclick="resetAll()" style="width:100%">↺ Reset to Baseline</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EVIDENCE -->
+<div id="pane-evidence" class="tab-pane">
+  <div class="full-pad">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text2)">Immutable audit timeline — preserved for forensic investigation and recovery validation</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-export" onclick="exportAuditJSON()">↓ Export JSON</button>
+        <button class="btn btn-export" onclick="exportAuditCSV()">↓ Export CSV</button>
+      </div>
+    </div>
+    <div id="ev-list" style="max-height:520px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- PRESENTER MODE OVERLAY -->
+<!-- ── LURE FLOW MODAL ── -->
+<div id="lure-overlay">
+  <div id="lure-modal">
+
+    <!-- Screen 1 — Lure page -->
+    <div class="lure-screen active" id="lure-s1">
+      <div class="lure-header">
+        <span class="lure-step-label">Screen 01 of 03 — The Lure</span>
+        <button class="lure-close" onclick="closeLure()">✕</button>
+      </div>
+      <div class="lure-img-wrap" id="lure-img1">
+        <!-- populated by initLure() -->
+      </div>
+      <div class="lure-body">
+        <div class="lure-narr">A LinkedIn ad for <strong style="color:var(--text)">Nano-Cents AI</strong> targets IT admins who manage Microsoft 365 licensing. The landing page looks professional — pain point messaging, social proof, a familiar Microsoft login button. No red flags. No suspicious domain. The victim clicks <em>Connect with Microsoft 365</em>.</div>
+      </div>
+      <div class="lure-footer">
+        <div class="lure-dots">
+          <div class="lure-dot active"></div>
+          <div class="lure-dot"></div>
+          <div class="lure-dot"></div>
+        </div>
+        <div class="lure-nav">
+          <button class="btn btn-neutral" onclick="lureNav(2)" style="font-size:11px;padding:5px 14px">Victim clicks Connect →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2 — Device code page -->
+    <div class="lure-screen" id="lure-s2">
+      <div class="lure-header">
+        <span class="lure-step-label">Screen 02 of 03 — Device Code Flow</span>
+        <button class="lure-close" onclick="closeLure()">✕</button>
+      </div>
+      <div class="lure-img-wrap" id="lure-img2">
+        <!-- populated by initLure() -->
+      </div>
+      <div class="lure-body">
+        <div class="lure-narr">The victim is redirected to a page showing a device code and the real Microsoft URL <strong style="color:var(--text)">login.microsoft.com/device</strong>. This is a legitimate Microsoft OAuth device code flow — abused. The spinner says "Waiting for you to sign in." The victim enters the code on the real Microsoft page.</div>
+        <div class="lure-callout">⚠ No malware. No credential harvesting. This is a legitimate Microsoft authentication flow being weaponized.</div>
+      </div>
+      <div class="lure-footer">
+        <div class="lure-dots">
+          <div class="lure-dot"></div>
+          <div class="lure-dot active"></div>
+          <div class="lure-dot"></div>
+        </div>
+        <div class="lure-nav">
+          <button class="btn btn-neutral" onclick="lureNav(1)" style="font-size:11px;padding:5px 14px">← Back</button>
+          <button class="btn btn-neutral" onclick="lureNav(3)" style="font-size:11px;padding:5px 14px">Victim enters code →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 3 — Real Microsoft consent page -->
+    <div class="lure-screen" id="lure-s3">
+      <div class="lure-header">
+        <span class="lure-step-label">Screen 03 of 03 — Microsoft Consent Page</span>
+        <button class="lure-close" onclick="closeLure()">✕</button>
+      </div>
+      <div class="lure-img-wrap" id="lure-img3">
+        <!-- populated by initLure() -->
+      </div>
+      <div class="lure-body">
+        <div class="lure-narr">The real Microsoft page. Real branding. The warning reads <strong style="color:var(--text)">"Do not enter codes from sources you don't trust."</strong> The victim ignores it — because every step before this looked completely normal. Consent is granted. Token issued. The attack chain begins.</div>
+        <div class="lure-callout">▶ The warning was there. The victim saw it. They clicked Next anyway.</div>
+      </div>
+      <div class="lure-footer">
+        <div class="lure-dots">
+          <div class="lure-dot"></div>
+          <div class="lure-dot"></div>
+          <div class="lure-dot active"></div>
+        </div>
+        <div class="lure-nav">
+          <button class="btn btn-neutral" onclick="lureNav(2)" style="font-size:11px;padding:5px 14px">← Back</button>
+          <button class="btn btn-atk" onclick="lureComplete()" style="font-size:11px;padding:5px 16px">Consent granted — run Stage 1 ▶</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="presenter-overlay" style="display:none">
+  <div id="pr-card">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div id="pr-stage-label" class="pr-stage-lbl"></div>
+      <button class="btn btn-neutral" style="font-size:9px;padding:3px 8px" onclick="prReset()">↺ Reset</button>
+    </div>
+    <div id="pr-title" class="pr-title-text"></div>
+    <div id="pr-narrative" class="pr-narr"></div>
+    <div id="pr-action-area" class="pr-action-wrap"></div>
+    <div class="pr-metrics-row">
+      <div class="pr-metric-card">
+        <div class="pr-mv" id="pr-m-trust" style="color:var(--green)">100</div>
+        <div class="pr-ml">Trust Score</div>
+      </div>
+      <div class="pr-metric-card">
+        <div class="pr-mv" id="pr-m-risk" style="color:var(--green)">0</div>
+        <div class="pr-ml">Risk Level</div>
+      </div>
+      <div class="pr-metric-card">
+        <div class="pr-mv" id="pr-m-changed" style="color:var(--green)">0</div>
+        <div class="pr-ml">Objects Changed</div>
+      </div>
+    </div>
+    <div class="pr-nav-row">
+      <button class="btn btn-neutral" id="pr-prev-btn" onclick="prNav(-1)" style="min-width:100px">← Previous</button>
+      <span class="pr-pos" id="pr-pos">1 / 6</span>
+      <button class="btn btn-neutral" id="pr-next-btn" onclick="prNav(1)" style="min-width:100px">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────
+// Each object now carries a `baseline` snapshot for Item 02 diff view.
+const BASELINE = {
+  users:[
+    {id:'u1',name:'Ethan Hunt',role:'Global Admin',type:'User',status:'ok',
+      jobTitle:'IT Director',department:'Information Technology',
+      baseline:{status:'ok',role:'Global Admin',jobTitle:'IT Director',department:'Information Technology'}},
+    {id:'u2',name:'Mia Chen',role:'Exchange Admin',type:'User',status:'ok',
+      jobTitle:'Exchange Administrator',department:'Information Technology',
+      baseline:{status:'ok',role:'Exchange Admin',jobTitle:'Exchange Administrator',department:'Information Technology'}},
+    {id:'u3',name:'Raj Patel',role:'User',type:'User',status:'ok',
+      jobTitle:'Retail Manager',department:'Sales',
+      baseline:{status:'ok',role:'User',jobTitle:'Retail Manager',department:'Sales'}}
+  ],
+  apps:[{id:'a1',name:'Veeam Backup Agent',type:'App',status:'ok',
+    baseline:{status:'ok',role:'Approved'}}],
+  ca:[
+    {id:'ca1',name:'Require MFA — All Admins',type:'CA Policy',status:'ok',
+      baseline:{status:'ok',state:'Enabled'}},
+    {id:'ca2',name:'Block Legacy Auth',type:'CA Policy',status:'ok',
+      baseline:{status:'ok',state:'Enabled'}},
+    {id:'ca3',name:'Compliant Device Required',type:'CA Policy',status:'ok',
+      baseline:{status:'ok',state:'Enabled'}}
+  ],
+  files:[
+    {id:'f1',name:'Q1-Strategy.docx',type:'SharePoint',status:'ok',
+      baseline:{status:'ok',integrity:'Verified'}},
+    {id:'f2',name:'Board-Deck-May.pptx',type:'SharePoint',status:'ok',
+      baseline:{status:'ok',integrity:'Verified'}},
+    {id:'f3',name:'HR-Policies.pdf',type:'OneDrive',status:'ok',
+      baseline:{status:'ok',integrity:'Verified'}}
+  ],
+  saas:[
+    {id:'sf1',name:'Contoso Deal — $2.4M',type:'Salesforce',status:'ok',
+      baseline:{status:'ok',record:'Present'}},
+    {id:'sf2',name:'Renewal — Globex Corp',type:'Salesforce',status:'ok',
+      baseline:{status:'ok',record:'Present'}},
+    {id:'av1',name:'Adele Vance — Mailbox',type:'Exchange',status:'ok',
+      baseline:{status:'ok',access:'Owner only'}},
+    {id:'av2',name:'Adele Vance — OneDrive',type:'OneDrive',status:'ok',
+      baseline:{status:'ok',access:'Owner only'}},
+    {id:'wk1',name:'HR Record — E. Hunt',type:'Workday',status:'ok',
+      baseline:{status:'ok',record:'Present'}}
+  ]
+};
+
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+const S = {
+  stage: 0,
+  peakDrift: 0,
+  recDone: [false,false,false,false,false],
+  log: [],
+  _users: deepClone(BASELINE.users),
+  _apps:  deepClone(BASELINE.apps),
+  _sps:   [],
+  _grants:[],
+  _ca:    deepClone(BASELINE.ca),
+  _files: deepClone(BASELINE.files),
+  _saas:  deepClone(BASELINE.saas)
+};
+
+// ── ITEM 01: NODE PROPAGATION SEQUENCING ──────────
+// Each node has a `delay` — fires that many ms after its atStage triggers.
+// The map is re-rendered with class "propagating" first, then "hit" after 500ms.
+const NODES = [
+  {id:'entra',  label:'Entra ID',           cat:'anchor'},
+  {id:'apps',   label:'App Registrations',  cat:'app',    atStage:1, delay:0},
+  {id:'sps',    label:'Service Principals', cat:'app',    atStage:2, delay:0},
+  {id:'mfa',    label:'MFA / Auth',         cat:'policy', atStage:3, delay:0},
+  {id:'ca',     label:'Conditional Access', cat:'policy', atStage:3, delay:250},
+  {id:'users',  label:'Users & Roles',      cat:'iam',    atStage:3, delay:500},
+  {id:'m365',   label:'M365 / SharePoint',  cat:'saas',   atStage:4, delay:0},
+  {id:'sf',     label:'Salesforce',         cat:'saas',   atStage:4, delay:300},
+  {id:'workday',label:'Workday',            cat:'saas',   atStage:4, delay:600}
+];
+
+// Track which nodes are mid-propagation vs fully hit
+const propagating = new Set();
+
+function fireNodePropagation(nodeIds) {
+  // nodeIds is array of {id, delay}
+  nodeIds.forEach(({id, delay}) => {
+    setTimeout(() => {
+      propagating.add(id);
+      renderAllMaps();
+      // After the propagate-in animation (500ms), switch to steady hit state
+      setTimeout(() => {
+        propagating.delete(id);
+        renderAllMaps();
+      }, 500);
+    }, delay);
+  });
+}
+
+function nodeClass(n, mapId) {
+  if(n.cat === 'anchor') return 'anchor';
+  const recOK = S.recDone.every(Boolean);
+  if(!n.atStage || S.stage < n.atStage) return recOK ? 'restored' : '';
+  if(recOK) return 'restored';
+  // partial recovery
+  if(n.cat==='policy' && S.recDone[3]) return 'restored';
+  if(n.cat==='iam'    && S.recDone[2]) return 'restored';
+  if(n.cat==='app'    && S.recDone[1]) return 'restored';
+  if(n.cat==='saas'   && S.recDone[4]) return 'restored';
+  // propagating = mid-animation, hit = steady red pulse
+  if(propagating.has(n.id)) return 'propagating';
+  return 'hit';
+}
+
+const MAP_ROWS = [
+  NODES.slice(0,1),  // anchor row
+  NODES.slice(1,3),  // app row
+  NODES.slice(3,6),  // policy/iam row
+  NODES.slice(6,9)   // saas row
+];
+
+function renderMap(id) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.innerHTML = MAP_ROWS.map(row =>
+    `<div class="map-row">${row.map(n =>
+      `<div class="mnode ${nodeClass(n,id)}" id="mn-${id}-${n.id}">${n.label}</div>`
+    ).join('')}</div>`
+  ).join('');
+}
+
+function renderAllMaps() {
+  renderMap('node-map-main');
+  renderMap('node-map-blast');
+}
+
+// ── ITEM 02: DIFF CARD BUILDER ─────────────────────
+function buildDiffCard(obj, isNew) {
+  const sev = obj.status==='warning' ? 'bd-warning' : 'bd-danger';
+  const id  = 'diff-' + obj.id;
+
+  let beforeCols = '';
+  let afterCols  = '';
+
+  if(isNew) {
+    // Object didn't exist in baseline — show as "new / unauthorized"
+    beforeCols = `<div class="diff-val-before" style="color:var(--text3);font-style:italic">— not present —</div>`;
+    afterCols  = Object.entries({
+      status: obj.status,
+      role: obj.role || obj.meta || 'n/a'
+    }).map(([k,v]) =>
+      `<div class="diff-row"><span class="diff-field">${k}</span><span class="diff-val-after">${v}</span></div>`
+    ).join('');
+  } else {
+    // Object existed — show field-by-field what changed
+    const bl = obj.baseline || {};
+    const fields = {};
+    // gather all keys from both baseline and current
+    [...Object.keys(bl), 'status', 'role', 'state', 'integrity', 'record']
+      .filter((v,i,a) => a.indexOf(v)===i && v !== 'id' && v !== 'name' && v !== 'type' && v !== 'baseline')
+      .forEach(k => {
+        const bv = bl[k];
+        const cv = obj[k];
+        if(bv !== undefined || cv !== undefined) fields[k] = {b: bv||'—', c: cv||'—'};
+      });
+
+    beforeCols = Object.entries(fields).map(([k,{b}]) =>
+      `<div class="diff-row"><span class="diff-field">${k}</span><span class="diff-val-before">${b}</span></div>`
+    ).join('');
+
+    afterCols = Object.entries(fields).map(([k,{b,c}]) => {
+      const changed = b !== c;
+      const cls = changed ? 'diff-val-after' : 'diff-val-before';
+      return `<div class="diff-row"><span class="diff-field">${k}</span><span class="${cls}">${c}</span></div>`;
+    }).join('');
+  }
+
+  return `
+    <div class="diff-card">
+      <div class="diff-header" onclick="toggleDiff('${id}')">
+        <div class="diff-header-left">
+          <span class="badge ${sev}">${obj.status}</span>
+          <div>
+            <div class="diff-type">${obj.type||''}</div>
+            <div class="diff-name">${obj.name}</div>
+          </div>
+        </div>
+        <span class="diff-chevron" id="${id}-chev">▶</span>
+      </div>
+      <div class="diff-body" id="${id}-body">
+        <div class="diff-cols">
+          <div class="diff-col before">
+            <div class="diff-col-label">Baseline (known-good)</div>
+            ${isNew
+              ? `<div style="font-size:10px;color:var(--text3);font-style:italic;padding:4px 0">Object not present in baseline</div>`
+              : beforeCols}
+          </div>
+          <div class="diff-col after">
+            <div class="diff-col-label">${isNew ? 'Current (unauthorized)' : 'Current (drifted)'}</div>
+            ${afterCols}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleDiff(id) {
+  const body = document.getElementById(id+'-body');
+  const chev = document.getElementById(id+'-chev');
+  if(!body) return;
+  const open = body.classList.toggle('open');
+  if(chev) chev.classList.toggle('open', open);
+}
+
+// ── TABS ──────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => goTab(t.dataset.tab));
+});
+function goTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===id));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id==='pane-'+id));
+  refresh();
+}
+
+// ── LOGGING ──────────────────────────────────────
+let evtCount = 0;
+function addLog(sev, msg, obj) {
+  const ts = new Date().toTimeString().slice(0,8);
+  const stLbl = S.stage>=99 ? 'Recovery' : (['Baseline','Stage 1','Stage 2','Stage 3','Stage 4','Recovery'][Math.min(S.stage,5)]||'Recovery');
+  evtCount++;
+  const e = {id:'EVT-'+String(evtCount).padStart(3,'0'), ts, sev, msg, obj:obj||'', stage:stLbl};
+  S.log.unshift(e);
+  refreshConsoles();
+  const le = document.getElementById('last-event');
+  if(le) le.textContent = msg;
+}
+function refreshConsoles() {
+  ['con-main','con-attack','con-rec'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = S.log.slice(0,40).map(e =>
+      `<div class="ll"><span class="lt">${e.ts}</span><span class="ls ls-${e.sev}">[${e.sev.toUpperCase()}]</span><span class="lm">${e.msg}</span></div>`
+    ).join('');
+    el.scrollTop = 0;
+  });
+}
+
+// ── SCORES ──────────────────────────────────────
+function allObj(){ return [...S._users,...S._apps,...S._sps,...S._grants,...S._ca,...S._files,...S._saas]; }
+function changed(){ return allObj().filter(x=>x.status!=='ok').length; }
+function privDrift(){ return S._sps.length + S._grants.length + S._users.filter(x=>x.id==='u-bd').length; }
+function polDrift(){ return S._ca.filter(x=>x.status!=='ok').length; }
+function saasDrift(){ return [...S._files,...S._saas].filter(x=>x.status!=='ok').length; }
+
+function setTxt(id,v){ const el=document.getElementById(id);if(el)el.textContent=v; }
+function setColor(id,c){ const el=document.getElementById(id);if(el)el.style.color=c; }
+
+function updateScores() {
+  const ch=changed(),pr=privDrift(),pl=polDrift(),sa=saasDrift();
+  const total = ch+pr*2+pl*2+sa;
+  const trust = Math.max(0,100-total*7);
+  const risk  = Math.min(100,total*7);
+  const recPct = S.recDone.filter(Boolean).length/5*100;
+
+  const tf=document.getElementById('f-trust');
+  const rf=document.getElementById('f-risk');
+  const recf=document.getElementById('f-rec');
+  if(tf){tf.style.width=trust+'%';tf.style.background=trust>60?'var(--green)':trust>30?'var(--amber)':'var(--red)';}
+  if(rf) rf.style.width=risk+'%';
+  if(recf) recf.style.width=recPct+'%';
+  setTxt('v-trust',Math.round(trust));setTxt('v-risk',Math.round(risk));setTxt('v-rec',Math.round(recPct)+'%');
+
+  const col = n => n>0?'var(--red)':'var(--green)';
+  setTxt('mv-changed',ch);setColor('mv-changed',col(ch));
+  setTxt('mv-priv',pr);setColor('mv-priv',col(pr));
+  setTxt('mv-policy',pl);setColor('mv-policy',pl>0?'var(--amber)':'var(--green)');
+  setTxt('mv-saas',sa);setColor('mv-saas',col(sa));
+  setTxt('bm-drift',ch);
+  setTxt('bm-priv',pr);setColor('bm-priv',col(pr));
+  setTxt('bm-pol',pl);setColor('bm-pol',pl>0?'var(--amber)':'var(--green)');
+  setTxt('bm-saas',sa);setColor('bm-saas',col(sa));
+  setTxt('bm-data',sa);setColor('bm-data',col(sa));
+  setTxt('bm-evid',S.log.length>0?'✓ '+S.log.length:'—');
+
+  const stepsD = S.recDone.filter(Boolean).length;
+  setTxt('rm-steps',stepsD+'/5');
+  const conf = stepsD===0?'—':stepsD===5?'Validated':Math.round(stepsD/5*100)+'%';
+  setTxt('rm-conf',conf);
+  setColor('rm-conf',stepsD===5?'var(--green)':stepsD>0?'var(--amber)':'var(--text3)');
+
+  const badge = document.getElementById('status-badge');
+  if(badge){
+    if(S.stage===0){badge.textContent='Baseline';badge.className='sb-baseline';}
+    else if(S.stage<=4){badge.textContent='Under Attack';badge.className='sb-attack';}
+    else{badge.textContent='Recovered';badge.className='sb-recovered';}
+  }
+}
+
+function renderObjGrid() {
+  const el = document.getElementById('obj-grid-main');
+  if(!el) return;
+  const items = [...S._users.slice(0,3),...S._apps,...S._sps.slice(0,1),...S._ca.slice(0,2)].slice(0,8);
+  el.innerHTML = items.map(o=>`
+    <div class="ocard ${o.status}">
+      <div class="oc-type">${o.type||''}</div>
+      <div class="oc-name">${o.name}</div>
+      <div class="oc-meta">${o.role||o.meta||''}</div>
+      <div style="margin-top:3px"><span class="badge ${o.status==='ok'?'bd-ok':o.status==='warning'?'bd-warning':'bd-danger'}">${o.status==='ok'?'Clean':o.status==='warning'?'Suspicious':'Compromised'}</span></div>
+    </div>`).join('');
+}
+
+const STAGE_DEF = [
+  {num:'01',name:'Consent Granted', descs:['Pending','NovaSync AI authorized']},
+  {num:'02',name:'Persistence',     descs:['Pending','App registered w/ admin rights']},
+  {num:'03',name:'Identity Damaged',descs:['Pending','Admin deleted · CA disabled']},
+  {num:'04',name:'Lateral Movement',descs:['Pending','M365 & Salesforce affected']}
+];
+function renderStageList() {
+  const el = document.getElementById('stage-list');
+  if(!el) return;
+  el.innerHTML = STAGE_DEF.map((s,i)=>{
+    let cls='s-pending';
+    if(S.stage>i+1) cls='s-done';
+    else if(S.stage===i+1) cls='s-active s-crit';
+    return `<div class="stage-item ${cls}"><div class="s-num">Stage ${s.num}</div><div class="s-name">${s.name}</div><div class="s-desc">${S.stage>i?s.descs[1]:s.descs[0]}</div></div>`;
+  }).join('');
+}
+
+const NARRATIVES = [
+  'Tenant is in baseline state. No blast radius to report.',
+  'NovaSync AI has been granted delegated OAuth consent. Auth token captured. Attacker has read access to email, files, and user profile data.',
+  'Malicious service principal registered with application-level admin consent. Persistence established — survives MFA changes and password resets.',
+  'Identity control plane is damaged. Backdoor Global Admin created. Legitimate admin deleted. Conditional Access disabled. MFA posture weakened.',
+  'Full lateral movement achieved. M365 files corrupted. Salesforce opportunity deleted. All SSO-trusted workloads now accessible to attacker.'
+];
+
+function renderBlast() {
+  const el = document.getElementById('blast-objs');
+  const narr = document.getElementById('blast-narr');
+  if(!el) return;
+
+  // ITEM 02: build diff cards instead of plain status badges
+  const drifted = [...S._users,...S._apps,...S._sps,...S._ca,...S._files,...S._saas]
+    .filter(x=>x.status!=='ok');
+  const newObjs = [...S._sps,...S._grants]; // objects with no baseline
+
+  if(drifted.length===0 && newObjs.length===0){
+    el.innerHTML='<span style="font-size:11px;color:var(--text3)">No drift — tenant matches baseline</span>';
+  } else {
+    const cards = drifted.map(o => buildDiffCard(o, !o.baseline));
+    el.innerHTML = cards.join('');
+  }
+
+  if(narr) narr.textContent = NARRATIVES[Math.min(S.stage,4)];
+}
+
+const REC_DEF = [
+  {num:'01',name:'Preserve Evidence',         desc:'Freeze audit log · export changed-object diff · generate evidence package'},
+  {num:'02',name:'Remove Unauthorized Access', desc:'Remove NovaSync AI · revoke OAuth grants · remove app role assignments'},
+  {num:'03',name:'Restore Identity State',     desc:'Re-enable legitimate admin · disable backdoor · restore role assignments'},
+  {num:'04',name:'Restore Policy State',       desc:'Re-enable CA policies · restore from known-good baseline · validate count'},
+  {num:'05',name:'Restore SaaS / M365 Data',   desc:'Restore M365 files from clean backup · restore Salesforce records from baseline'}
+];
+function renderRecSteps() {
+  const el = document.getElementById('rec-steps');
+  if(!el) return;
+  const cur = S.recDone.indexOf(false);
+  el.innerHTML = REC_DEF.map((s,i)=>{
+    const cls = S.recDone[i]?'rec-step done':i===cur&&S.stage>0?'rec-step active':'rec-step';
+    const badge = S.recDone[i]
+      ? '<span class="badge bd-ok">✓ Validated</span>'
+      : '<span class="badge bd-neutral">Pending</span>';
+    const btn = S.recDone[i]?'':
+      `<button class="btn btn-rec" style="margin-top:6px;font-size:10px;padding:4px 10px" onclick="runRecStep(${i})" ${S.stage===0?'disabled':''}>▶ Execute Step ${s.num}</button>`;
+    return `<div class="${cls}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div class="rs-num">Step ${s.num}</div><div class="rs-name">${s.name}</div></div>
+        ${badge}
+      </div>
+      <div class="rs-desc">${s.desc}</div>${btn}</div>`;
+  }).join('');
+  const frbtn = document.getElementById('btn-full-rec');
+  if(frbtn) frbtn.disabled = (S.stage===0||S.recDone.every(Boolean));
+}
+
+function renderEvidence() {
+  const el = document.getElementById('ev-list');
+  if(!el) return;
+  if(S.log.length===0){
+    el.innerHTML='<div style="font-size:11px;color:var(--text3);padding:10px">No audit events recorded. Run the attack simulation to generate evidence.</div>';
+    return;
+  }
+  el.innerHTML = S.log.map(e=>`
+    <div class="ev-item">
+      <div class="ev-hdr">
+        <span class="badge ${e.sev==='ok'?'bd-ok':e.sev==='info'?'bd-info':e.sev==='warn'?'bd-warning':'bd-danger'}">${e.stage}</span>
+        <span class="ev-ts">${e.id} · ${e.ts}</span>
+      </div>
+      <div class="ev-body">${e.msg}</div>
+      ${e.obj?`<div class="ev-obj">${e.obj}</div>`:''}`
+  ).join('');
+}
+
+function refresh() {
+  updateScores();
+  renderAllMaps();
+  renderObjGrid();
+  renderStageList();
+  renderBlast();
+  renderRecSteps();
+  renderEvidence();
+}
+
+// ── ATTACK STAGES ──────────────────────────────
+function runStage(n) {
+  S.stage = n;
+
+  if(n===1){
+    S._apps.push({id:'a-ns',name:'NovaSync AI',type:'App',status:'danger',role:'Unauthorized · Mail.Read'});
+    S._grants.push({id:'g-ns',name:'NovaSync AI OAuth Grant',type:'Grant',status:'danger',role:'Delegated · ethan.hunt@contoso'});
+    addLog('crit','[SIM] OAuth consent granted to NovaSync AI — delegated read access acquired','OAuthGrant:a912-7f3c · scope=Mail.Read,Files.Read.All');
+    addLog('warn','[SIM] App registration detected: NovaSync AI · AppId 7f3c-a912 · publisher nosync.ai','AppRegistration:a-ns');
+    // ITEM 01: fire propagation for stage 1 nodes
+    fireNodePropagation([{id:'apps', delay:0}]);
+    document.getElementById('btn-s2').disabled = false;
+
+  } else if(n===2){
+    S._sps.push({id:'sp-ns',name:'NovaSync AI (Service Principal)',type:'SP',status:'danger',role:'Directory.ReadWrite.All'});
+    addLog('crit','[SIM] Persistence established — service principal registered with application-level admin consent','ServicePrincipal:sp-ns · Directory.ReadWrite.All');
+    addLog('crit','[SIM] App credential secret added — persists beyond MFA/password resets','AppCredential:sp-ns · expiry=2027-05-22');
+    fireNodePropagation([{id:'sps', delay:0}]);
+    document.getElementById('btn-s3').disabled = false;
+
+  } else if(n===3){
+    S._users.push({id:'u-bd',name:'humphrey.dumpty',type:'User',status:'danger',role:'Global Admin · backdoor'});
+    S._users[0].status='danger'; S._users[0].role='Global Admin · DELETED';
+    S._ca[0].status='danger';
+    addLog('crit','[SIM] Backdoor admin created: humphrey.dumpty@M365x43598413.onmicrosoft.com','User:u-bd · role=GlobalAdministrator');
+    addLog('crit','[SIM] Legitimate Global Admin Ethan Hunt — account DELETED','User:u1 · objectId=61f533dd-0936');
+    addLog('crit','[SIM] CA Policy disabled: Require MFA — All Admins','CAPPolicy:ca1 · state=disabled');
+    addLog('warn','[SIM] MFA removed from privileged accounts — strong-auth posture weakened','AuthMethod:mfa');
+    // Property-level modification — Raj Patel job title and department corrupted
+    const u3 = S._users.find(x=>x.id==='u3');
+    if(u3){
+      u3.status='warning';
+      u3.jobTitle='Hostile Takeover Division';
+      u3.department='External Operations';
+      u3.role='User · properties modified';
+    }
+    addLog('warn','[SIM] User properties modified: Raj Patel — department set to Hostile Takeover Division','User:u3 · jobTitle,department → CORRUPTED');
+    // ITEM 01: propagation ripples outward — mfa fires first, then ca, then users
+    fireNodePropagation([{id:'mfa',delay:0},{id:'ca',delay:350},{id:'users',delay:700}]);
+    document.getElementById('btn-s4').disabled = false;
+
+  } else if(n===4){
+    S._files[0].status='danger'; S._files[1].status='danger';
+    S._saas[0].status='danger';  S._saas[2].status='warning';
+    // Cross-user lateral movement — Adele Vance mailbox and OneDrive
+    const av1 = S._saas.find(x=>x.id==='av1');
+    const av2 = S._saas.find(x=>x.id==='av2');
+    if(av1){av1.status='danger';av1.role='Accessed via app token · 3 emails deleted';}
+    if(av2){av2.status='danger';av2.role='Accessed via app token · 2 files deleted';}
+    addLog('crit','[SIM] SharePoint file CORRUPTED via delegated app access: Q1-Strategy.docx','File:f1 · site=contoso-sharepoint');
+    addLog('crit','[SIM] Salesforce opportunity DELETED: Contoso Deal — $2.4M','SFRecord:sf1 · Id=006Dn000004wXaZ');
+    addLog('crit','[SIM] Cross-user pivot — Adele Vance mailbox accessed via app token','User:u2 · mailbox=adele.vance@contoso · 3 emails deleted');
+    addLog('crit','[SIM] Adele Vance OneDrive accessed — 2 files deleted via app token','User:u2 · OneDrive=adele.vance@contoso · files=2');
+    addLog('warn','[SIM] Lateral SSO movement confirmed — Workday HR record accessed','Record:wk1 · app=Workday-SAML');
+    addLog('info','[SIM] Full blast radius established — 4 attack stages complete','TenantId:contoso-identity-lab');
+    S.peakDrift = changed();
+    fireNodePropagation([{id:'m365',delay:0},{id:'sf',delay:400},{id:'workday',delay:800}]);
+  }
+
+  refresh();
+}
+
+// ── RECOVERY ──────────────────────────────────
+function runRecStep(i) {
+  if(S.stage===0) return;
+  S.recDone[i] = true;
+  const d = new Date().toTimeString().slice(0,8);
+  if(i===0){
+    const chgd = allObj().filter(x=>x.status!=='ok').length;
+    addLog('ok','[REC] Evidence frozen — audit log exported ('+S.log.length+' events)','AuditExport:audit-'+d+'.json');
+    addLog('ok','[REC] Changed-object diff generated — '+chgd+' objects in scope','DiffExport:changed-objects-'+d+'.json');
+  } else if(i===1){
+    S._sps=[]; S._grants=[];
+    S._apps=S._apps.filter(x=>x.id!=='a-ns');
+    addLog('ok','[REC] NovaSync AI service principal removed — app role assignments cleared','ServicePrincipal:sp-ns → REMOVED');
+    addLog('ok','[REC] OAuth grants revoked — delegated access cleared for all affected users','OAuthGrant:g-ns → REVOKED');
+  } else if(i===2){
+    S._users=S._users.filter(x=>x.id!=='u-bd');
+    S._users[0].status='ok'; S._users[0].role='Global Admin';
+    // Granular property-level restore — Raj Patel job title and department only
+    const u3r = S._users.find(x=>x.id==='u3');
+    if(u3r && u3r.baseline){
+      u3r.status='ok';
+      u3r.jobTitle = u3r.baseline.jobTitle;
+      u3r.department = u3r.baseline.department;
+      u3r.role = u3r.baseline.role;
+    }
+    addLog('ok','[REC] Backdoor admin humphrey.dumpty disabled and removed from directory','User:u-bd → REMOVED');
+    addLog('ok','[REC] Ethan Hunt — Global Admin role assignment restored from baseline','User:u1 · role=GlobalAdministrator → RESTORED');
+    addLog('ok','[REC] Raj Patel — granular property restore: jobTitle + department only, user object unchanged','User:u3 · jobTitle=Retail Manager · department=Sales → RESTORED');
+  } else if(i===3){
+    S._ca.forEach(p=>p.status='ok');
+    addLog('ok','[REC] CA Policy re-enabled: Require MFA — All Admins','CAPPolicy:ca1 · state=enabled');
+    addLog('ok','[REC] All 3 CA policies validated against baseline — match confirmed','CAPolicies:3/3 → VALIDATED');
+  } else if(i===4){
+    S._files.forEach(f=>f.status='ok');
+    S._saas.forEach(r=>{
+      r.status='ok';
+      if(r.role && r.role.includes('Accessed via app token')) r.role=undefined;
+    });
+    addLog('ok','[REC] M365 files restored from clean backup — hash validated','Files:f1,f2,f3 → RESTORED');
+    addLog('ok','[REC] Adele Vance mailbox restored — 3 deleted emails recovered from backup','User:u2 · mailbox → RESTORED');
+    addLog('ok','[REC] Adele Vance OneDrive restored — 2 deleted files recovered from backup','User:u2 · OneDrive → RESTORED');
+    addLog('ok','[REC] Salesforce records restored from baseline JSON — 3 records verified','SFRecords:sf1,sf2,wk1 → RESTORED');
+    addLog('ok','[REC] Recovery complete — tenant validated against known-good state','Validation:PASSED · drift=0');
+    S.stage=99;
+  }
+  refresh();
+}
+
+let recRunning = false;
+function runFullRecovery() {
+  if(recRunning) return;
+  recRunning = true;
+  let delay = 0;
+  for(let i=0;i<5;i++){
+    if(!S.recDone[i]){
+      const idx=i;
+      setTimeout(()=>{ runRecStep(idx); if(idx===4) recRunning=false; }, delay);
+      delay+=700;
+    }
+  }
+}
+
+function resetAll() {
+  S.stage=0; S.peakDrift=0; S.recDone=[false,false,false,false,false]; S.log=[]; evtCount=0; recRunning=false;
+  propagating.clear();
+  S._users = deepClone(BASELINE.users);
+  S._apps  = deepClone(BASELINE.apps);
+  S._sps=[]; S._grants=[];
+  S._ca    = deepClone(BASELINE.ca);
+  S._files = deepClone(BASELINE.files);
+  S._saas  = deepClone(BASELINE.saas);
+  [1,2,3,4].forEach(n=>{ const b=document.getElementById('btn-s'+n); if(b) b.disabled=(n>1); });
+  refreshConsoles();
+  refresh();
+}
+
+// ── EXPORTS ──────────────────────────────────────
+function exportAuditJSON() {
+  dl('identity-audit-log.json', JSON.stringify({exportedAt:new Date().toISOString(),tenant:'Contoso Identity Lab',mode:'simulated',events:[...S.log].reverse()},null,2),'application/json');
+}
+function exportAuditCSV() {
+  const rows=[['ID','Timestamp','Severity','Stage','Message','Object']];
+  [...S.log].reverse().forEach(e=>rows.push([e.id,e.ts,e.sev,e.stage,'"'+e.msg+'"','"'+(e.obj||'')+'"']));
+  dl('identity-audit-log.csv',rows.map(r=>r.join(',')).join('\n'),'text/csv');
+}
+function exportReport() {
+  const rec=S.recDone.filter(Boolean).length;
+  const peak=S.peakDrift||changed();
+  const md=`# Identity Attack & Recovery Report
+Generated: ${new Date().toISOString()}
+Tenant: Contoso Identity Lab (Simulated)
+
+## Attack Summary
+- Stages executed: ${Math.min(S.stage===99?4:S.stage,4)}/4
+- Objects changed at peak: ${peak}
+- Audit events: ${S.log.length}
+
+## Recovery Progress
+- Steps completed: ${rec}/5
+- Confidence: ${rec===5?'Validated':rec>0?Math.round(rec/5*100)+'%':'—'}
+
+## Attack Timeline
+${[...S.log].reverse().filter(e=>e.sev==='crit'||e.sev==='warn').map(e=>`- [${e.ts}] [${e.stage}] ${e.msg}`).join('\n')||'No attack events recorded.'}
+
+## Recovery Actions
+${[...S.log].reverse().filter(e=>e.sev==='ok').map(e=>`- [${e.ts}] ${e.msg}`).join('\n')||'No recovery actions recorded.'}
+
+---
+SIMULATED — No real tenant was modified. All objects are static demo data.`;
+  dl('recovery-report.md',md,'text/markdown');
+}
+function dl(name,content,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name; a.click();
+}
+
+// ── INIT ──────────────────────────────────────
+addLog('info','Baseline captured — known-good state active','Tenant:Contoso Identity Lab · mode=simulated');
+addLog('info','3 users · 1 app · 3 CA policies · 3 M365 files · 3 SaaS records inventoried','Snapshot:known-good-state.json');
+refresh();
+
+// ── PRESENTER MODE ──────────────────────────────────────────────────────────
+var PR_STAGES = [
+  {
+    num:'00', name:'Known-Good Baseline', type:'map',
+    narr:'This is the known-good state — a snapshot of what the tenant looks like before anything goes wrong. Three users, known roles, three Conditional Access policies enforcing MFA and device compliance, and one approved application. This is the baseline we will recover to.'
+  },
+  {
+    num:'01', name:'Consent Granted', type:'atk', atkN:1,
+    label:'▶ Run Stage 1 — Consent Granted', btnCls:'btn-atk',
+    locked:function(){ return S.stage >= 1; },
+    narr:'A user at Contoso authorizes NovaSync AI via a fake OAuth consent page. Token issued. Delegated read access granted to email, files, and user profile data. No malware. No suspicious domain. Just a legitimate-looking OAuth flow.'
+  },
+  {
+    num:'02', name:'Persistence Established', type:'atk', atkN:2,
+    label:'▶ Run Stage 2 — Persistence Established', btnCls:'btn-atk',
+    locked:function(){ return S.stage < 1 || S.stage >= 2; },
+    narr:'The malicious app registers itself with application-level admin consent. App-role grants survive password resets and MFA changes. A credential secret is added that persists beyond any account remediation — password resets and MFA enforcement will not remove this access.'
+  },
+  {
+    num:'03', name:'Identity Control Plane Damaged', type:'atk', atkN:3,
+    label:'▶ Run Stage 3 — Identity Damaged', btnCls:'btn-atk',
+    locked:function(){ return S.stage < 2 || S.stage >= 3; },
+    narr:'Backdoor Global Admin created. Legitimate admin deleted. Conditional Access policy requiring MFA for admins disabled. MFA stripped from privileged accounts. The attacker now owns the identity control plane — SSO works against you at this point.'
+  },
+  {
+    num:'04', name:'Lateral SaaS Movement', type:'atk', atkN:4,
+    label:'▶ Run Stage 4 — Lateral Movement', btnCls:'btn-atk',
+    locked:function(){ return S.stage < 3 || S.stage >= 4; },
+    narr:'SSO-trusting workloads are accessed via hijacked identity. M365 files corrupted. Salesforce opportunity deleted. The blast radius expands across all connected workloads — not by attacking them directly, but through the trusted identity layer.'
+  },
+  {
+    num:'05', name:'Recovery', type:'rec',
+    label:'▶ Run All Recovery Steps', btnCls:'btn-rec',
+    locked:function(){ return S.stage === 0 || S.recDone.every(Boolean); },
+    narr:'Recovery starts by preserving evidence. Then: remove unauthorized access, restore identity state, restore policy state, restore SaaS data, and validate the control plane against the known-good baseline. Recovery must restore more than files — it must restore trust, authorization state, and forensic continuity.'
+  }
+];
+
+var prActive = false, prSlide = 0, prPollTimer = null;
+
+function togglePresenter() {
+  prActive = !prActive;
+  var ov  = document.getElementById('presenter-overlay');
+  var btn = document.getElementById('btn-present');
+  if (prActive) {
+    prSlide = 0;
+    ov.style.display = 'flex';
+    btn.textContent  = '✕ Exit';
+    renderPresenterCard();
+  } else {
+    ov.style.display = 'none';
+    btn.textContent  = '⊞ Present';
+    if (prPollTimer) { clearInterval(prPollTimer); prPollTimer = null; }
+    goTab('overview');
+  }
+}
+
+function prNav(dir) {
+  prSlide = Math.max(0, Math.min(PR_STAGES.length - 1, prSlide + dir));
+  renderPresenterCard();
+}
+
+function prReset() {
+  resetAll();
+  togglePresenter();
+}
+
+function prRunAtk(n) {
+  runStage(n);
+  renderPresenterCard();
+}
+
+function prRunRec() {
+  runFullRecovery();
+  if (prPollTimer) clearInterval(prPollTimer);
+  prPollTimer = setInterval(function() {
+    updatePresenterMetrics();
+    var act = document.getElementById('pr-action-area');
+    if (act) { var b = act.querySelector('button'); if (b) b.disabled = PR_STAGES[5].locked(); }
+    if (S.recDone.every(Boolean)) {
+      clearInterval(prPollTimer); prPollTimer = null;
+      renderPresenterCard();
+    }
+  }, 350);
+  setTimeout(function() { if (prPollTimer) { clearInterval(prPollTimer); prPollTimer = null; } }, 6000);
+}
+
+function updatePresenterMetrics() {
+  var ch    = changed();
+  var total = ch + privDrift() * 2 + polDrift() * 2 + saasDrift();
+  var trust = Math.max(0,   100 - total * 7);
+  var risk  = Math.min(100, total * 7);
+  var te = document.getElementById('pr-m-trust');
+  var re = document.getElementById('pr-m-risk');
+  var ce = document.getElementById('pr-m-changed');
+  if (te) { te.textContent = Math.round(trust);  te.style.color = trust  > 60 ? 'var(--green)' : trust  > 30 ? 'var(--amber)' : 'var(--red)'; }
+  if (re) { re.textContent = Math.round(risk);   re.style.color = risk   < 30 ? 'var(--green)' : risk   < 60 ? 'var(--amber)' : 'var(--red)'; }
+  if (ce) { ce.textContent = ch;                 ce.style.color = ch === 0     ? 'var(--green)' : 'var(--red)'; }
+}
+
+function renderPresenterCard() {
+  var s    = PR_STAGES[prSlide];
+  var lbl  = document.getElementById('pr-stage-label');
+  var ttl  = document.getElementById('pr-title');
+  var narr = document.getElementById('pr-narrative');
+  var act  = document.getElementById('pr-action-area');
+  var prev = document.getElementById('pr-prev-btn');
+  var next = document.getElementById('pr-next-btn');
+  var pos  = document.getElementById('pr-pos');
+  if (lbl)  lbl.textContent  = 'STAGE ' + s.num + ' OF 05';
+  if (ttl)  ttl.textContent  = s.name;
+  if (narr) narr.textContent = s.narr;
+  if (act) {
+    if (s.type === 'map') {
+      act.innerHTML = '<div class="node-map" id="pr-map-inner"></div>';
+      renderMap('pr-map-inner');
+    } else {
+      var locked = s.locked();
+      act.innerHTML = '<button class="btn ' + s.btnCls + '" '
+        + 'style="width:100%;padding:10px 0;font-size:13px" '
+        + 'onclick="' + (s.type === 'rec' ? 'prRunRec()' : 'prRunAtk(' + s.atkN + ')') + '" '
+        + (locked ? 'disabled' : '') + '>'
+        + s.label + '</button>';
+    }
+  }
+  updatePresenterMetrics();
+  if (prev) prev.disabled = prSlide === 0;
+  if (next) next.disabled = prSlide === PR_STAGES.length - 1;
+  if (pos)  pos.textContent = (prSlide + 1) + ' / ' + PR_STAGES.length;
+}
+
+document.addEventListener('keydown', function(e) {
+  if (!prActive) return;
+  if      (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); prNav(1);  }
+  else if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); prNav(-1); }
+  else if (e.key === 'Escape')                               { e.preventDefault(); togglePresenter(); }
+});
+
+// ── LURE FLOW ──────────────────────────────────────────────────────────────
+// Config values — update simulator-config.json to change these
+var LURE_CFG = {
+  screen1: 'assets/screenshots/screen1-lure-page.png',
+  screen2: 'assets/screenshots/screen2-lure-page.png',
+  screen3: 'assets/screenshots/screen3-lure-page.png'
+};
+
+var lureScreen = 1;
+
+function lureImgHTML(src, altLabel, fileName) {
+  if (src) {
+    return '<img src="' + src + '" alt="' + altLabel + '" '
+      + 'onerror="this.parentNode.innerHTML=lurePH(\'' + fileName + '\',\'' + altLabel + '\')">';
+  }
+  return lurePH(fileName, altLabel);
+}
+
+function lurePH(fileName, label) {
+  return '<div class="lure-placeholder">'
+    + '<div class="lure-ph-icon">🖼</div>'
+    + '<div class="lure-ph-label">' + label + '</div>'
+    + '<div class="lure-ph-file">' + fileName + '</div>'
+    + '</div>';
+}
+
+function initLure() {
+  var i1 = document.getElementById('lure-img1');
+  var i2 = document.getElementById('lure-img2');
+  var i3 = document.getElementById('lure-img3');
+  if (i1) i1.innerHTML = lureImgHTML(LURE_CFG.screen1, 'Nano-Cents AI lure page', 'screen1-lure-page.png');
+  if (i2) i2.innerHTML = lureImgHTML(LURE_CFG.screen2, 'Device code page', 'screen2-lure-page.png');
+  if (i3) i3.innerHTML = lureImgHTML(LURE_CFG.screen3, 'Microsoft consent page', 'screen3-lure-page.png');
+}
+
+function openLure() {
+  if (S.stage >= 1) { runStage(1); return; } // already past stage 1 — skip lure
+  lureScreen = 1;
+  lureShowScreen(1);
+  var ov = document.getElementById('lure-overlay');
+  if (ov) ov.classList.add('active');
+}
+
+function closeLure() {
+  var ov = document.getElementById('lure-overlay');
+  if (ov) ov.classList.remove('active');
+}
+
+function lureNav(n) {
+  lureScreen = n;
+  lureShowScreen(n);
+}
+
+function lureShowScreen(n) {
+  [1,2,3].forEach(function(i) {
+    var s = document.getElementById('lure-s' + i);
+    if (s) s.classList.toggle('active', i === n);
+  });
+}
+
+function lureComplete() {
+  closeLure();
+  runStage(1);
+}
+
+// Init lure images on page load
+initLure();
+</script>
+</body>
+</html>
