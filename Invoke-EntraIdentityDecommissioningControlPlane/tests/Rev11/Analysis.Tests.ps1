@@ -165,4 +165,39 @@ Describe 'Rev1.1 Analysis Tests' {
             $summary.Critical | Should -Be 0
         }
     }
+
+    Context 'Rev1.3 severity mapping for new finding IDs' {
+        It 'DEC-APP-002 RiskScore 88 maps to Critical severity' {
+            $finding = New-DecomFinding `
+                -FindingId 'DEC-APP-002' -Category 'Application' -Severity 'Critical' -RiskScore 88 `
+                -Confidence 'High' -ObjectType 'Application' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'Test App' -UserPrincipalName '' `
+                -Evidence 'Owned by disabled user' -EvidenceSource 'test' `
+                -RecommendedAction 'Assign owner' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].Severity | Should -Be 'Critical'
+        }
+
+        It 'DEC-APP-005 RiskScore 68 maps to High severity' {
+            $finding = New-DecomFinding `
+                -FindingId 'DEC-APP-005' -Category 'Application' -Severity 'High' -RiskScore 68 `
+                -Confidence 'High' -ObjectType 'Application' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'Legacy App' -UserPrincipalName '' `
+                -Evidence 'Expired credential attached' -EvidenceSource 'test' `
+                -RecommendedAction 'Remove credential' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].Severity | Should -Be 'High'
+        }
+
+        It 'DEC-USER-002 RiskScore 72 maps to High severity' {
+            $finding = New-DecomFinding `
+                -FindingId 'DEC-USER-002' -Category 'User Lifecycle' -Severity 'High' -RiskScore 72 `
+                -Confidence 'High' -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'Morgan Chen' -UserPrincipalName 'morgan.chen@contoso.com' `
+                -Evidence 'Retains 3 app role assignments' -EvidenceSource 'test' `
+                -RecommendedAction 'Revoke assignments' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].Severity | Should -Be 'High'
+        }
+    }
 }

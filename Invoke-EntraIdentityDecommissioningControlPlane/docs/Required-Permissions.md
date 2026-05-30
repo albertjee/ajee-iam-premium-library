@@ -6,7 +6,9 @@
 |---|---|---|---|
 | `User.Read.All` | Delegated | Read user lifecycle state | User discovery |
 | `Directory.Read.All` | Delegated | Read directory objects | Groups, roles, directory relationships |
-| `Application.Read.All` | Delegated | Read app registrations and service principals | App ownership drift |
+| `Application.Read.All` | Delegated | Read app registrations, owners, and credentials | App ownership drift, credential expiry |
+| `ServicePrincipalEndpoint.Read.All` | Delegated | Read service principal owners | DEC-SPN-001 |
+| `AppRoleAssignment.ReadWrite.All` | Delegated | Read user app role assignments | DEC-USER-002 |
 | `AuditLog.Read.All` | Delegated | Read sign-in and audit signals | Stale identity assessment |
 | `RoleManagement.Read.Directory` | Delegated | Read privileged role assignments | Privileged access residue |
 | `EntitlementManagement.Read.All` | Delegated | Read access packages | IGA coverage |

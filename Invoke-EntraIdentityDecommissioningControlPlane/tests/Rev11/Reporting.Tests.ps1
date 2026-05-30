@@ -169,4 +169,62 @@ Describe 'Rev1.1 Reporting Tests' {
             $content | Should -Match 'MED-001'
         }
     }
+
+    Context 'Rev1.3 new findings in reporting' {
+        It 'Remediation plan includes DEC-APP-002 Critical finding in Immediate Actions' {
+            $findings = @(
+                New-DecomFinding -FindingId 'DEC-APP-002' -Category 'Application' `
+                    -Severity 'Critical' -RiskScore 88 -Confidence 'High' `
+                    -ObjectType 'Application' -ObjectId ([guid]::NewGuid().Guid) `
+                    -DisplayName 'HR Integration Service' -UserPrincipalName '' `
+                    -Evidence 'Owned by disabled user' -EvidenceSource 'test' `
+                    -RecommendedAction 'Assign active owner' -RemediationMode 'ManualApprovalRequired'
+            )
+            $path = Join-Path $TestDrive 'plan-app002.md'
+            $ctx  = [PSCustomObject]@{ Mode='Assessment'; TenantId='test'; EngagementId=''; ClientName=''; Assessor='' }
+            Export-DecomRemediationPlan -Findings $findings -Path $path -Context $ctx
+            $content = Get-Content $path -Raw
+            $content | Should -Match 'DEC-APP-002'
+            $content | Should -Match 'Immediate Actions'
+        }
+
+        It 'CSV export includes all Rev1.3 finding IDs from synthetic dataset' {
+            Import-Module .\src\modules\Discovery.psm1 -Force -DisableNameChecking
+            Import-Module .\src\modules\Utilities.psm1 -Force -DisableNameChecking
+            $findings = @(Get-DecomSyntheticFindings)
+            $path = Join-Path $TestDrive 'rev13-findings.csv'
+            Export-DecomAssessmentCsv -Findings $findings -Path $path
+            $csv = Import-Csv $path
+            $csv.FindingId | Should -Contain 'DEC-APP-003'
+            $csv.FindingId | Should -Contain 'DEC-APP-004'
+            $csv.FindingId | Should -Contain 'DEC-APP-005'
+            $csv.FindingId | Should -Contain 'DEC-SPN-001'
+            $csv.FindingId | Should -Contain 'DEC-USER-002'
+        }
+
+        It 'HTML report renders without error for Rev1.3 synthetic findings' {
+            Import-Module .\src\modules\Discovery.psm1 -Force -DisableNameChecking
+            Import-Module .\src\modules\Utilities.psm1 -Force -DisableNameChecking
+            $findings = @(Get-DecomSyntheticFindings)
+            $path = Join-Path $TestDrive 'rev13-report.html'
+            $ctx  = [PSCustomObject]@{
+                Mode='Assessment'; TenantId='contoso.onmicrosoft.com'
+                EngagementId='TEST-013'; ClientName='Contoso'; Assessor='Albert Jee'
+                DemoMode=$true; Coverage=@{}
+            }
+            { Export-DecomAssessmentHtml -Findings $findings -Path $path -Context $ctx } | Should -Not -Throw
+            Test-Path $path | Should -Be $true
+        }
+
+        It 'Get-DecomFindingSummary returns correct counts for Rev1.3 synthetic dataset' {
+            Import-ModULE .\src\modules\Discovery.psm1 -Force -DisableNameChecking
+            Import-Module .\src\modules\Utilities.psm1 -Force -DisableNameChecking
+            Import-Module .\src\modules\Analysis.psm1   -Force -DisableNameChecking
+            $findings = @(Invoke-DecomAnalysis -Findings @(Get-DecomSyntheticFindings))
+            $summary  = Get-DecomFindingSummary -Findings $findings
+            $summary.Critical | Should -BeGreaterOrEqual 2
+            $summary.High     | Should -BeGreaterOrEqual 4
+            $summary.Total    | Should -BeGreaterOrEqual 13
+        }
+    }
 }

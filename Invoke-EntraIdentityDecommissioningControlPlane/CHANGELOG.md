@@ -1,5 +1,28 @@
 # Changelog
 
+## Rev1.3 — Application Ownership Drift Detection (2026-05-30)
+
+### Added (Live Detectors)
+- DEC-APP-002: Application owned exclusively by disabled user (Critical, RiskScore 88)
+- DEC-APP-003: Application has only one owner — fragile ownership (Medium, RiskScore 45)
+- DEC-APP-004: Application secret or certificate expiring within 90 days (Medium, RiskScore 48)
+- DEC-APP-005: Application has expired credential still attached (High, RiskScore 68)
+- DEC-SPN-001: Service principal has no owner assigned (Medium, RiskScore 44)
+- DEC-USER-002: Disabled user retains app role assignments (High, RiskScore 72)
+
+### Updated
+- Synthetic dataset expanded to 14 findings (2C/4H/5M/1L/1I)
+- Findings-Catalog.md updated with correct severities and DEC-SPN-001 entry
+- Required-Permissions.md updated with AppRoleAssignment.ReadWrite.All
+
+### Tests
+- Added 7 new Pester tests: severity validation for new finding IDs,
+  remediation plan inclusion, CSV Rev1.3 finding IDs, HTML rendering,
+  summary counts for expanded dataset
+- Total: ≥ 35 tests, 0 failures
+
+---
+
 ## Rev1.2 — Consultant Readiness Hardening Patch (2026-05-30)
 
 ### Fixed (P1)

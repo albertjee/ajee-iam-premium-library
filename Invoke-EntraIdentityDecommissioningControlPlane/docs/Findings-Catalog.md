@@ -7,11 +7,12 @@
 | DEC-USER-001 | User Lifecycle | Disabled user retains group memberships | Medium |
 | DEC-USER-002 | User Lifecycle | Disabled user retains app assignments | High |
 | DEC-USER-003 | User Lifecycle | Disabled user has privileged access | Critical |
-| DEC-APP-001 | Application | Application has no owner | High |
+| DEC-APP-001 | Application | Application has no owner | Medium |
 | DEC-APP-002 | Application | Application owned by disabled user | Critical |
 | DEC-APP-003 | Application | Application has single owner | Medium |
 | DEC-APP-004 | Application | Application secret expires soon | Medium |
-| DEC-APP-005 | Application | Application has stale credential | High |
+| DEC-APP-005 | Application | Application has expired credential attached | High |
+| DEC-SPN-001 | Application | Service principal has no owner | Medium |
 | DEC-GUEST-001 | Guest Lifecycle | Guest has stale sign-in | Medium |
 | DEC-GUEST-002 | Guest Lifecycle | Guest has privileged access | Critical |
 | DEC-GUEST-003 | Guest Lifecycle | Guest lacks sponsor metadata | Medium |
