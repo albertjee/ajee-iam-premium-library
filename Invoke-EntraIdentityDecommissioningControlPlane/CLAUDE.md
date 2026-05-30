@@ -86,7 +86,7 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 **Project name:** Entra Identity Decommissioning Control Plane — Rev1.1 Consultant Readiness  
 **Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`  
 **Primary language:** PowerShell 5.1+  
-**Current revision:** Rev1.1  
+**Current revision:** Rev1.2  
 **Push policy:** Albert pushes manually
 
 ---
@@ -157,7 +157,7 @@ CHANGELOG.md                                          ← APPEND Rev1.1 entry on
 ## 9. Canonical Test Count
 
 - **Baseline before Rev1.1:** 0 Rev1.1 tests (existing Pester suites are frozen and untouched)
-- **Rev1.1 target:** ≥ 15 tests across Safety, Analysis, and Reporting suites
+- **Rev1.2 target:** 28 tests across Safety, Analysis, and Reporting suites
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\Rev11\ -Output Detailed
@@ -172,7 +172,7 @@ CHANGELOG.md                                          ← APPEND Rev1.1 entry on
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 15 Rev1.1 tests passing |
+| Tests | 0 failures, 28 tests passing |
 | Git | Only Rev1.1 new files in diff — frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 4 outputs, HTML opens in browser |
 
