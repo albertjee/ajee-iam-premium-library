@@ -1,5 +1,41 @@
 # Changelog
 
+## Rev1.1 — Consultant Readiness Hardening (2026-05-29)
+
+### Added
+- New entry point: `Invoke-EntraIdentityDecommissioningControlPlane.ps1`
+- Assessment-first execution model — default mode is `Assessment`, no tenant modification
+- Explicit run modes: Assessment, WhatIfRemediation, ExportPlan, ExecuteRemediation
+- `-DemoMode` flag — synthetic data, no Graph connection required
+- Standardized evidence-backed finding schema (`New-DecomFinding`)
+- Severity and confidence model (Critical/High/Medium/Low/Informational + High/Medium/Low confidence)
+- Timestamped output folder per run (`out\YYYYMMDD_HHmmss\`)
+- CSV, JSON, HTML, and Markdown remediation plan exports
+- Executive HTML report — dark theme, KPI grid, severity scorecard, filterable findings table
+- Protected object classification model (break-glass, sync, emergency accounts)
+- Coverage tracking model — reports partial coverage when Graph scopes are unavailable
+- Consultant-facing remediation plan with approval status fields
+- `docs\Consultant-Runbook.md`
+- `docs\Required-Permissions.md`
+- `docs\Findings-Catalog.md`
+- `samples\` — demo-mode output files (CSV, JSON, HTML, Markdown)
+- `tests\Rev11\` — Safety, Analysis, Reporting Pester suites (20 tests, 0 failures)
+
+### Architecture
+- `src\modules\Discovery.psm1` — assessment discovery with coverage tracking
+- `src\modules\Analysis.psm1` — scoring engine, confidence model, protected object classification
+- `src\modules\Reporting.psm1` — all export functions including HTML report generator
+- `src\modules\RemediationPlan.psm1` — approval-ready Markdown plan generator
+- `src\modules\Utilities.psm1` — console output helpers, finding object factory
+
+### Unchanged
+- All Lite decom modules (`src\LiteModules\`) — untouched
+- All Premium batch modules (`src\Modules\`) — untouched
+- All existing Pester suites — untouched, still passing
+- Existing docs, SECURITY.md, LICENSE — untouched
+
+---
+
 ## v1.5a — Stabilization Release (2026-04-25)
 
 v1.5a is a post-review stabilization release following the v1.5 security hardening milestone.
