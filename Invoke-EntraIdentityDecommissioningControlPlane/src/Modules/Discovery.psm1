@@ -173,7 +173,9 @@ function Invoke-DecomAssessmentDiscovery {
         $coverage.DirectoryRoles    = $true
         $coverage.ConditionalAccess = $true
         if ($Context) { $Context | Add-Member -NotePropertyName Coverage -NotePropertyValue $coverage -Force }
-        return Get-DecomSyntheticFindings
+        [object[]]$synth = @(Get-DecomSyntheticFindings)
+        Write-Output -NoEnumerate $synth
+        return
     }
 
     $findings = [System.Collections.Generic.List[object]]::new()
@@ -243,5 +245,6 @@ function Invoke-DecomAssessmentDiscovery {
     }
 
     if ($Context) { $Context | Add-Member -NotePropertyName Coverage -NotePropertyValue $coverage -Force }
-    return $findings.ToArray()
+    [object[]]$result = @($findings)
+    Write-Output -NoEnumerate $result
 }
