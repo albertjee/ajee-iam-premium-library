@@ -131,4 +131,38 @@ Describe 'Rev1.1 Analysis Tests' {
             $result[2].Severity | Should -Be 'Medium'
         }
     }
+
+    Context 'Rev1.2 null-safety and empty-input guards' {
+        It 'Invoke-DecomAnalysis tolerates null DisplayName and UserPrincipalName' {
+            $finding = New-DecomFinding `
+                -FindingId 'NULL-001' -Category 'Test' -Severity 'Low' -RiskScore 30 `
+                -Confidence 'Low' -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName $null -UserPrincipalName $null `
+                -Evidence 'Null field test' -EvidenceSource 'test' `
+                -RecommendedAction 'Review' -RemediationMode 'ManualApprovalRequired'
+            { Invoke-DecomAnalysis -Findings @($finding) } | Should -Not -Throw
+        }
+
+        It 'Protected objects are forced to RemediationMode ProtectedObject after analysis' {
+            $finding = New-DecomFinding `
+                -FindingId 'PROT-001' -Category 'User Lifecycle' -Severity 'Medium' -RiskScore 55 `
+                -Confidence 'High' -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'svc-breakglass-admin' -UserPrincipalName 'svc-breakglass@contoso.com' `
+                -Evidence 'Protected object test' -EvidenceSource 'test' `
+                -RecommendedAction 'Remove access' -RemediationMode 'AutoRemediable'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].ProtectedObject | Should -Be $true
+            $result[0].RemediationMode | Should -Be 'ProtectedObject'
+        }
+
+        It 'Invoke-DecomAnalysis handles empty findings array without error' {
+            { Invoke-DecomAnalysis -Findings @() } | Should -Not -Throw
+        }
+
+        It 'Get-DecomFindingSummary returns zero counts for empty input' {
+            $summary = Get-DecomFindingSummary -Findings @()
+            $summary.Total    | Should -Be 0
+            $summary.Critical | Should -Be 0
+        }
+    }
 }

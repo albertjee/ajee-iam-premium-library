@@ -97,4 +97,24 @@ Describe 'Rev1.1 Safety Tests' {
             $content | Should -Not -Match '\bDisable-Mg'
         }
     }
+
+    Context 'Rev1.2 ExecuteRemediation guard and pattern classification' {
+        It 'ExecuteRemediation mode is blocked in entry point source' {
+            $ep = Join-Path $PSScriptRoot '..\..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+            $content = Get-Content $ep -Raw
+            $content | Should -Match 'ExecuteRemediation'
+            $content | Should -Match 'reserved for a future release'
+        }
+
+        It 'Protected pattern svc- is classified as ProtectedObject' {
+            $finding = New-DecomFinding `
+                -FindingId 'SVC-001' -Category 'User Lifecycle' -Severity 'Medium' -RiskScore 50 `
+                -Confidence 'High' -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'svc-automation-account' -UserPrincipalName 'svc-auto@contoso.com' `
+                -Evidence 'Service account test' -EvidenceSource 'test' `
+                -RecommendedAction 'Review' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].ProtectedObject | Should -Be $true
+        }
+    }
 }

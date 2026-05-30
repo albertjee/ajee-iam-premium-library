@@ -93,13 +93,13 @@ function Get-DecomSyntheticFindings {
             -Severity 'Medium' `
             -RiskScore 51 `
             -Confidence 'High' `
-            -ObjectType 'ServicePrincipal' `
+            -ObjectType 'Application' `
             -ObjectId 'a1b2c3d4-0005-0005-0005-000000000005' `
             -DisplayName 'Reporting Daemon SP' `
             -UserPrincipalName '' `
-            -Evidence 'Service principal has no owner assigned' `
-            -EvidenceSource 'servicePrincipals' `
-            -GraphEndpoint '/v1.0/servicePrincipals/{id}/owners' `
+            -Evidence 'Application has no owner assigned' `
+            -EvidenceSource 'applications/{id}/owners' `
+            -GraphEndpoint '/v1.0/applications/{id}/owners' `
             -RecommendedAction 'Assign accountable owner to Reporting Daemon SP' `
             -RemediationMode 'ManualApprovalRequired' `
             -ConsultantNote 'Ownerless service principals are a governance gap'),
@@ -192,14 +192,18 @@ function Invoke-DecomAssessmentDiscovery {
 
         foreach ($user in $disabledUsers) {
             try {
-                $memberships = @(Get-MgUserMemberOf -UserId $user.Id -All -ErrorAction Stop)
+                $memberOf    = @(Get-MgUserMemberOf -UserId $user.Id -All -ErrorAction Stop)
+                $memberships = @($memberOf | Where-Object {
+                    $_.AdditionalProperties -and
+                    $_.AdditionalProperties['@odata.type'] -eq '#microsoft.graph.group'
+                })
                 if ($memberships.Count -gt 0) {
                     $groupNames = (@($memberships | ForEach-Object {
                         if ($_.AdditionalProperties -and $_.AdditionalProperties['displayName']) {
                             $_.AdditionalProperties['displayName']
                         }
                     } | Where-Object { $_ }) -join ', ')
-                    $evidence = "Disabled user retains membership in $($memberships.Count) group(s)"
+                    $evidence = "Disabled user retains direct membership in $($memberships.Count) group(s)"
                     if ($groupNames) { $evidence += ": $groupNames" }
                     $findings.Add((New-DecomFinding `
                         -FindingId    'DEC-USER-001' `
@@ -270,37 +274,44 @@ function Invoke-DecomAssessmentDiscovery {
         $coverage.SignInLogs = $true
         Write-DecomInfo "Guest sign-in discovery: OK ($($guests.Count) guest accounts)"
 
+        $guestStaleThreshold = (Get-Date).AddDays(-180)
         foreach ($guest in $guests) {
-            $lastSignIn = $null
+            $lastSignIn    = $null
+            $hasSignInData = $false
+
             try {
                 if ($guest.SignInActivity -and $guest.SignInActivity.LastSignInDateTime) {
-                    $lastSignIn = [datetime]$guest.SignInActivity.LastSignInDateTime
+                    $hasSignInData = $true
+                    $lastSignIn    = [datetime]$guest.SignInActivity.LastSignInDateTime
                 }
-            } catch { }
+            } catch { $hasSignInData = $false }
 
-            if ($null -eq $lastSignIn -or $lastSignIn -lt $staleThreshold) {
-                $daysStr = if ($null -ne $lastSignIn) {
-                    "$([int]((Get-Date) - $lastSignIn).TotalDays) days ago"
-                } else {
-                    'never signed in or sign-in data unavailable'
-                }
-                $findings.Add((New-DecomFinding `
-                    -FindingId    'DEC-GUEST-001' `
-                    -Category     'Guest Lifecycle' `
-                    -Severity     'Low' `
-                    -RiskScore    32 `
-                    -Confidence   'Medium' `
-                    -ObjectType   'User' `
-                    -ObjectId     $guest.Id `
-                    -DisplayName  $guest.DisplayName `
-                    -UserPrincipalName $guest.UserPrincipalName `
-                    -Evidence     "Guest last sign-in: $daysStr — review for continued access need" `
-                    -EvidenceSource 'signInActivity' `
-                    -GraphEndpoint  '/v1.0/users/{id}?$select=signInActivity' `
-                    -RecommendedAction "Initiate access review for stale guest $($guest.UserPrincipalName)" `
-                    -RemediationMode 'ManualApprovalRequired' `
-                    -ConsultantNote  'Stale guest — review with business owner for continued need'))
+            if (-not $hasSignInData) { continue }
+
+            if ($null -eq $lastSignIn) {
+                $daysStr = 'never signed in'
+            } elseif ($lastSignIn -lt $guestStaleThreshold) {
+                $daysStr = "$([int]((Get-Date) - $lastSignIn).TotalDays) days ago"
+            } else {
+                continue
             }
+
+            $findings.Add((New-DecomFinding `
+                -FindingId         'DEC-GUEST-001' `
+                -Category          'Guest Lifecycle' `
+                -Severity          'Low' `
+                -RiskScore         32 `
+                -Confidence        'Medium' `
+                -ObjectType        'User' `
+                -ObjectId          $guest.Id `
+                -DisplayName       $guest.DisplayName `
+                -UserPrincipalName $guest.UserPrincipalName `
+                -Evidence          "Guest last sign-in: $daysStr — review for continued access need" `
+                -EvidenceSource    'signInActivity' `
+                -GraphEndpoint     '/v1.0/users/{id}?$select=signInActivity' `
+                -RecommendedAction "Initiate access review for stale guest $($guest.UserPrincipalName)" `
+                -RemediationMode   'ManualApprovalRequired' `
+                -ConsultantNote    'Confirm with business owner whether guest access is still required'))
         }
     } catch {
         Write-DecomWarn "Guest sign-in discovery unavailable (SignInActivity permission required): $_"

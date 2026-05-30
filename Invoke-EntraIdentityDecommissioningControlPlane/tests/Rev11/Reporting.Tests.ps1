@@ -144,4 +144,29 @@ Describe 'Rev1.1 Reporting Tests' {
             $content | Should -Match 'TEST-HIGH-001'
         }
     }
+
+    Context 'Rev1.2 empty-findings and Medium plan sections' {
+        It 'CSV export succeeds with empty findings array' {
+            $path = Join-Path $TestDrive 'empty.csv'
+            { Export-DecomAssessmentCsv -Findings @() -Path $path } | Should -Not -Throw
+            Test-Path $path | Should -Be $true
+        }
+
+        It 'Remediation plan includes Medium findings in Review Queue section' {
+            $findings = @(
+                (New-DecomFinding -FindingId 'MED-001' -Category 'User Lifecycle' `
+                    -Severity 'Medium' -RiskScore 50 -Confidence 'High' `
+                    -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                    -DisplayName 'Test User' -UserPrincipalName 'test@contoso.com' `
+                    -Evidence 'Medium finding test' -EvidenceSource 'test' `
+                    -RecommendedAction 'Review access' -RemediationMode 'ManualApprovalRequired')
+            )
+            $path = Join-Path $TestDrive 'plan.md'
+            $ctx  = [PSCustomObject]@{ Mode='Assessment'; TenantId='test'; EngagementId=''; ClientName=''; Assessor='' }
+            Export-DecomRemediationPlan -Findings $findings -Path $path -Context $ctx
+            $content = Get-Content $path -Raw
+            $content | Should -Match 'Review Queue'
+            $content | Should -Match 'MED-001'
+        }
+    }
 }

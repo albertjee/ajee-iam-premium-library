@@ -7,21 +7,31 @@ function Invoke-DecomAnalysis {
     )
 
     $processed = @(foreach ($finding in @($Findings)) {
+        if ($null -eq $finding) { continue }
+
+        $riskScore = if ($null -ne $finding.RiskScore) { [int]$finding.RiskScore } else { 0 }
+
         $severityFromScore = switch ($true) {
-            ($finding.RiskScore -ge 80) { 'Critical';      break }
-            ($finding.RiskScore -ge 60) { 'High';           break }
-            ($finding.RiskScore -ge 40) { 'Medium';         break }
-            ($finding.RiskScore -ge 25) { 'Low';            break }
-            default                     { 'Informational' }
+            ($riskScore -ge 80) { 'Critical';      break }
+            ($riskScore -ge 60) { 'High';           break }
+            ($riskScore -ge 40) { 'Medium';         break }
+            ($riskScore -ge 25) { 'Low';            break }
+            default             { 'Informational' }
         }
 
         if ($finding.Severity -ne $severityFromScore) {
-            Write-DecomWarn "Finding $($finding.FindingId): severity '$($finding.Severity)' out of band for RiskScore $($finding.RiskScore) — clamping to '$severityFromScore'"
+            Write-DecomWarn "Finding $($finding.FindingId): severity '$($finding.Severity)' out of band for RiskScore $riskScore — clamping to '$severityFromScore'"
             $finding.Severity = $severityFromScore
         }
 
-        $displayNameLower = $finding.DisplayName.ToLower()
-        $upnLower         = $finding.UserPrincipalName.ToLower()
+        $displayNameLower = if ($null -ne $finding.DisplayName) {
+            [string]$finding.DisplayName.ToLowerInvariant()
+        } else { '' }
+
+        $upnLower = if ($null -ne $finding.UserPrincipalName) {
+            [string]$finding.UserPrincipalName.ToLowerInvariant()
+        } else { '' }
+
         $isProtected = $false
         foreach ($pattern in $protectedPatterns) {
             if ($displayNameLower -like "*$pattern*" -or $upnLower -like "*$pattern*") {
@@ -29,7 +39,11 @@ function Invoke-DecomAnalysis {
                 break
             }
         }
-        if ($isProtected) { $finding.ProtectedObject = $true }
+        if ($isProtected) {
+            $finding.ProtectedObject   = $true
+            $finding.RemediationMode   = 'ProtectedObject'
+            $finding.RecommendedAction = "Manual review required — protected object. Original action: $($finding.RecommendedAction)"
+        }
 
         $finding
     })

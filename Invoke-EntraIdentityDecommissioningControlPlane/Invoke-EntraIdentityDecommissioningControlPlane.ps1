@@ -15,6 +15,12 @@ param(
     [switch]$NoLogo
 )
 
+if ($Mode -eq 'ExecuteRemediation') {
+    Write-Host "[ERROR] ExecuteRemediation is reserved for a future release." -ForegroundColor Red
+    Write-Host "        Rev1.1 supports Assessment, WhatIfRemediation, and ExportPlan only." -ForegroundColor Red
+    exit 1
+}
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -46,8 +52,8 @@ if (-not $NoLogo) {
     Write-Host "  Started  : $startTime" -ForegroundColor Gray
     Write-Host "  Output   : $RunFolder" -ForegroundColor Gray
     Write-Host ''
-    if ($Mode -in 'Assessment','WhatIfRemediation') {
-        Write-Host '*** No tenant modifications will be performed in Assessment mode. ***' -ForegroundColor Green
+    if ($Mode -in 'Assessment','WhatIfRemediation','ExportPlan') {
+        Write-Host "*** No tenant modifications will be performed in $Mode mode. ***" -ForegroundColor Green
     }
     Write-Host ('=' * 64) -ForegroundColor $borderColor
     Write-Host ''
@@ -64,7 +70,7 @@ $Context = [PSCustomObject]@{
     Coverage     = $null
 }
 
-if (-not $DemoMode -and $Mode -in 'Assessment','WhatIfRemediation') {
+if (-not $DemoMode -and $Mode -in @('Assessment','WhatIfRemediation','ExportPlan')) {
     Write-DecomInfo "Connecting to Microsoft Graph (read-only scopes)..."
     try {
         $scopes = @(

@@ -1,5 +1,31 @@
 # Changelog
 
+## Rev1.2 — Consultant Readiness Hardening Patch (2026-05-30)
+
+### Fixed (P1)
+- `Invoke-DecomAnalysis` null-safe guards on DisplayName, UserPrincipalName, and RiskScore
+- Protected objects now force `RemediationMode = ProtectedObject` and prepend warning to RecommendedAction
+- DEC-USER-001 memberOf filtered to actual groups only (excludes directory roles and admin units)
+- DEC-GUEST-001 separates missing sign-in data from stale sign-in evidence — missing data skipped as coverage gap; stale threshold raised to 180 days
+- `ExecuteRemediation` mode now exits immediately with error — reserved for future release
+
+### Fixed (P2)
+- Safety banner now shows active mode name instead of hardcoded "Assessment mode"
+- ExportPlan mode now included in Graph connection guard
+- DEC-APP-001 ObjectType and Evidence consistent between DemoMode and live mode
+- HTML report mode safety text is now mode-aware
+- HTML JavaScript filter replaced NodeList.forEach with indexed loop for enterprise browser compatibility
+- Remediation plan now includes Medium findings in Review Queue section and Low/Info in Monitor section
+- CSV, JSON, HTML, and Markdown exports handle empty findings array without crashing
+
+### Tests
+- Added 8 new Pester tests: null-safe analysis, protected object enforcement,
+  empty findings handling, ExecuteRemediation guard, svc- pattern classification,
+  empty CSV export, Medium findings in remediation plan, empty summary counts
+- Total: 28 tests, 0 failures
+
+---
+
 ## Rev1.1 — Consultant Readiness Hardening (2026-05-29)
 
 ### Added

@@ -1,8 +1,8 @@
 function Export-DecomAssessmentCsv {
     param([object[]]$Findings, [string]$Path)
-    if (($Findings | Measure-Object).Count -eq 0) {
-        $headers = '"FindingId","Category","Severity","RiskScore","Confidence","ObjectType","ObjectId","DisplayName","UserPrincipalName","Evidence","EvidenceSource","GraphEndpoint","RecommendedAction","RemediationMode","ConsultantNote","ProtectedObject","DetectedUtc"'
-        Set-Content -Path $Path -Value $headers -Encoding UTF8
+    if (-not $Findings -or $Findings.Count -eq 0) {
+        'FindingId,Category,Severity,RiskScore,Confidence,ObjectType,DisplayName,Evidence,RecommendedAction,RemediationMode' |
+            Set-Content -Path $Path -Encoding UTF8
         return
     }
     $Findings | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8
@@ -16,7 +16,7 @@ function Export-DecomAssessmentJson {
         Tenant        = $Context.TenantId
         Mode          = $Context.Mode
         Coverage      = $Context.Coverage
-        FindingCount  = $Findings.Count
+        FindingCount  = ($Findings | Measure-Object).Count
         Findings      = $Findings
     }
     $payload | ConvertTo-Json -Depth 10 | Set-Content -Path $Path -Encoding UTF8
@@ -68,13 +68,21 @@ function Export-DecomAssessmentHtml {
 '@
     }
 
+    $modeSafetyText = switch ($Context.Mode) {
+        'Assessment'        { 'All findings were identified in read-only Assessment mode — no tenant objects were modified during this run.' }
+        'WhatIfRemediation' { 'Findings were evaluated in WhatIfRemediation mode — no tenant objects were modified during this run.' }
+        'ExportPlan'        { 'A remediation plan was exported — no tenant objects were modified during this run.' }
+        default             { 'Review execution logs and approval manifest for this run.' }
+    }
+
     $safetyBanner = ''
-    if ($Context.Mode -eq 'Assessment') {
-        $safetyBanner = @'
+    if ($Context.Mode -in 'Assessment','WhatIfRemediation','ExportPlan') {
+        $modeSafetyHtml = [System.Web.HttpUtility]::HtmlEncode($Context.Mode)
+        $safetyBanner = @"
 <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.4);border-radius:10px;padding:14px 18px;color:#22c55e;font-weight:600;margin-bottom:24px;">
-  &#10003; Assessment mode — no tenant objects were modified during this run.
+  &#10003; $modeSafetyHtml mode — no tenant objects were modified during this run.
 </div>
-'@
+"@
     }
 
     $findingRowsHtml = [System.Text.StringBuilder]::new()
@@ -228,7 +236,7 @@ $demoWatermark
     <strong style="color:var(--muted)">$($Summary.Informational) Informational</strong> findings.
     A total of <strong>$critHighCount</strong> findings require immediate attention.
     $( if ($protectedCount -gt 0) { "Additionally, <strong>$protectedCount protected object(s)</strong> were identified and flagged for manual review." } )
-    All findings were identified in read-only Assessment mode — no tenant objects were modified during this run.</p>
+    $([System.Web.HttpUtility]::HtmlEncode($modeSafetyText))</p>
   </div>
 
   <div class="section-title">Key Performance Indicators</div>
@@ -317,7 +325,7 @@ $($roadmapHtml.ToString())
   <div class="section-title">Assumptions and Limitations</div>
   <div class="limitations">
     <ul>
-      <li>This report was generated in Assessment mode. No tenant objects were modified during this run.</li>
+      <li>$([System.Web.HttpUtility]::HtmlEncode($modeSafetyText))</li>
       <li>Sign-in log analysis requires the <code>AuditLog.Read.All</code> delegated permission. If this scope was unavailable, stale identity analysis may be incomplete.</li>
       <li>IGA coverage assessment requires the <code>EntitlementManagement.Read.All</code> delegated permission.</li>
       <li>Rev1.1 does not support hybrid or on-premises AD DS environments. Only cloud-only and hybrid cloud-synced objects are assessed.</li>
@@ -338,12 +346,13 @@ function applyFilters() {
   var severity = document.getElementById('filterSeverity').value;
   var category = document.getElementById('filterCategory').value;
   var rows = document.querySelectorAll('#findingsTable tbody tr');
-  rows.forEach(function(row) {
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
     var sev = row.getAttribute('data-severity') || '';
     var cat = row.getAttribute('data-category') || '';
     var show = (!severity || sev === severity) && (!category || cat === category);
     row.style.display = show ? '' : 'none';
-  });
+  }
 }
 </script>
 </body>
