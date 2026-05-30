@@ -178,30 +178,141 @@ function Invoke-DecomAssessmentDiscovery {
         return
     }
 
-    $findings = [System.Collections.Generic.List[object]]::new()
+    $findings      = [System.Collections.Generic.List[object]]::new()
+    $staleThreshold = (Get-Date).AddDays(-90)
 
+    # --- DEC-USER-001: Disabled users with group memberships ---
     try {
-        $null = Get-MgUser -Top 1 -ErrorAction Stop
+        $disabledUsers = @(Get-MgUser `
+            -Filter "accountEnabled eq false" `
+            -Select Id,DisplayName,UserPrincipalName,AccountEnabled `
+            -All -ErrorAction Stop)
         $coverage.Users = $true
-        Write-DecomInfo "User discovery: OK"
+        Write-DecomInfo "User discovery: OK ($($disabledUsers.Count) disabled users)"
+
+        foreach ($user in $disabledUsers) {
+            try {
+                $memberships = @(Get-MgUserMemberOf -UserId $user.Id -All -ErrorAction Stop)
+                if ($memberships.Count -gt 0) {
+                    $groupNames = (@($memberships | ForEach-Object {
+                        if ($_.AdditionalProperties -and $_.AdditionalProperties['displayName']) {
+                            $_.AdditionalProperties['displayName']
+                        }
+                    } | Where-Object { $_ }) -join ', ')
+                    $evidence = "Disabled user retains membership in $($memberships.Count) group(s)"
+                    if ($groupNames) { $evidence += ": $groupNames" }
+                    $findings.Add((New-DecomFinding `
+                        -FindingId    'DEC-USER-001' `
+                        -Category     'User Lifecycle' `
+                        -Severity     'Medium' `
+                        -RiskScore    55 `
+                        -Confidence   'High' `
+                        -ObjectType   'User' `
+                        -ObjectId     $user.Id `
+                        -DisplayName  $user.DisplayName `
+                        -UserPrincipalName $user.UserPrincipalName `
+                        -Evidence     $evidence `
+                        -EvidenceSource 'users/{id}/memberOf' `
+                        -GraphEndpoint  '/v1.0/users/{id}/memberOf' `
+                        -RecommendedAction "Remove $($user.UserPrincipalName) from all group memberships" `
+                        -RemediationMode 'AutoRemediable' `
+                        -ConsultantNote  'Standard group cleanup for disabled user'))
+                }
+            } catch {
+                Write-DecomWarn "Group membership check failed for $($user.UserPrincipalName): $_"
+            }
+        }
     } catch {
         Write-DecomWarn "User discovery unavailable: $_"
     }
 
+    # --- DEC-APP-001: Applications with no owner ---
+    try {
+        $apps = @(Get-MgApplication -Select Id,DisplayName,AppId -All -ErrorAction Stop)
+        $coverage.Applications = $true
+        Write-DecomInfo "Application discovery: OK ($($apps.Count) applications)"
+
+        foreach ($app in $apps) {
+            try {
+                $owners = @(Get-MgApplicationOwner -ApplicationId $app.Id -ErrorAction Stop)
+                if ($owners.Count -eq 0) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId    'DEC-APP-001' `
+                        -Category     'Application' `
+                        -Severity     'Medium' `
+                        -RiskScore    51 `
+                        -Confidence   'High' `
+                        -ObjectType   'Application' `
+                        -ObjectId     $app.Id `
+                        -DisplayName  $app.DisplayName `
+                        -UserPrincipalName '' `
+                        -Evidence     'Application has no owner assigned' `
+                        -EvidenceSource 'applications/{id}/owners' `
+                        -GraphEndpoint  '/v1.0/applications/{id}/owners' `
+                        -RecommendedAction "Assign accountable owner to application '$($app.DisplayName)'" `
+                        -RemediationMode 'ManualApprovalRequired' `
+                        -ConsultantNote  'Ownerless applications are a governance gap'))
+                }
+            } catch {
+                Write-DecomWarn "Owner check failed for application '$($app.DisplayName)': $_"
+            }
+        }
+    } catch {
+        Write-DecomWarn "Application discovery unavailable: $_"
+    }
+
+    # --- DEC-GUEST-001: Guests with stale sign-in (SignInActivity property) ---
+    try {
+        $guests = @(Get-MgUser `
+            -Filter "userType eq 'Guest'" `
+            -Property Id,DisplayName,UserPrincipalName,SignInActivity `
+            -All -ErrorAction Stop)
+        $coverage.SignInLogs = $true
+        Write-DecomInfo "Guest sign-in discovery: OK ($($guests.Count) guest accounts)"
+
+        foreach ($guest in $guests) {
+            $lastSignIn = $null
+            try {
+                if ($guest.SignInActivity -and $guest.SignInActivity.LastSignInDateTime) {
+                    $lastSignIn = [datetime]$guest.SignInActivity.LastSignInDateTime
+                }
+            } catch { }
+
+            if ($null -eq $lastSignIn -or $lastSignIn -lt $staleThreshold) {
+                $daysStr = if ($null -ne $lastSignIn) {
+                    "$([int]((Get-Date) - $lastSignIn).TotalDays) days ago"
+                } else {
+                    'never signed in or sign-in data unavailable'
+                }
+                $findings.Add((New-DecomFinding `
+                    -FindingId    'DEC-GUEST-001' `
+                    -Category     'Guest Lifecycle' `
+                    -Severity     'Low' `
+                    -RiskScore    32 `
+                    -Confidence   'Medium' `
+                    -ObjectType   'User' `
+                    -ObjectId     $guest.Id `
+                    -DisplayName  $guest.DisplayName `
+                    -UserPrincipalName $guest.UserPrincipalName `
+                    -Evidence     "Guest last sign-in: $daysStr — review for continued access need" `
+                    -EvidenceSource 'signInActivity' `
+                    -GraphEndpoint  '/v1.0/users/{id}?$select=signInActivity' `
+                    -RecommendedAction "Initiate access review for stale guest $($guest.UserPrincipalName)" `
+                    -RemediationMode 'ManualApprovalRequired' `
+                    -ConsultantNote  'Stale guest — review with business owner for continued need'))
+            }
+        }
+    } catch {
+        Write-DecomWarn "Guest sign-in discovery unavailable (SignInActivity permission required): $_"
+    }
+
+    # --- Coverage probes for remaining areas (no detection logic yet) ---
     try {
         $null = Get-MgGroup -Top 1 -ErrorAction Stop
         $coverage.Groups = $true
         Write-DecomInfo "Group discovery: OK"
     } catch {
         Write-DecomWarn "Group discovery unavailable: $_"
-    }
-
-    try {
-        $null = Get-MgApplication -Top 1 -ErrorAction Stop
-        $coverage.Applications = $true
-        Write-DecomInfo "Application discovery: OK"
-    } catch {
-        Write-DecomWarn "Application discovery unavailable: $_"
     }
 
     try {
@@ -222,10 +333,10 @@ function Invoke-DecomAssessmentDiscovery {
 
     try {
         $null = Get-MgAuditLogSignIn -Top 1 -ErrorAction Stop
-        $coverage.SignInLogs = $true
-        Write-DecomInfo "Sign-in log discovery: OK"
+        $coverage.AuditLogs = $true
+        Write-DecomInfo "Audit log discovery: OK"
     } catch {
-        Write-DecomWarn "Sign-in log discovery unavailable (AuditLog.Read.All required): $_"
+        Write-DecomWarn "Audit log discovery unavailable (AuditLog.Read.All required): $_"
     }
 
     try {

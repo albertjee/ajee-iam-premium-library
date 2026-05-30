@@ -1,5 +1,10 @@
 function Export-DecomAssessmentCsv {
     param([object[]]$Findings, [string]$Path)
+    if (($Findings | Measure-Object).Count -eq 0) {
+        $headers = '"FindingId","Category","Severity","RiskScore","Confidence","ObjectType","ObjectId","DisplayName","UserPrincipalName","Evidence","EvidenceSource","GraphEndpoint","RecommendedAction","RemediationMode","ConsultantNote","ProtectedObject","DetectedUtc"'
+        Set-Content -Path $Path -Value $headers -Encoding UTF8
+        return
+    }
     $Findings | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8
 }
 
