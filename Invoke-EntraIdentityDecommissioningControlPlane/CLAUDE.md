@@ -1,6 +1,6 @@
 # CLAUDE.md — Entra Identity Decommissioning Control Plane
 # Albert Jee | Architect-Level Baseline
-# Rev1.1 — Consultant Readiness Build
+# Rev1.3 — Application Ownership Drift Detection
 
 ---
 
@@ -60,7 +60,7 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 - **Never overwrite existing files** — always increment version numbers
 - **Never reuse script or module filenames** — new version = new filename
 - **Never push to remote** without explicit instruction from Albert
-- Commit messages must be specific: `fix: Rev1.1 -- <what changed>, <N> tests passing`
+- Commit messages must be specific: `fix: Rev1.x -- <what changed>, <N> tests passing`
 
 ---
 
@@ -83,17 +83,17 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 
 ## 6. PROJECT CONTEXT
 
-**Project name:** Entra Identity Decommissioning Control Plane — Rev1.1 Consultant Readiness  
-**Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`  
-**Primary language:** PowerShell 5.1+  
-**Current revision:** Rev1.2  
+**Project name:** Entra Identity Decommissioning Control Plane — Rev1.3 Application Ownership Drift
+**Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`
+**Primary language:** PowerShell 5.1+
+**Current revision:** Rev1.3
 **Push policy:** Albert pushes manually
 
 ---
 
 ## 7. FROZEN FILES — DO NOT MODIFY UNDER ANY CIRCUMSTANCES
 
-The following files and directories are **production-locked**. Rev1.1 is purely additive.
+The following files and directories are **production-locked**. All Rev1.x work is purely additive.
 Claude Code must never read-to-modify, str_replace, rewrite, or delete any of these:
 
 ```
@@ -101,7 +101,21 @@ src/Start-Decom.ps1
 src/Start-DecomBatch.ps1
 src/Invoke-DecomWorkflow.ps1
 src/LiteModules/          (entire directory — all 14 .psm1 files)
-src/Modules/              (entire directory — all 15 Premium .psm1 files)
+src/Modules/AccessRemoval.psm1
+src/Modules/AppOwnership.psm1
+src/Modules/AzureRBAC.psm1
+src/Modules/BatchApproval.psm1
+src/Modules/BatchContext.psm1
+src/Modules/BatchDiff.psm1
+src/Modules/BatchOrchestrator.psm1
+src/Modules/BatchOrchestratorParallel.psm1
+src/Modules/BatchPolicy.psm1
+src/Modules/BatchReporting.psm1
+src/Modules/BatchState.psm1
+src/Modules/ComplianceRemediation.psm1
+src/Modules/DeviceRemediation.psm1
+src/Modules/LicenseRemediation.psm1
+src/Modules/MailboxExtended.psm1
 tests/Decom.Tests.ps1
 tests/DecomBatch.Tests.ps1
 tests/DecomBatchReporting.Tests.ps1
@@ -126,43 +140,38 @@ LICENSE
 
 ---
 
-## 8. NEW FILES — Rev1.1 Additive Scope Only
+## 8. REV1.x MODULE PATHS — CRITICAL
 
-Claude Code writes ONLY these new files:
+**All Rev1.x new modules use capital M: `src/Modules/`**
+Do NOT write to `src/modules/` (lowercase m) — that path does not exist on Windows and will cause GitHub casing issues.
 
 ```
-Invoke-EntraIdentityDecommissioningControlPlane.ps1   ← new entry point (repo root of the tool)
-src/modules/Discovery.psm1
-src/modules/Analysis.psm1
-src/modules/Reporting.psm1
-src/modules/RemediationPlan.psm1
-src/modules/Utilities.psm1
+Invoke-EntraIdentityDecommissioningControlPlane.ps1   ← entry point (repo root of the tool)
+src/Modules/Discovery.psm1      ← Rev1.x assessment discovery
+src/Modules/Analysis.psm1       ← Rev1.x scoring engine
+src/Modules/Reporting.psm1      ← Rev1.x HTML + export functions
+src/Modules/RemediationPlan.psm1← Rev1.x remediation plan generator
+src/Modules/Utilities.psm1      ← Rev1.x console helpers + finding factory
 tests/Rev11/Safety.Tests.ps1
 tests/Rev11/Analysis.Tests.ps1
 tests/Rev11/Reporting.Tests.ps1
 docs/Consultant-Runbook.md
 docs/Required-Permissions.md
 docs/Findings-Catalog.md
-samples/sample-findings.csv
-samples/sample-findings.json
-samples/sample-report.html
-samples/sample-remediation-plan.md
-CHANGELOG.md                                          ← APPEND Rev1.1 entry only — do not rewrite history
+samples/
+CHANGELOG.md                    ← APPEND only — never rewrite history
 ```
-
-**Note on CHANGELOG.md:** It already exists with v1.0–v1.5a history. Claude Code must APPEND the Rev1.1 block at the top. It must not rewrite or delete existing entries.
 
 ---
 
 ## 9. Canonical Test Count
 
-- **Baseline before Rev1.1:** 0 Rev1.1 tests (existing Pester suites are frozen and untouched)
-- **Rev1.2 target:** 28 tests across Safety, Analysis, and Reporting suites
+- **Rev1.3 current baseline:** 35 tests across Safety, Analysis, and Reporting suites
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\Rev11\ -Output Detailed
   ```
-- Must show 0 failures before Rev1.1 is declared done
+- Must show 0 failures — 35 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 
@@ -172,8 +181,8 @@ CHANGELOG.md                                          ← APPEND Rev1.1 entry on
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, 28 tests passing |
-| Git | Only Rev1.1 new files in diff — frozen files untouched |
-| Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 4 outputs, HTML opens in browser |
+| Tests | 0 failures, ≥ 35 tests passing |
+| Git | Only Rev1.x new files in diff — frozen files untouched |
+| Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 
 If any row fails — it is not done.
