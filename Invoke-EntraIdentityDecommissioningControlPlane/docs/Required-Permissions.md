@@ -47,3 +47,14 @@ They are never requested during Assessment, WhatIfRemediation, or ExportPlan.
 
 Running with `-DemoMode` requires no Graph permissions. Use this mode to demonstrate
 the tool and validate output format without a live tenant connection.
+
+## Rev2.2 Optional Read-Only Permissions
+
+| Permission | Type | Purpose |
+|---|---|---|
+| `PrivilegedAccess.Read.AzureAD` | Delegated | Read PIM eligible assignment data where available |
+| `EntitlementManagement.Read.All` | Delegated | Read access package assignments and policies |
+| `AccessReview.Read.All` | Delegated | Read access review schedule evidence where available |
+| `Group.Read.All` | Delegated | Read group metadata for sensitive resource heuristics |
+
+If these permissions, APIs, modules, or tenant licenses are unavailable, Rev2.2 reports partial coverage instead of failing the full assessment.
