@@ -346,7 +346,7 @@ function Get-DecomSyntheticFindings {
             -Category          'Privileged Access' `
             -Severity          'Medium' `
             -RiskScore         46 `
-            -Confidence        'Medium' `
+            -Confidence        'Low' `
             -ObjectType        'Tenant' `
             -ObjectId          'contoso.onmicrosoft.com' `
             -DisplayName       'PIM Coverage' `
