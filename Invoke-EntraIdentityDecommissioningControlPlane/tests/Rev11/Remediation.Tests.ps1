@@ -288,6 +288,21 @@ Describe 'Rev2.1 Target Revalidation' {
         $result.Valid | Should -Be $true
         $result.InvalidTargets.Count | Should -BeGreaterThan 0
     }
+
+    It 'Confirm-DecomActionTargetValid blocks when Graph membership check fails' {
+        Mock -ModuleName Remediation Get-MgGroupMember {
+            throw 'simulated Graph read failure'
+        }
+
+        $action = [PSCustomObject]@{
+            ActionType      = 'RemoveGroupMembership'
+            ObjectId        = 'user-001'
+            TargetObjectIds = @('group-001')
+        }
+
+        $result = Confirm-DecomActionTargetValid -Action $action
+        $result.Valid | Should -Be $false
+    }
 }
 
 Describe 'Rev2.1 Evidence Export' {

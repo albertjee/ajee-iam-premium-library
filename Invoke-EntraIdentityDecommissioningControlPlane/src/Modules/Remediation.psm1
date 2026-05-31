@@ -2,13 +2,14 @@
 
 function Confirm-DecomActionTargetValid {
     # Validates that approved target still exists and belongs to the approved object.
-    # Returns a result object: Valid, InvalidTargets, ErrorDetail
+    # Returns: Valid, InvalidTargets (stale/safe), ValidationErrors (Graph failures), ErrorDetail
     param([object]$Action)
 
     $result = [PSCustomObject]@{
-        Valid          = $true
-        InvalidTargets = [System.Collections.Generic.List[string]]::new()
-        ErrorDetail    = ''
+        Valid            = $true
+        InvalidTargets   = [System.Collections.Generic.List[string]]::new()
+        ValidationErrors = [System.Collections.Generic.List[string]]::new()
+        ErrorDetail      = ''
     }
 
     $actionType = [string]$Action.ActionType
@@ -27,7 +28,8 @@ function Confirm-DecomActionTargetValid {
                             $result.InvalidTargets.Add("$groupId : user no longer member (already removed or state changed)")
                         }
                     } catch {
-                        $result.InvalidTargets.Add("$groupId : membership check failed — $_")
+                        $result.ValidationErrors.Add("$groupId : membership check failed — $_")
+                        $result.Valid = $false
                     }
                 }
             }
@@ -42,7 +44,8 @@ function Confirm-DecomActionTargetValid {
                         }
                     }
                 } catch {
-                    $result.InvalidTargets.Add("App role check failed for $objectId : $_")
+                    $result.ValidationErrors.Add("App role check failed for $objectId : $_")
+                    $result.Valid = $false
                 }
             }
 
@@ -58,7 +61,8 @@ function Confirm-DecomActionTargetValid {
                             $result.Valid = $false
                         }
                     } catch {
-                        $result.InvalidTargets.Add("$roleAssignmentId : role assignment check failed — $_")
+                        $result.ValidationErrors.Add("$roleAssignmentId : role assignment check failed — $_")
+                        $result.Valid = $false
                     }
                 }
             }
@@ -138,8 +142,8 @@ function Invoke-DecomRemediation {
         $revalidation = Confirm-DecomActionTargetValid -Action $action
 
         if (-not $revalidation.Valid) {
-            $blockDetail = "Target revalidation FAILED (possible wrong-object risk): " +
-                           ($revalidation.InvalidTargets -join '; ')
+            $blockDetail = "Target revalidation FAILED: " +
+                           (($revalidation.ValidationErrors + $revalidation.InvalidTargets) -join '; ')
             Write-Host "[BLOCKED]   $actionId $findingId — $displayName : $blockDetail" -ForegroundColor Red
             Add-DecomExecutionAction `
                 -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
