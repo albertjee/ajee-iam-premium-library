@@ -47,3 +47,23 @@
 | AutoRemediable | Finding can be remediated automatically in ExecuteRemediation mode |
 | InformationOnly | No remediation action; advisory only |
 | ProtectedObject | Object is protected (break-glass, sync account); remediation blocked |
+
+## Rev2.0 Execution Scope
+
+ExecuteRemediation is available only for these finding/action families in Rev2.0:
+
+| FindingId | ActionType | TargetObjectIds represent | Confirmation |
+|---|---|---|---|
+| DEC-USER-001 | RemoveGroupMembership | Group IDs | AutoRemediable — no per-action prompt |
+| DEC-USER-002 | RevokeAppRoleAssignment | App role assignment IDs | ManualApprovalRequired — per-action prompt |
+| DEC-USER-003 | RemoveDirectoryRoleAssignment | Directory role assignment IDs | ManualApprovalRequired — per-action prompt |
+| DEC-ROLE-001 | RemoveDirectoryRoleAssignment | Directory role assignment IDs | ManualApprovalRequired — per-action prompt |
+
+All other findings are plan-only in Rev2.0.
+
+ProtectedObject actions are never executed regardless of approval manifest content.
+
+Execution operates only on approved TargetObjectIds from the approval manifest.
+The engine never re-discovers current tenant state to broaden execution targets.
+
+For privileged role removals, Rev2.0 generates one executable action per exact directory role assignment ID.

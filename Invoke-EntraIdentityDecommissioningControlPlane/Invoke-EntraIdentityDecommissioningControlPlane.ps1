@@ -10,14 +10,17 @@ param(
     [string]$ClientName,
     [string]$Assessor,
     [string]$OutputPath = '.\out',
+    [string]$WhatIfManifestPath,
+    [string]$ApprovalManifestPath,
+    [switch]$NonInteractive,
+    [switch]$GenerateApprovalTemplate,
 
     [switch]$DemoMode,
     [switch]$NoLogo
 )
 
-if ($Mode -eq 'ExecuteRemediation') {
-    Write-Host "[ERROR] ExecuteRemediation is reserved for a future release." -ForegroundColor Red
-    Write-Host "        Rev1.1 supports Assessment, WhatIfRemediation, and ExportPlan only." -ForegroundColor Red
+if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
+    Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
     exit 1
 }
 
@@ -27,7 +30,8 @@ $ErrorActionPreference = 'Stop'
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ModulesPath = Join-Path $ScriptRoot 'src\Modules'
 
-foreach ($mod in @('Utilities','Discovery','Analysis','Reporting','RemediationPlan')) {
+foreach ($mod in @('Utilities','Discovery','Analysis','Reporting','RemediationPlan',
+                    'ApprovalManifest','ExecutionLog','Remediation')) {
     $modPath = Join-Path $ModulesPath "$mod.psm1"
     Remove-Module $mod -Force -ErrorAction SilentlyContinue
     Import-Module $modPath -Force -DisableNameChecking
@@ -44,7 +48,7 @@ if (-not $NoLogo) {
     $startTime   = Get-DecomTimestampDisplay
 
     Write-Host ('=' * 64) -ForegroundColor $borderColor
-    Write-Host '  Entra Identity Decommissioning Control Plane  Rev1.4' -ForegroundColor Cyan
+    Write-Host '  Entra Identity Decommissioning Control Plane  Rev2.0' -ForegroundColor Cyan
     Write-Host '  Assessment-first tooling for identity governance reviews' -ForegroundColor DarkCyan
     Write-Host ('=' * 64) -ForegroundColor $borderColor
     Write-Host "  Mode     : $Mode" -ForegroundColor $modeColor
@@ -70,6 +74,85 @@ $Context = [PSCustomObject]@{
     Coverage     = $null
 }
 
+# ExecuteRemediation branch - runs BEFORE discovery, analysis, and export
+if ($Mode -eq 'ExecuteRemediation') {
+    # Validate Gate A - WhatIf manifest
+    Write-DecomInfo "Validating Gate A: WhatIf manifest..."
+    $gateAResult = Test-DecomWhatIfManifest -ManifestPath $WhatIfManifestPath -CurrentEngagementId $EngagementId
+    if (-not $gateAResult.Valid) {
+        Write-DecomError "Gate A validation failed:"
+        $gateAResult.Errors | ForEach-Object { Write-DecomError "  $_" }
+        exit 1
+    }
+    Write-DecomOk "Gate A validation passed"
+
+    # Validate Gate B - Approval manifest
+    Write-DecomInfo "Validating Gate B: Approval manifest..."
+    $gateBResult = Test-DecomApprovalManifest -ManifestPath $ApprovalManifestPath -CurrentEngagementId $EngagementId -CurrentClientName $ClientName -WhatIfRunId $gateAResult.Manifest.RunId -NonInteractive:$NonInteractive.IsPresent
+    if (-not $gateBResult.Valid) {
+        Write-DecomError "Gate B validation failed:"
+        $gateBResult.Errors | ForEach-Object { Write-DecomError "  $_" }
+        exit 1
+    }
+    Write-DecomOk "Gate B validation passed"
+
+    # Connect to Graph with write scopes only after Gate A and Gate B pass
+    Write-DecomInfo "Connecting to Microsoft Graph (write scopes)..."
+    try {
+        $writeScopes = @(
+            'User.Read.All',
+            'Directory.Read.All',
+            'Application.Read.All',
+            'AuditLog.Read.All',
+            'RoleManagement.Read.Directory',
+            'Policy.Read.All',
+            'GroupMember.ReadWrite.All',
+            'AppRoleAssignment.ReadWrite.All',
+            'RoleManagement.ReadWrite.Directory'
+        )
+        Connect-MgGraph -Scopes $writeScopes -TenantId $TenantId -ErrorAction Stop | Out-Null
+        Write-DecomOk "Graph connection established with write scopes"
+    } catch {
+        Write-DecomError "Graph connection failed: $_"
+        exit 1
+    }
+
+    # Initialize execution log
+    $runId = [guid]::NewGuid().ToString()
+    $executionLog = New-DecomExecutionLog -RunFolder $RunFolder -EngagementId $EngagementId -RunId $runId
+
+    # Execute approved actions only
+    Write-DecomInfo "Executing approved actions..."
+    Invoke-DecomRemediation -ApprovedActions $gateBResult.Manifest.ApprovedActions -ExecutionLog $executionLog -AllowNonInteractive:$NonInteractive.IsPresent
+
+    # Save execution log
+    Write-DecomInfo "Saving execution log..."
+    Save-DecomExecutionLog -ExecutionLog $executionLog
+    Write-DecomOk "Execution log saved"
+
+    # Print summary
+    $executedCount = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Executed' }).Count
+    $failedCount = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Failed' }).Count
+    $partialFailedCount = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'PartialFailed' }).Count
+    $skippedCount = ($executionLog.Log.Actions | Where-Object { $_.Outcome -in @('Skipped','Blocked','OperatorDeclined','OutOfScope') }).Count
+
+    Write-Host ''
+    Write-Host ('=' * 64) -ForegroundColor DarkCyan
+    Write-Host '  Execution Summary' -ForegroundColor Cyan
+    Write-Host ('=' * 64) -ForegroundColor DarkCyan
+    Write-Host "  Executed    : $executedCount" -ForegroundColor Green
+    Write-Host "  Failed      : $failedCount" -ForegroundColor Red
+    Write-Host "  PartialFailed: $partialFailedCount" -ForegroundColor Yellow
+    Write-Host "  Skipped     : $skippedCount" -ForegroundColor Gray
+    Write-Host ''
+    Write-Host "  Execution log: $executionLog.Path" -ForegroundColor Gray
+    Write-Host ('=' * 64) -ForegroundColor DarkCyan
+    Write-Host ''
+
+    exit 0
+}
+
+# Normal modes: Assessment / WhatIfRemediation / ExportPlan
 if (-not $DemoMode -and $Mode -in @('Assessment','WhatIfRemediation','ExportPlan')) {
     Write-DecomInfo "Connecting to Microsoft Graph (read-only scopes)..."
     try {
@@ -149,6 +232,24 @@ $exportPaths = @{
 }
 Write-DecomRunManifest -Path $ManifestPath -Context $Context -Summary $summaryHt -ExportPaths $exportPaths
 Write-DecomOk "Run manifest written"
+
+# Handle GenerateApprovalTemplate flag for WhatIfRemediation mode
+if ($Mode -eq 'WhatIfRemediation' -and $GenerateApprovalTemplate) {
+    Write-DecomInfo "Generating WhatIf action plan for client approval..."
+
+    $runManifestContent = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+
+    $actionPlanPath = New-DecomWhatIfActionPlan `
+        -Findings $Findings `
+        -EngagementId $EngagementId `
+        -ClientName $ClientName `
+        -Assessor $Assessor `
+        -WhatIfRunId $runManifestContent.RunId `
+        -OutputPath $RunFolder
+
+    Write-DecomOk "WhatIf action plan: $actionPlanPath"
+    Write-DecomInfo "Next: review with client, sign, then run Update-DecomApprovalManifestHash."
+}
 
 Write-Host ''
 Write-Host ('=' * 64) -ForegroundColor DarkCyan

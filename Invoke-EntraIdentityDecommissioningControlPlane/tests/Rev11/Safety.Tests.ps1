@@ -99,11 +99,11 @@ Describe 'Rev1.1 Safety Tests' {
     }
 
     Context 'Rev1.2 ExecuteRemediation guard and pattern classification' {
-        It 'ExecuteRemediation mode is blocked in entry point source' {
+        It 'ExecuteRemediation mode is blocked in entry point source when DemoMode is used' {
             $ep = Join-Path $PSScriptRoot '..\..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
             $content = Get-Content $ep -Raw
             $content | Should -Match 'ExecuteRemediation'
-            $content | Should -Match 'reserved for a future release'
+            $content | Should -Match 'ExecuteRemediation cannot run in DemoMode'
         }
 
         It 'Protected pattern svc- is classified as ProtectedObject' {
@@ -115,6 +115,327 @@ Describe 'Rev1.1 Safety Tests' {
                 -RecommendedAction 'Review' -RemediationMode 'ManualApprovalRequired'
             $result = Invoke-DecomAnalysis -Findings @($finding)
             $result[0].ProtectedObject | Should -Be $true
+        }
+    }
+}
+
+Describe 'Rev2.0 Safety Tests' {
+
+    BeforeAll {
+        $script:ModulesPath2 = Join-Path $PSScriptRoot '..\..\src\Modules'
+
+        Remove-Module ApprovalManifest -Force -ErrorAction SilentlyContinue
+        Remove-Module ExecutionLog     -Force -ErrorAction SilentlyContinue
+
+        Import-Module (Join-Path $script:ModulesPath2 'ApprovalManifest.psm1') -Force -DisableNameChecking
+        Import-Module (Join-Path $script:ModulesPath2 'ExecutionLog.psm1')     -Force -DisableNameChecking
+
+        function script:New-TestApprovalManifest {
+            param(
+                [string]$EngagementId      = 'ENG-001',
+                [string]$ClientName        = 'Contoso',
+                [string]$WhatIfRunId       = [guid]::NewGuid().ToString(),
+                [object[]]$Actions         = $null,
+                [bool]$AllowNonInteractive = $false
+            )
+            if ($null -eq $Actions) {
+                $Actions = @(
+                    [ordered]@{
+                        ActionId='ACT-001'; FindingId='DEC-USER-001'; ObjectId='user-001'; ObjectType='User'
+                        DisplayName='Test User'; UserPrincipalName='test@contoso.com'
+                        ActionType='RemoveGroupMembership'; TargetObjectIds=@('group-001')
+                        TargetDisplayNames=@('Group 1'); Evidence='test'; RiskScore=50
+                        ProtectedObject=$false; RoleAssignmentId=''; RoleDefinitionId=''; RoleDisplayName=''
+                    }
+                )
+            }
+            $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $Actions
+            $expiresUtc  = (Get-Date).AddDays(3).ToUniversalTime().ToString('o')
+            $envInput = [PSCustomObject]@{
+                EngagementId=$EngagementId; ClientName=$ClientName; WhatIfRunId=$WhatIfRunId
+                ApprovedBy='Jane Smith, CISO'; ApprovedUtc='2026-05-30T10:00:00Z'
+                ExpiresUtc=$expiresUtc; AllowNonInteractive=$AllowNonInteractive
+            }
+            $envHash = Get-DecomApprovalEnvelopeHash -Manifest $envInput -ActionsHash $actionsHash
+            return [ordered]@{
+                SchemaVersion='2.0'; EngagementId=$EngagementId; ClientName=$ClientName
+                WhatIfRunId=$WhatIfRunId; ApprovalStatus='Approved'
+                ApprovedBy='Jane Smith, CISO'; ApprovedUtc='2026-05-30T10:00:00Z'
+                ExpiresUtc=$expiresUtc; AllowNonInteractive=$AllowNonInteractive
+                ApprovedActionsHash=$actionsHash; ApprovalEnvelopeHash=$envHash
+                ApprovedActions=$Actions; PlanOnlyActions=@(); SkippedActions=@()
+            }
+        }
+    }
+
+    Context 'Hash determinism and canonicalization' {
+
+        It 'Get-DecomApprovedActionsHash returns same hash for identical input' {
+            $a = [ordered]@{
+                ActionId='ACT-001'; FindingId='DEC-USER-001'; ObjectId='u1'; ObjectType='User'
+                DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RemoveGroupMembership'
+                TargetObjectIds=@('g1'); TargetDisplayNames=@('G1'); Evidence='e'; RiskScore=50
+                ProtectedObject=$false; RoleAssignmentId=''; RoleDefinitionId=''; RoleDisplayName=''
+            }
+            $h1 = Get-DecomApprovedActionsHash -ApprovedActions @($a)
+            $h2 = Get-DecomApprovedActionsHash -ApprovedActions @($a)
+            $h1 | Should -Be $h2
+            $h1 | Should -Not -BeNullOrEmpty
+        }
+
+        It 'ApprovalEnvelopeHash changes when AllowNonInteractive changes' {
+            $aHash = Get-DecomSha256 -InputString 'determinism-test-payload'
+            $m1 = [PSCustomObject]@{ EngagementId='ENG-001'; ClientName='Contoso'; WhatIfRunId='r1'
+                ApprovedBy='J'; ApprovedUtc='2026-05-30T10:00:00Z'; ExpiresUtc='2026-06-02T10:00:00Z'
+                AllowNonInteractive=$false }
+            $m2 = [PSCustomObject]@{ EngagementId='ENG-001'; ClientName='Contoso'; WhatIfRunId='r1'
+                ApprovedBy='J'; ApprovedUtc='2026-05-30T10:00:00Z'; ExpiresUtc='2026-06-02T10:00:00Z'
+                AllowNonInteractive=$true }
+            $e1 = Get-DecomApprovalEnvelopeHash -Manifest $m1 -ActionsHash $aHash
+            $e2 = Get-DecomApprovalEnvelopeHash -Manifest $m2 -ActionsHash $aHash
+            $e1 | Should -Not -Be $e2
+        }
+
+        It 'Convert-DecomActionToCanonical sorts TargetObjectIds ascending' {
+            $a = [ordered]@{
+                ActionId='ACT-001'; FindingId='DEC-USER-001'; ObjectId='u'; ObjectType='User'
+                DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RemoveGroupMembership'
+                TargetObjectIds=@('zzz','aaa','mmm'); TargetDisplayNames=@('Z','A','M')
+                Evidence='e'; RiskScore=50; ProtectedObject=$false
+                RoleAssignmentId=''; RoleDefinitionId=''; RoleDisplayName=''
+            }
+            $canon = Convert-DecomActionToCanonical -Action $a
+            $canon.TargetObjectIds | Should -Be @('aaa','mmm','zzz')
+        }
+    }
+
+    Context 'Test-DecomWhatIfManifest' {
+
+        It 'Valid WhatIf manifest passes' {
+            $m = @{ RunId=[guid]::NewGuid().ToString(); Mode='WhatIfRemediation'
+                    EngagementId='ENG-001'; GeneratedUtc=(Get-Date).ToUniversalTime().ToString('o') }
+            $p = Join-Path $TestDrive 'whatif-valid.json'
+            $m | ConvertTo-Json | Set-Content $p -Encoding UTF8
+            $r = Test-DecomWhatIfManifest -ManifestPath $p -CurrentEngagementId 'ENG-001'
+            $r.Valid | Should -Be $true
+        }
+
+        It 'Missing WhatIf manifest file fails' {
+            $r = Test-DecomWhatIfManifest -ManifestPath 'C:\NoSuchPath\x.json' -CurrentEngagementId 'ENG-001'
+            $r.Valid | Should -Be $false
+        }
+
+        It 'RunId not a GUID fails' {
+            $m = @{ RunId='not-a-guid'; Mode='WhatIfRemediation'
+                    EngagementId='ENG-001'; GeneratedUtc=(Get-Date).ToUniversalTime().ToString('o') }
+            $p = Join-Path $TestDrive 'whatif-badguid.json'
+            $m | ConvertTo-Json | Set-Content $p -Encoding UTF8
+            $r = Test-DecomWhatIfManifest -ManifestPath $p -CurrentEngagementId 'ENG-001'
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match 'GUID' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Mode not WhatIfRemediation fails' {
+            $m = @{ RunId=[guid]::NewGuid().ToString(); Mode='Assessment'
+                    EngagementId='ENG-001'; GeneratedUtc=(Get-Date).ToUniversalTime().ToString('o') }
+            $p = Join-Path $TestDrive 'whatif-badmode.json'
+            $m | ConvertTo-Json | Set-Content $p -Encoding UTF8
+            $r = Test-DecomWhatIfManifest -ManifestPath $p -CurrentEngagementId 'ENG-001'
+            $r.Valid | Should -Be $false
+        }
+
+        It 'EngagementId mismatch fails' {
+            $m = @{ RunId=[guid]::NewGuid().ToString(); Mode='WhatIfRemediation'
+                    EngagementId='ENG-999'; GeneratedUtc=(Get-Date).ToUniversalTime().ToString('o') }
+            $p = Join-Path $TestDrive 'whatif-engmismatch.json'
+            $m | ConvertTo-Json | Set-Content $p -Encoding UTF8
+            $r = Test-DecomWhatIfManifest -ManifestPath $p -CurrentEngagementId 'ENG-001'
+            $r.Valid | Should -Be $false
+        }
+
+        It 'GeneratedUtc older than 7 days fails' {
+            $m = @{ RunId=[guid]::NewGuid().ToString(); Mode='WhatIfRemediation'
+                    EngagementId='ENG-001'
+                    GeneratedUtc=(Get-Date).AddDays(-8).ToUniversalTime().ToString('o') }
+            $p = Join-Path $TestDrive 'whatif-stale.json'
+            $m | ConvertTo-Json | Set-Content $p -Encoding UTF8
+            $r = Test-DecomWhatIfManifest -ManifestPath $p -CurrentEngagementId 'ENG-001'
+            $r.Valid | Should -Be $false
+        }
+    }
+
+    Context 'Test-DecomApprovalManifest' {
+
+        BeforeAll {
+            $script:sharedRunId = [guid]::NewGuid().ToString()
+        }
+
+        It 'Valid approval manifest passes' {
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId
+            $p = Join-Path $TestDrive 'appr-valid.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $true
+        }
+
+        It 'ApprovalStatus not Approved fails' {
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId
+            $m['ApprovalStatus'] = 'PendingSignature'
+            $p = Join-Path $TestDrive 'appr-notapproved.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match 'ApprovalStatus' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Duplicate ActionId rejected' {
+            $acts = @(
+                [ordered]@{ ActionId='ACT-001'; FindingId='DEC-USER-001'; ObjectId='u1'; ObjectType='User'
+                  DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RemoveGroupMembership'
+                  TargetObjectIds=@('g1'); TargetDisplayNames=@('G1'); Evidence='e'; RiskScore=50
+                  ProtectedObject=$false; RoleAssignmentId=''; RoleDefinitionId=''; RoleDisplayName='' },
+                [ordered]@{ ActionId='ACT-001'; FindingId='DEC-USER-001'; ObjectId='u1'; ObjectType='User'
+                  DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RemoveGroupMembership'
+                  TargetObjectIds=@('g2'); TargetDisplayNames=@('G2'); Evidence='e'; RiskScore=50
+                  ProtectedObject=$false; RoleAssignmentId=''; RoleDefinitionId=''; RoleDisplayName='' }
+            )
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId -Actions $acts
+            $p = Join-Path $TestDrive 'appr-dupid.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match '[Dd]uplicate' -and $_ -match 'ActionId' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Duplicate target operation rejected' {
+            $acts = @(
+                [ordered]@{ ActionId='ACT-001'; FindingId='DEC-USER-001'; ObjectId='u1'; ObjectType='User'
+                  DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RemoveGroupMembership'
+                  TargetObjectIds=@('grp-001','grp-001'); TargetDisplayNames=@('G','G')
+                  Evidence='e'; RiskScore=50; ProtectedObject=$false
+                  RoleAssignmentId=''; RoleDefinitionId=''; RoleDisplayName='' }
+            )
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId -Actions $acts
+            $p = Join-Path $TestDrive 'appr-dupop.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match '[Dd]uplicate' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'ActionType/FindingId mismatch rejected' {
+            $acts = @(
+                [ordered]@{ ActionId='ACT-001'; FindingId='DEC-USER-001'; ObjectId='u1'; ObjectType='User'
+                  DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RevokeAppRoleAssignment'
+                  TargetObjectIds=@('g1'); TargetDisplayNames=@('G1'); Evidence='e'; RiskScore=50
+                  ProtectedObject=$false; RoleAssignmentId=''; RoleDefinitionId=''; RoleDisplayName='' }
+            )
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId -Actions $acts
+            $p = Join-Path $TestDrive 'appr-typemismatch.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match 'ActionType' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Role action with multiple TargetObjectIds rejected' {
+            $acts = @(
+                [ordered]@{ ActionId='ACT-001'; FindingId='DEC-USER-003'; ObjectId='u1'; ObjectType='User'
+                  DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RemoveDirectoryRoleAssignment'
+                  TargetObjectIds=@('ra-001','ra-002'); TargetDisplayNames=@('R1','R2')
+                  Evidence='e'; RiskScore=90; ProtectedObject=$false
+                  RoleAssignmentId='ra-001'; RoleDefinitionId='rd-001'; RoleDisplayName='Role' }
+            )
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId -Actions $acts
+            $p = Join-Path $TestDrive 'appr-multirole.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $false
+        }
+
+        It 'RoleAssignmentId not equal to TargetObjectIds[0] rejected' {
+            $acts = @(
+                [ordered]@{ ActionId='ACT-001'; FindingId='DEC-USER-003'; ObjectId='u1'; ObjectType='User'
+                  DisplayName='T'; UserPrincipalName='t@c.com'; ActionType='RemoveDirectoryRoleAssignment'
+                  TargetObjectIds=@('ra-001'); TargetDisplayNames=@('R1')
+                  Evidence='e'; RiskScore=90; ProtectedObject=$false
+                  RoleAssignmentId='ra-DIFFERENT'; RoleDefinitionId='rd-001'; RoleDisplayName='Role' }
+            )
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId -Actions $acts
+            $p = Join-Path $TestDrive 'appr-roleassignmismatch.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match 'RoleAssignmentId' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'WhatIfRunId mismatch rejected' {
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId
+            $p = Join-Path $TestDrive 'appr-runidmismatch.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId 'completely-different-run-id'
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match 'WhatIfRunId' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'ApprovedActionsHash mismatch rejected' {
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId
+            $m['ApprovedActionsHash'] = 'aabbcc1122tampered'
+            $p = Join-Path $TestDrive 'appr-badhash.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match '[Hh]ash' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'NonInteractive without AllowNonInteractive rejected' {
+            $m = New-TestApprovalManifest -WhatIfRunId $script:sharedRunId -AllowNonInteractive $false
+            $p = Join-Path $TestDrive 'appr-noninteractive.json'
+            $m | ConvertTo-Json -Depth 10 | Set-Content $p -Encoding UTF8
+            $r = Test-DecomApprovalManifest -ManifestPath $p -CurrentEngagementId 'ENG-001' `
+                -CurrentClientName 'Contoso' -WhatIfRunId $script:sharedRunId -NonInteractive
+            $r.Valid | Should -Be $false
+            ($r.Errors | Where-Object { $_ -match 'NonInteractive' -or $_ -match 'AllowNonInteractive' }) | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    Context 'Entry point ExecuteRemediation branch ordering' {
+
+        BeforeAll {
+            $script:epPath = Join-Path $PSScriptRoot '..\..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+            $script:epText = Get-Content $script:epPath -Raw
+        }
+
+        It 'Gate A and Gate B validated before Connect-MgGraph' {
+            $posA    = $script:epText.IndexOf('Test-DecomWhatIfManifest')
+            $posB    = $script:epText.IndexOf('Test-DecomApprovalManifest')
+            $posConn = $script:epText.IndexOf('Connect-MgGraph')
+            $posA    | Should -BeGreaterThan 0
+            $posB    | Should -BeGreaterThan 0
+            $posConn | Should -BeGreaterThan 0
+            $posA    | Should -BeLessThan $posConn
+            $posB    | Should -BeLessThan $posConn
+        }
+
+        It 'ExecuteRemediation branch exits before discovery' {
+            $posExit = $script:epText.IndexOf('exit 0')
+            $posDisc = $script:epText.IndexOf('Invoke-DecomAssessmentDiscovery')
+            $posExit | Should -BeGreaterThan 0
+            $posDisc | Should -BeGreaterThan 0
+            $posExit | Should -BeLessThan $posDisc
+        }
+
+        It 'DemoMode guard blocks ExecuteRemediation' {
+            $script:epText | Should -Match 'ExecuteRemediation cannot run in DemoMode'
         }
     }
 }

@@ -1,5 +1,61 @@
 # Changelog
 
+## Rev2.0 — Controlled Remediation Engine (2026-05-30)
+
+### Added
+- ExecuteRemediation mode is now live with a three-gate safety model.
+- ExecuteRemediation branch runs before discovery, analysis, and export.
+- Gate A validates WhatIf manifest:
+  - RunId GUID
+  - Mode = WhatIfRemediation
+  - EngagementId match
+  - GeneratedUtc present
+  - 7-day freshness
+- Gate B validates approval manifest:
+  - Action-level ApprovedActions
+  - Real ObjectId + TargetObjectIds
+  - ActionType/FindingId consistency
+  - No duplicate ActionIds
+  - No duplicate target operations
+  - ApprovedActionsHash
+  - ApprovalEnvelopeHash
+  - WhatIfRunId binding
+  - Expiry
+  - AllowNonInteractive authorization
+- Gate C blocks ProtectedObject actions at execution time.
+- Resolve-DecomExecutableTargets:
+  - Fetches real group IDs for DEC-USER-001.
+  - Fetches real app role assignment IDs for DEC-USER-002.
+  - Fetches exact directory role assignment IDs for DEC-USER-003 and DEC-ROLE-001.
+- Privileged role removals are one executable action per exact roleAssignmentId.
+- DEC-USER-003 is preferred over DEC-ROLE-001 when both refer to the same role assignment.
+- Duplicate target operations are deduplicated before approval manifest generation.
+- Execution re-queries after every write and records existsAfter state.
+- All group membership checks use Get-MgGroupMember -All.
+- PartialFailed outcome added.
+- Write Graph scopes are requested only after Gate A and Gate B pass.
+- Added -GenerateApprovalTemplate flag.
+- Added -NonInteractive flag, requiring AllowNonInteractive=true in approval manifest.
+- Added src/Modules/ApprovalManifest.psm1.
+- Added src/Modules/ExecutionLog.psm1.
+- Added src/Modules/Remediation.psm1.
+- Banner updated to Rev2.0.
+
+### Safety model
+- Assessment, WhatIfRemediation, and ExportPlan remain read-only.
+- ExecuteRemediation validates gates before Graph write connection.
+- ExecuteRemediation exits before normal discovery/analysis/export flow.
+- Execution operates only on approved TargetObjectIds.
+- The engine never broadens remediation by rediscovering current tenant state.
+- ProtectedObject actions are never executed.
+
+### Tests
+- Added 16+ Rev2.0 safety and remediation tests.
+- Added mock-based write-safety tests proving Remove-Mg* cmdlets operate only on approved TargetObjectIds.
+- Total test count: 74, 0 failures.
+
+---
+
 ## Rev1.7 — README & Branding Polish (2026-05-30)
 
 ### Updated
@@ -155,6 +211,8 @@ red-team scenario analysis, refined SECURITY.md) after initial audit review.
 
 **No code changes. No new threat surface. Existing risk acceptance remains valid.**
 
+---
+
 ## v1.5 — Security Hardening Release (2026-04-25)
 
 ### Evidence Sealing (tamper-evidence)
@@ -186,6 +244,8 @@ New tests: SECURITY.md presence, threat model doc presence, version string v1.5,
 SHA-256 determinism and sensitivity, Seal-DecomEvidenceEvent hash chain correctness,
 tamper detection, SealEvidence default true, NoSeal flag, OperatorUPN in context,
 TicketId governance enforcement, Write-DecomEvidenceManifest export, workflow summary fields.
+
+---
 
 ## v1.4 — Hygiene + Spec Completion (2026-04-25)
 ## v1.3 — Hardening Release (2026-04-25)

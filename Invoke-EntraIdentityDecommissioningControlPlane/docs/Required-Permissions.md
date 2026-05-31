@@ -32,6 +32,17 @@ Recommended role for assessment-only runs: **Global Reader** covers most read-on
 directory operations. For sign-in log access, the user also needs **Reports Reader** or
 **Security Reader**.
 
+## Write Permissions (ExecuteRemediation mode only)
+
+These permissions are requested only after Gate A and Gate B pass.
+They are never requested during Assessment, WhatIfRemediation, or ExportPlan.
+
+| Permission | Type | Purpose | Required For |
+|---|---|---|---|
+| `GroupMember.ReadWrite.All` | Delegated | Remove user from approved group memberships | DEC-USER-001 |
+| `AppRoleAssignment.ReadWrite.All` | Delegated | Revoke approved app role assignments | DEC-USER-002 |
+| `RoleManagement.ReadWrite.Directory` | Delegated | Remove approved privileged role assignments | DEC-USER-003, DEC-ROLE-001 |
+
 ## DemoMode
 
 Running with `-DemoMode` requires no Graph permissions. Use this mode to demonstrate
