@@ -11,7 +11,7 @@ function Export-DecomAssessmentCsv {
 function Export-DecomAssessmentJson {
     param([object[]]$Findings, [string]$Path, [pscustomobject]$Context)
     $payload = [ordered]@{
-        SchemaVersion = '1.1'
+        SchemaVersion = '2.2'
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Tenant        = $Context.TenantId
         Mode          = $Context.Mode
@@ -25,7 +25,7 @@ function Export-DecomAssessmentJson {
 function Write-DecomRunManifest {
     param([string]$Path, [pscustomobject]$Context, [hashtable]$Summary, [hashtable]$ExportPaths)
     $manifest = [ordered]@{
-        SchemaVersion  = '1.1'
+        SchemaVersion  = '2.2'
         RunId          = [guid]::NewGuid().Guid
         GeneratedUtc   = (Get-Date).ToUniversalTime().ToString('o')
         TenantId       = $Context.TenantId
@@ -145,7 +145,7 @@ function Export-DecomAssessmentHtml {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Entra Identity Decommissioning Assessment — Rev2.1</title>
+<title>Entra Identity Decommissioning Assessment — $([System.Web.HttpUtility]::HtmlEncode($Context.ToolVersion))</title>
 <style>
 :root {
   --navy:   #0b1220;
@@ -210,11 +210,11 @@ $demoWatermark
 <div class="container">
   <div class="header">
     <h1>Entra Identity Decommissioning Control Plane</h1>
-    <div class="subtitle">Identity Governance Assessment Report — Rev2.1</div>
+    <div class="subtitle">Identity Governance Assessment Report — $([System.Web.HttpUtility]::HtmlEncode($Context.ToolVersion))</div>
     <div class="meta-grid">
       <div class="meta-item"><div class="label">Tenant</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($tenantDisplay))</div></div>
       <div class="meta-item"><div class="label">Run Date</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($runDate))</div></div>
-      <div class="meta-item"><div class="label">Version</div><div class="value">Rev2.1</div></div>
+      <div class="meta-item"><div class="label">Version</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($Context.ToolVersion))</div></div>
       <div class="meta-item"><div class="label">Mode</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($modeDisplay))</div></div>
       <div class="meta-item"><div class="label">Client</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($clientDisplay))</div></div>
       <div class="meta-item"><div class="label">Engagement ID</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($engagementId))</div></div>
@@ -336,7 +336,7 @@ $($roadmapHtml.ToString())
   </div>
 
   <footer>
-    <span>Generated: $([System.Web.HttpUtility]::HtmlEncode($runDate)) | Entra Identity Decommissioning Control Plane Rev2.1</span>
+    <span>Generated: $([System.Web.HttpUtility]::HtmlEncode($runDate)) | Entra Identity Decommissioning Control Plane $([System.Web.HttpUtility]::HtmlEncode($Context.ToolVersion))</span>
     <span style="color:var(--muted);">© 2026 Albert Jee. All rights reserved. | Consultant advisory tool — not a continuous monitoring platform</span>
   </footer>
 </div>
@@ -370,7 +370,8 @@ function Export-DecomExecutionReport {
         [string]$EngagementId,
         [string]$ClientName,
         [string]$Assessor,
-        [string]$TenantId
+        [string]$TenantId,
+        [string]$ToolVersion = 'Rev2.2'
     )
 
     $runDate    = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
@@ -422,7 +423,7 @@ function Export-DecomExecutionReport {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Entra Identity Decommissioning — Execution Report Rev2.1</title>
+<title>Entra Identity Decommissioning — Execution Report $([System.Web.HttpUtility]::HtmlEncode($ToolVersion))</title>
 <style>
 :root{--navy:#0b1220;--gold:#c6a75e;--text:#f8fafc;--muted:#cbd5e1;--cyan:#38bdf8;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:rgba(198,167,94,0.35);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -450,16 +451,16 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);color
 </head>
 <body>
 <div class="advisory-bar">
-  <strong>Execution Evidence Report</strong> — Rev2.1 | Controlled Remediation — Client Deliverable
+  <strong>Execution Evidence Report</strong> — $([System.Web.HttpUtility]::HtmlEncode($ToolVersion)) | Controlled Remediation — Client Deliverable
 </div>
 <div class="container">
   <div class="header">
     <h1>Entra Identity Decommissioning Control Plane</h1>
-    <div class="subtitle">Controlled Remediation Execution Report — Rev2.1</div>
+    <div class="subtitle">Controlled Remediation Execution Report — $([System.Web.HttpUtility]::HtmlEncode($ToolVersion))</div>
     <div class="meta-grid">
       <div class="meta-item"><div class="label">Tenant</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($TenantId))</div></div>
       <div class="meta-item"><div class="label">Run Date</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($runDate))</div></div>
-      <div class="meta-item"><div class="label">Version</div><div class="value">Rev2.1</div></div>
+      <div class="meta-item"><div class="label">Version</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($ToolVersion))</div></div>
       <div class="meta-item"><div class="label">Client</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($ClientName))</div></div>
       <div class="meta-item"><div class="label">Engagement ID</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($EngagementId))</div></div>
       <div class="meta-item"><div class="label">Assessor</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($Assessor))</div></div>
@@ -499,7 +500,7 @@ $($actionRowsHtml.ToString())
   </table>
 
   <footer>
-    <span>Generated: $([System.Web.HttpUtility]::HtmlEncode($runDate)) | Entra Identity Decommissioning Control Plane Rev2.1</span>
+    <span>Generated: $([System.Web.HttpUtility]::HtmlEncode($runDate)) | Entra Identity Decommissioning Control Plane $([System.Web.HttpUtility]::HtmlEncode($ToolVersion))</span>
     <span style="color:var(--muted);">© 2026 Albert Jee. All rights reserved. | Consultant advisory tool — not a continuous monitoring platform</span>
   </footer>
 </div>

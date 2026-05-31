@@ -23,6 +23,9 @@ param(
     [switch]$NoLogo
 )
 
+# Tool version — update this single constant each release
+$script:ToolVersion = 'Rev2.2'
+
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
     exit 1
@@ -52,7 +55,7 @@ if (-not $NoLogo) {
     $startTime   = Get-DecomTimestampDisplay
 
     Write-Host ('=' * 64) -ForegroundColor $borderColor
-    Write-Host '  Entra Identity Decommissioning Control Plane  Rev2.0' -ForegroundColor Cyan
+    Write-Host "  Entra Identity Decommissioning Control Plane  $script:ToolVersion" -ForegroundColor Cyan
     Write-Host '  Assessment-first tooling for identity governance reviews' -ForegroundColor DarkCyan
     Write-Host ('=' * 64) -ForegroundColor $borderColor
     Write-Host "  Mode     : $Mode" -ForegroundColor $modeColor
@@ -76,6 +79,7 @@ $Context = [PSCustomObject]@{
     ClientName   = $ClientName
     Assessor     = $Assessor
     Coverage     = $null
+    ToolVersion  = $script:ToolVersion
 }
 
 # ExecuteRemediation branch - runs BEFORE discovery, analysis, and export
@@ -231,7 +235,8 @@ if ($Mode -eq 'ExecuteRemediation') {
         -EngagementId     $EngagementId `
         -ClientName       $ClientName `
         -Assessor         $Assessor `
-        -TenantId         $TenantId
+        -TenantId         $TenantId `
+        -ToolVersion      $script:ToolVersion
     Write-DecomOk "Post-remediation report: $remediationReportPath"
 
     # Write execution summary manifest
