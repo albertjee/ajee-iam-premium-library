@@ -200,4 +200,50 @@ Describe 'Rev1.1 Analysis Tests' {
             $result[0].Severity | Should -Be 'High'
         }
     }
+
+    Context 'Rev1.4 severity mapping for new finding IDs' {
+        It 'DEC-GUEST-002 RiskScore 85 maps to Critical severity' {
+            $finding = New-DecomFinding `
+                -FindingId 'DEC-GUEST-002' -Category 'Guest Lifecycle' -Severity 'Critical' -RiskScore 85 `
+                -Confidence 'High' -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'ext_partner@fabrikam.com' -UserPrincipalName 'ext@contoso.com' `
+                -Evidence 'Guest holds privileged role' -EvidenceSource 'test' `
+                -RecommendedAction 'Review role' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].Severity | Should -Be 'Critical'
+        }
+
+        It 'DEC-ROLE-001 RiskScore 90 maps to Critical severity' {
+            $finding = New-DecomFinding `
+                -FindingId 'DEC-ROLE-001' -Category 'Privileged Access' -Severity 'Critical' -RiskScore 90 `
+                -Confidence 'High' -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'Sam Okafor' -UserPrincipalName 'sam.okafor@contoso.com' `
+                -Evidence 'Disabled user holds privileged role' -EvidenceSource 'test' `
+                -RecommendedAction 'Remove role' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].Severity | Should -Be 'Critical'
+        }
+
+        It 'DEC-CA-001 RiskScore 65 maps to High severity' {
+            $finding = New-DecomFinding `
+                -FindingId 'DEC-CA-001' -Category 'Conditional Access' -Severity 'High' -RiskScore 65 `
+                -Confidence 'Medium' -ObjectType 'Policy' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'Require MFA' -UserPrincipalName '' `
+                -Evidence 'CA policy has exclusions' -EvidenceSource 'test' `
+                -RecommendedAction 'Review exclusions' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].Severity | Should -Be 'High'
+        }
+
+        It 'DEC-GUEST-003 RiskScore 47 maps to Medium severity' {
+            $finding = New-DecomFinding `
+                -FindingId 'DEC-GUEST-003' -Category 'Guest Lifecycle' -Severity 'Medium' -RiskScore 47 `
+                -Confidence 'Medium' -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'ext_contractor@northwind.com' -UserPrincipalName 'ext@contoso.com' `
+                -Evidence 'Guest lacks sponsor metadata' -EvidenceSource 'test' `
+                -RecommendedAction 'Assign sponsor' -RemediationMode 'ManualApprovalRequired'
+            $result = Invoke-DecomAnalysis -Findings @($finding)
+            $result[0].Severity | Should -Be 'Medium'
+        }
+    }
 }

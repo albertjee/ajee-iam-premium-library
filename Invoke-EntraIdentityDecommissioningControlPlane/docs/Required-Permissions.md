@@ -10,7 +10,8 @@
 | `ServicePrincipalEndpoint.Read.All` | Delegated | Read service principal owners | DEC-SPN-001 |
 | `AppRoleAssignment.ReadWrite.All` | Delegated | Read user app role assignments | DEC-USER-002 |
 | `AuditLog.Read.All` | Delegated | Read sign-in and audit signals | Stale identity assessment |
-| `RoleManagement.Read.Directory` | Delegated | Read privileged role assignments | Privileged access residue |
+| `RoleManagement.Read.Directory` | Delegated | Read privileged role assignments | DEC-ROLE-001, DEC-USER-003, DEC-GUEST-002 |
+| `Policy.Read.All` | Delegated | Read Conditional Access policies | DEC-CA-001, DEC-CA-002 |
 | `EntitlementManagement.Read.All` | Delegated | Read access packages | IGA coverage |
 
 ## Minimum Permission Note

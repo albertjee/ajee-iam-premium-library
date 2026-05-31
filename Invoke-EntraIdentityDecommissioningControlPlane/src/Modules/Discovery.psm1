@@ -56,8 +56,8 @@ function Get-DecomSyntheticFindings {
         (New-DecomFinding `
             -FindingId 'DEC-GUEST-002' `
             -Category 'Guest Lifecycle' `
-            -Severity 'High' `
-            -RiskScore 78 `
+            -Severity 'Critical' `
+            -RiskScore 85 `
             -Confidence 'High' `
             -ObjectType 'User' `
             -ObjectId 'a1b2c3d4-0003-0003-0003-000000000003' `
@@ -107,19 +107,19 @@ function Get-DecomSyntheticFindings {
         (New-DecomFinding `
             -FindingId 'DEC-CA-001' `
             -Category 'Conditional Access' `
-            -Severity 'Medium' `
-            -RiskScore 48 `
+            -Severity 'High' `
+            -RiskScore 65 `
             -Confidence 'Medium' `
-            -ObjectType 'Group' `
+            -ObjectType 'Policy' `
             -ObjectId 'a1b2c3d4-0006-0006-0006-000000000006' `
-            -DisplayName 'MFA-Exclusion-Legacy' `
+            -DisplayName 'Require MFA' `
             -UserPrincipalName '' `
-            -Evidence 'CA exclusion group contains 12 accounts — unreviewed for 180+ days' `
-            -EvidenceSource 'conditionalAccessPolicies' `
-            -GraphEndpoint '/v1.0/identity/conditionalAccess/policies' `
-            -RecommendedAction 'Review MFA-Exclusion-Legacy membership; initiate access review for CA exclusion groups' `
+            -Evidence 'CA policy excludes 3 users and 2 groups from MFA requirement — exclusions require review' `
+            -EvidenceSource 'identity/conditionalAccess/policies' `
+            -GraphEndpoint '/v1.0/identity/conditionalAccess/policies/{id}' `
+            -RecommendedAction 'Review and reduce exclusions in policy; initiate access review for excluded identities' `
             -RemediationMode 'ManualApprovalRequired' `
-            -ConsultantNote 'CA exclusion groups require periodic attestation'),
+            -ConsultantNote 'CA policy exclusions should be time-bound and reviewed quarterly'),
 
         (New-DecomFinding `
             -FindingId 'DEC-GUEST-001' `
@@ -243,7 +243,61 @@ function Get-DecomSyntheticFindings {
             -GraphEndpoint     '/v1.0/users/{id}/appRoleAssignments' `
             -RecommendedAction 'Revoke all app role assignments for disabled user morgan.chen@contoso.com' `
             -RemediationMode   'ManualApprovalRequired' `
-            -ConsultantNote    'App role assignments for disabled users represent residual SaaS access risk')
+            -ConsultantNote    'App role assignments for disabled users represent residual SaaS access risk'),
+
+        # DEC-GUEST-003 — Guest lacks sponsor metadata (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-GUEST-003' `
+            -Category          'Guest Lifecycle' `
+            -Severity          'Medium' `
+            -RiskScore         47 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0015-0015-0015-000000000015' `
+            -DisplayName       'ext_contractor@northwind.com' `
+            -UserPrincipalName 'ext_contractor_northwind.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Guest account has no manager assigned and no department metadata — sponsor cannot be determined' `
+            -EvidenceSource    'users/{id}?$select=manager,department,jobTitle' `
+            -GraphEndpoint     '/v1.0/users/{id}?$select=manager,department,jobTitle' `
+            -RecommendedAction 'Assign a sponsor (manager) and department to ext_contractor@northwind.com or initiate offboarding' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'Guest without sponsor metadata cannot be traced to a business owner'),
+
+        # DEC-ROLE-001 — Disabled identity holds privileged role (Critical)
+        (New-DecomFinding `
+            -FindingId         'DEC-ROLE-001' `
+            -Category          'Privileged Access' `
+            -Severity          'Critical' `
+            -RiskScore         90 `
+            -Confidence        'High' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0016-0016-0016-000000000016' `
+            -DisplayName       'Sam Okafor' `
+            -UserPrincipalName 'sam.okafor@contoso.com' `
+            -Evidence          'Disabled user holds active Privileged Role Administrator assignment — account is disabled' `
+            -EvidenceSource    'roleManagement/directory/roleAssignments' `
+            -GraphEndpoint     '/v1.0/roleManagement/directory/roleAssignments' `
+            -RecommendedAction 'Remove Privileged Role Administrator assignment from disabled user sam.okafor@contoso.com immediately' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'Privileged role held by disabled user is a critical security gap'),
+
+        # DEC-CA-002 — CA exclusion group requires review (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-CA-002' `
+            -Category          'Conditional Access' `
+            -Severity          'High' `
+            -RiskScore         62 `
+            -Confidence        'Medium' `
+            -ObjectType        'Group' `
+            -ObjectId          'a1b2c3d4-0018-0018-0018-000000000018' `
+            -DisplayName       'CA-MFA-Exclusion-VendorAccounts' `
+            -UserPrincipalName '' `
+            -Evidence          'CA exclusion group CA-MFA-Exclusion-VendorAccounts has 8 members — access review status unknown' `
+            -EvidenceSource    'identity/conditionalAccess/policies' `
+            -GraphEndpoint     '/v1.0/groups/{id}/members' `
+            -RecommendedAction 'Create access review for CA-MFA-Exclusion-VendorAccounts; validate all 8 members still require CA exclusion' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'CA exclusion groups with unverified review status expand the attack surface')
     )
 }
 
@@ -615,6 +669,229 @@ function Invoke-DecomAssessmentDiscovery {
     }
     } # end if ($disabledUsers.Count -gt 0)
 
+    # --- DEC-GUEST-002 and DEC-GUEST-003: Guest privilege and sponsor checks ---
+    try {
+        $guestsFull = @(Get-MgUser `
+            -Filter "userType eq 'Guest'" `
+            -Property Id,DisplayName,UserPrincipalName,Department,JobTitle `
+            -All -ErrorAction Stop)
+
+        Write-DecomInfo "Guest metadata discovery: OK ($($guestsFull.Count) guest accounts)"
+
+        $privilegedRoleNames = @(
+            'Global Administrator','Privileged Role Administrator','Security Administrator',
+            'Exchange Administrator','SharePoint Administrator','Teams Administrator',
+            'User Administrator','Helpdesk Administrator','Application Administrator',
+            'Cloud Application Administrator','Compliance Administrator',
+            'Conditional Access Administrator','Directory Writers'
+        )
+
+        $privilegedRoleMembers = [System.Collections.Generic.HashSet[string]]::new()
+        try {
+            $dirRoles = @(Get-MgDirectoryRole -ErrorAction Stop)
+            foreach ($role in $dirRoles) {
+                if ($privilegedRoleNames -contains $role.DisplayName) {
+                    $members = @(Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -ErrorAction Stop)
+                    foreach ($m in $members) {
+                        [void]$privilegedRoleMembers.Add($m.Id)
+                    }
+                }
+            }
+            $coverage.DirectoryRoles = $true
+        } catch {
+            Write-DecomWarn "Privileged role member lookup unavailable: $_"
+        }
+
+        foreach ($guest in $guestsFull) {
+
+            # DEC-GUEST-002: Guest holds privileged role
+            if ($privilegedRoleMembers.Contains($guest.Id)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-GUEST-002' `
+                    -Category          'Guest Lifecycle' `
+                    -Severity          'Critical' `
+                    -RiskScore         85 `
+                    -Confidence        'High' `
+                    -ObjectType        'User' `
+                    -ObjectId          $guest.Id `
+                    -DisplayName       $guest.DisplayName `
+                    -UserPrincipalName $guest.UserPrincipalName `
+                    -Evidence          'Guest account holds active privileged directory role — explicit business justification required' `
+                    -EvidenceSource    'directoryRoles/{id}/members' `
+                    -GraphEndpoint     '/v1.0/directoryRoles/{id}/members' `
+                    -RecommendedAction "Review privileged role assignment for guest $($guest.UserPrincipalName); assign sponsor; consider role removal" `
+                    -RemediationMode   'ManualApprovalRequired' `
+                    -ConsultantNote    'Guest with privileged role requires explicit business justification and named sponsor'))
+            }
+
+            # DEC-GUEST-003: Guest lacks sponsor metadata
+            $hasDepartment = ($null -ne $guest.Department -and $guest.Department -ne '')
+            $hasManager    = $false
+            try {
+                $mgr        = Get-MgUserManager -UserId $guest.Id -ErrorAction Stop
+                $hasManager = ($null -ne $mgr)
+            } catch { $hasManager = $false }
+
+            if (-not $hasManager -and -not $hasDepartment) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-GUEST-003' `
+                    -Category          'Guest Lifecycle' `
+                    -Severity          'Medium' `
+                    -RiskScore         47 `
+                    -Confidence        'Medium' `
+                    -ObjectType        'User' `
+                    -ObjectId          $guest.Id `
+                    -DisplayName       $guest.DisplayName `
+                    -UserPrincipalName $guest.UserPrincipalName `
+                    -Evidence          'Guest account has no manager assigned and no department metadata — sponsor cannot be determined' `
+                    -EvidenceSource    'users/{id}?$select=manager,department' `
+                    -GraphEndpoint     '/v1.0/users/{id}?$select=manager,department' `
+                    -RecommendedAction "Assign a sponsor (manager) and department to $($guest.UserPrincipalName) or initiate offboarding" `
+                    -RemediationMode   'ManualApprovalRequired' `
+                    -ConsultantNote    'Guest without sponsor metadata cannot be traced to a business owner'))
+            }
+        }
+    } catch {
+        Write-DecomWarn "Guest metadata discovery unavailable: $_"
+    }
+
+    # --- DEC-ROLE-001 and DEC-USER-003: Privileged role residue on disabled users ---
+    try {
+        $allRoles = @(Get-MgDirectoryRole -ErrorAction Stop)
+        $coverage.DirectoryRoles = $true
+        Write-DecomInfo "Directory role residue discovery: OK ($($allRoles.Count) active roles)"
+
+        $disabledUserIdSet = if ($disabledUsers.Count -gt 0) {
+            [System.Collections.Generic.HashSet[string]]@($disabledUsers | ForEach-Object { $_.Id })
+        } else {
+            [System.Collections.Generic.HashSet[string]]::new()
+        }
+
+        foreach ($role in $allRoles) {
+            try {
+                $roleMembers = @(Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -ErrorAction Stop)
+                foreach ($member in $roleMembers) {
+                    if ($member.AdditionalProperties['@odata.type'] -ne '#microsoft.graph.user') { continue }
+                    if (-not $disabledUserIdSet.Contains($member.Id)) { continue }
+
+                    # PS5.1-safe null guards
+                    $memberUpn  = if ($member.AdditionalProperties['userPrincipalName']) {
+                        $member.AdditionalProperties['userPrincipalName']
+                    } else { '' }
+                    $memberName = if ($member.AdditionalProperties['displayName']) {
+                        $member.AdditionalProperties['displayName']
+                    } else { 'Unknown' }
+
+                    # DEC-USER-003: lifecycle closure failure
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-USER-003' `
+                        -Category          'User Lifecycle' `
+                        -Severity          'Critical' `
+                        -RiskScore         92 `
+                        -Confidence        'High' `
+                        -ObjectType        'User' `
+                        -ObjectId          $member.Id `
+                        -DisplayName       $memberName `
+                        -UserPrincipalName $memberUpn `
+                        -Evidence          "Disabled user retains $($role.DisplayName) role assignment" `
+                        -EvidenceSource    'directoryRoles/{id}/members' `
+                        -GraphEndpoint     '/v1.0/directoryRoles/{id}/members' `
+                        -RecommendedAction "Remove $($role.DisplayName) role assignment from disabled user $memberUpn immediately" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'Disabled user with privileged role — lifecycle closure incomplete'))
+
+                    # DEC-ROLE-001: privileged access residue
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-ROLE-001' `
+                        -Category          'Privileged Access' `
+                        -Severity          'Critical' `
+                        -RiskScore         90 `
+                        -Confidence        'High' `
+                        -ObjectType        'User' `
+                        -ObjectId          $member.Id `
+                        -DisplayName       $memberName `
+                        -UserPrincipalName $memberUpn `
+                        -Evidence          "Disabled identity holds active $($role.DisplayName) privileged role — account is disabled" `
+                        -EvidenceSource    'roleManagement/directory/roleAssignments' `
+                        -GraphEndpoint     '/v1.0/roleManagement/directory/roleAssignments' `
+                        -RecommendedAction "Remove $($role.DisplayName) assignment from $memberUpn; escalate to security team" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'Privileged role held by disabled identity — escalate immediately'))
+                }
+            } catch {
+                Write-DecomWarn "Role member check failed for '$($role.DisplayName)': $_"
+            }
+        }
+    } catch {
+        Write-DecomWarn "Directory role discovery unavailable (RoleManagement.Read.Directory required): $_"
+    }
+
+    # --- DEC-CA-001 and DEC-CA-002: Conditional Access exclusion analysis ---
+    try {
+        $caPolicies = @(Get-MgIdentityConditionalAccessPolicy -ErrorAction Stop)
+        $coverage.ConditionalAccess = $true
+        Write-DecomInfo "Conditional access discovery: OK ($($caPolicies.Count) policies)"
+
+        foreach ($policy in $caPolicies) {
+            if ($policy.State -eq 'disabled') { continue }
+
+            $excludedUsers  = @($policy.Conditions.Users.ExcludeUsers  | Where-Object { $_ })
+            $excludedGroups = @($policy.Conditions.Users.ExcludeGroups | Where-Object { $_ })
+
+            $totalExclusions = $excludedUsers.Count + $excludedGroups.Count
+            if ($totalExclusions -eq 0) { continue }
+
+            # DEC-CA-001: Policy has user/group exclusions
+            $findings.Add((New-DecomFinding `
+                -FindingId         'DEC-CA-001' `
+                -Category          'Conditional Access' `
+                -Severity          'High' `
+                -RiskScore         65 `
+                -Confidence        'Medium' `
+                -ObjectType        'Policy' `
+                -ObjectId          $policy.Id `
+                -DisplayName       $policy.DisplayName `
+                -UserPrincipalName '' `
+                -Evidence          "CA policy excludes $($excludedUsers.Count) user(s) and $($excludedGroups.Count) group(s) from policy scope" `
+                -EvidenceSource    'identity/conditionalAccess/policies' `
+                -GraphEndpoint     '/v1.0/identity/conditionalAccess/policies/{id}' `
+                -RecommendedAction "Review and reduce exclusions in '$($policy.DisplayName)'; initiate access review for excluded identities" `
+                -RemediationMode   'ManualApprovalRequired' `
+                -ConsultantNote    'CA policy exclusions should be time-bound and reviewed quarterly'))
+
+            # DEC-CA-002: Analyze excluded groups for membership
+            foreach ($groupId in $excludedGroups) {
+                try {
+                    $group   = Get-MgGroup -GroupId $groupId -Select Id,DisplayName -ErrorAction Stop
+                    $members = @(Get-MgGroupMember -GroupId $groupId -All -ErrorAction Stop)
+
+                    if ($members.Count -gt 0) {
+                        $findings.Add((New-DecomFinding `
+                            -FindingId         'DEC-CA-002' `
+                            -Category          'Conditional Access' `
+                            -Severity          'High' `
+                            -RiskScore         62 `
+                            -Confidence        'Medium' `
+                            -ObjectType        'Group' `
+                            -ObjectId          $groupId `
+                            -DisplayName       $group.DisplayName `
+                            -UserPrincipalName '' `
+                            -Evidence          "CA exclusion group '$($group.DisplayName)' has $($members.Count) members in policy '$($policy.DisplayName)' — access review status unknown" `
+                            -EvidenceSource    'identity/conditionalAccess/policies' `
+                            -GraphEndpoint     '/v1.0/groups/{id}/members' `
+                            -RecommendedAction "Create access review for '$($group.DisplayName)'; validate all $($members.Count) members still require CA exclusion" `
+                            -RemediationMode   'ManualApprovalRequired' `
+                            -ConsultantNote    'CA exclusion group members require periodic attestation'))
+                    }
+                } catch {
+                    Write-DecomWarn "CA exclusion group check failed for group $groupId`: $_"
+                }
+            }
+        }
+    } catch {
+        Write-DecomWarn "Conditional access discovery unavailable (Policy.Read.All required): $_"
+    }
+
     # --- Coverage probes for remaining areas (no detection logic yet) ---
     try {
         $null = Get-MgGroup -Top 1 -ErrorAction Stop
@@ -632,13 +909,6 @@ function Invoke-DecomAssessmentDiscovery {
         Write-DecomWarn "Service principal discovery unavailable: $_"
     }
 
-    try {
-        $null = Get-MgDirectoryRole -ErrorAction Stop
-        $coverage.DirectoryRoles = $true
-        Write-DecomInfo "Directory role discovery: OK"
-    } catch {
-        Write-DecomWarn "Directory role discovery unavailable: $_"
-    }
 
     try {
         $null = Get-MgAuditLogSignIn -Top 1 -ErrorAction Stop
@@ -646,14 +916,6 @@ function Invoke-DecomAssessmentDiscovery {
         Write-DecomInfo "Audit log discovery: OK"
     } catch {
         Write-DecomWarn "Audit log discovery unavailable (AuditLog.Read.All required): $_"
-    }
-
-    try {
-        $null = Get-MgIdentityConditionalAccessPolicy -ErrorAction Stop
-        $coverage.ConditionalAccess = $true
-        Write-DecomInfo "Conditional access discovery: OK"
-    } catch {
-        Write-DecomWarn "Conditional access discovery unavailable: $_"
     }
 
     try {

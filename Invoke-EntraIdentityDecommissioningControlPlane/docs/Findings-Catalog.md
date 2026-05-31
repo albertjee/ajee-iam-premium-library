@@ -14,11 +14,11 @@
 | DEC-APP-005 | Application | Application has expired credential attached | High |
 | DEC-SPN-001 | Application | Service principal has no owner | Medium |
 | DEC-GUEST-001 | Guest Lifecycle | Guest has stale sign-in | Medium |
-| DEC-GUEST-002 | Guest Lifecycle | Guest has privileged access | Critical |
+| DEC-GUEST-002 | Guest Lifecycle | Guest holds privileged directory role | Critical |
 | DEC-GUEST-003 | Guest Lifecycle | Guest lacks sponsor metadata | Medium |
-| DEC-CA-001 | Conditional Access | Identity excluded from CA policy | High |
-| DEC-CA-002 | Conditional Access | CA exclusion group requires review | High |
-| DEC-ROLE-001 | Privileged Access | Stale identity has active role | Critical |
+| DEC-CA-001 | Conditional Access | CA policy has user/group exclusions requiring review | High |
+| DEC-CA-002 | Conditional Access | CA exclusion group membership requires access review | High |
+| DEC-ROLE-001 | Privileged Access | Disabled identity holds active privileged role | Critical |
 | DEC-IGA-001 | Governance | Access package lacks review coverage | High |
 
 ## Severity Model

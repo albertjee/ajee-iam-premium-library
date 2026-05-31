@@ -227,4 +227,49 @@ Describe 'Rev1.1 Reporting Tests' {
             $summary.Total    | Should -BeGreaterOrEqual 13
         }
     }
+
+    Context 'Rev1.4 new findings in reporting' {
+        It 'CSV export includes all Rev1.4 finding IDs from synthetic dataset' {
+            Import-Module .\src\Modules\Discovery.psm1 -Force -DisableNameChecking
+            Import-Module .\src\Modules\Utilities.psm1  -Force -DisableNameChecking
+            $findings = @(Get-DecomSyntheticFindings)
+            $path = Join-Path $TestDrive 'rev14-findings.csv'
+            Export-DecomAssessmentCsv -Findings $findings -Path $path
+            $csv = Import-Csv $path
+            $csv.FindingId | Should -Contain 'DEC-GUEST-003'
+            $csv.FindingId | Should -Contain 'DEC-ROLE-001'
+            $csv.FindingId | Should -Contain 'DEC-CA-002'
+        }
+
+        It 'Remediation plan includes DEC-ROLE-001 Critical finding in Immediate Actions' {
+            $findings = @(
+                New-DecomFinding -FindingId 'DEC-ROLE-001' -Category 'Privileged Access' `
+                    -Severity 'Critical' -RiskScore 90 -Confidence 'High' `
+                    -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                    -DisplayName 'Sam Okafor' -UserPrincipalName 'sam.okafor@contoso.com' `
+                    -Evidence 'Disabled user holds privileged role' -EvidenceSource 'test' `
+                    -RecommendedAction 'Remove role assignment' -RemediationMode 'ManualApprovalRequired'
+            )
+            $path = Join-Path $TestDrive 'plan-role001.md'
+            $ctx  = [PSCustomObject]@{ Mode='Assessment'; TenantId='test'; EngagementId=''; ClientName=''; Assessor='' }
+            Export-DecomRemediationPlan -Findings $findings -Path $path -Context $ctx
+            $content = Get-Content $path -Raw
+            $content | Should -Match 'DEC-ROLE-001'
+            $content | Should -Match 'Immediate Actions'
+        }
+
+        It 'HTML report renders without error for Rev1.4 synthetic findings' {
+            Import-Module .\src\Modules\Discovery.psm1 -Force -DisableNameChecking
+            Import-Module .\src\Modules\Utilities.psm1  -Force -DisableNameChecking
+            $findings = @(Get-DecomSyntheticFindings)
+            $path = Join-Path $TestDrive 'rev14-report.html'
+            $ctx  = [PSCustomObject]@{
+                Mode='Assessment'; TenantId='contoso.onmicrosoft.com'
+                EngagementId='TEST-014'; ClientName='Contoso'; Assessor='Albert Jee'
+                DemoMode=$true; Coverage=@{}
+            }
+            { Export-DecomAssessmentHtml -Findings $findings -Path $path -Context $ctx } | Should -Not -Throw
+            Test-Path $path | Should -Be $true
+        }
+    }
 }

@@ -1,5 +1,43 @@
 # Changelog
 
+## Rev1.4 — Guest Lifecycle + Privileged Access + Conditional Access Detection (2026-05-30)
+
+### Added (Live Detectors)
+- DEC-GUEST-002: Guest holds active privileged directory role (Critical, RiskScore 85)
+- DEC-GUEST-003: Guest lacks sponsor metadata — no manager or department (Medium, RiskScore 47)
+- DEC-ROLE-001: Disabled identity holds active privileged role (Critical, RiskScore 90)
+- DEC-USER-003: Disabled user holds privileged role — live mode implementation (Critical, RiskScore 92)
+- DEC-CA-001: CA policy has user/group exclusions requiring review (High, RiskScore 65)
+- DEC-CA-002: CA exclusion group membership requires access review (High, RiskScore 62)
+
+### Fixed
+- Entry point banner version updated from Rev1.1 to Rev1.4
+- Entry point module path corrected from src\modules to src\Modules (capital M)
+- Policy.Read.All added to Graph connection scope list
+
+### Updated
+- Synthetic DEC-GUEST-002 updated to Critical/RiskScore 85
+- Synthetic DEC-CA-001 updated to High/RiskScore 65
+- Synthetic dataset expanded with DEC-GUEST-003, DEC-ROLE-001, DEC-CA-002 (total: 16 findings)
+- Stub coverage probes for DirectoryRoles and ConditionalAccess removed (replaced by live detectors)
+- Findings-Catalog.md updated with new and revised entries
+- Required-Permissions.md updated with RoleManagement.Read.Directory and Policy.Read.All
+
+### Tests
+- Added 7 new Pester tests: severity mapping for DEC-GUEST-002, DEC-ROLE-001,
+  DEC-CA-001, DEC-GUEST-003, CSV Rev1.4 finding IDs, remediation plan, HTML rendering
+- Total: >= 42 tests, 0 failures
+
+### Notes
+- DEC-USER-003 and DEC-ROLE-001 intentionally both fire for the same disabled privileged user
+  (different reporting categories: lifecycle failure vs privileged access residue)
+- DEC-CA-002 reports access review status as unknown — true review correlation deferred to future release
+- DEC-ROLE-001 detects disabled users only in Rev1.4 — stale sign-in detection deferred to future release
+- DEC-GUEST-003 may generate findings in tenants where guest sponsor metadata is not maintained
+- This release combines planned Rev1.4, Rev1.5, and Rev1.6 into one detection expansion
+
+---
+
 ## Rev1.3 — Application Ownership Drift Detection (2026-05-30)
 
 ### Added (Live Detectors)

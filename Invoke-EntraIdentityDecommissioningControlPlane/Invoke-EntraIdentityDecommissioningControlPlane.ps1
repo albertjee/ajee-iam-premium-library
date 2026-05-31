@@ -25,7 +25,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ModulesPath = Join-Path $ScriptRoot 'src\modules'
+$ModulesPath = Join-Path $ScriptRoot 'src\Modules'
 
 foreach ($mod in @('Utilities','Discovery','Analysis','Reporting','RemediationPlan')) {
     $modPath = Join-Path $ModulesPath "$mod.psm1"
@@ -44,7 +44,7 @@ if (-not $NoLogo) {
     $startTime   = Get-DecomTimestampDisplay
 
     Write-Host ('=' * 64) -ForegroundColor $borderColor
-    Write-Host '  Entra Identity Decommissioning Control Plane  Rev1.1' -ForegroundColor Cyan
+    Write-Host '  Entra Identity Decommissioning Control Plane  Rev1.4' -ForegroundColor Cyan
     Write-Host '  Assessment-first tooling for identity governance reviews' -ForegroundColor DarkCyan
     Write-Host ('=' * 64) -ForegroundColor $borderColor
     Write-Host "  Mode     : $Mode" -ForegroundColor $modeColor
@@ -79,7 +79,8 @@ if (-not $DemoMode -and $Mode -in @('Assessment','WhatIfRemediation','ExportPlan
             'Application.Read.All',
             'AuditLog.Read.All',
             'RoleManagement.Read.Directory',
-            'EntitlementManagement.Read.All'
+            'EntitlementManagement.Read.All',
+            'Policy.Read.All'
         )
         Connect-MgGraph -Scopes $scopes -TenantId $TenantId -ErrorAction Stop | Out-Null
         Write-DecomOk "Graph connection established"
