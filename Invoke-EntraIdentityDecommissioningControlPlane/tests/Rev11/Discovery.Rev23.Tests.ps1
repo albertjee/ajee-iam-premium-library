@@ -931,6 +931,56 @@ Describe 'Rev2.3 Access Review Governance — M2B Live Findings' {
         }
     }
 
+    # Test 21b: Every DEC-REV-003 finding (both paths) has Severity Medium and RiskScore 50
+    It 'All DEC-REV-003 findings have Severity Medium and RiskScore 50' {
+        InModuleScope Discovery {
+            function Get-MgUser                     { param($Filter,$Property,$Select,[switch]$All,$ErrorAction) @() }
+            function Get-MgApplication              { param($Select,[switch]$All,$ErrorAction) @() }
+            function Get-MgServicePrincipal         { param($Filter,$Select,[switch]$All,$ErrorAction,$Top) @() }
+            function Get-MgDirectoryRole            { param($ErrorAction) @() }
+            function Get-MgUserMemberOf             { param($UserId,[switch]$All,$ErrorAction) @() }
+            function Get-MgUserAppRoleAssignment    { param($UserId,[switch]$All,$ErrorAction) @() }
+            function Get-MgIdentityConditionalAccessPolicy { param($ErrorAction) @() }
+            function Get-MgAuditLogSignIn           { param($Top,$ErrorAction) throw 'unavailable' }
+            function Get-MgGroup                    { param($Top,$GroupId,$Select,$ErrorAction) @() }
+            function Get-MgEntitlementManagementAssignment { param([switch]$All,$ErrorAction) @() }
+            function Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance { param([switch]$All,$ErrorAction) @() }
+            # Definition with two instances: one InProgress (path 1), one Completed with NotReviewed decision (path 2)
+            function Get-MgIdentityGovernanceAccessReviewDefinition {
+                param([switch]$All,$ErrorAction)
+                return @([PSCustomObject]@{ Id='def-r003both'; DisplayName='Dual Path Review'; Scope=$null })
+            }
+            function Get-MgIdentityGovernanceAccessReviewDefinitionInstance {
+                param($AccessReviewScheduleDefinitionId,[switch]$All,$ErrorAction)
+                return @(
+                    [PSCustomObject]@{ Id='inst-inprog'; AccessReviewScheduleDefinitionId='def-r003both'
+                        Status='InProgress'; EndDateTime=(Get-Date).AddDays(5).ToString('yyyy-MM-ddTHH:mm:ssZ') },
+                    [PSCustomObject]@{ Id='inst-done';   AccessReviewScheduleDefinitionId='def-r003both'
+                        Status='Completed'; EndDateTime=(Get-Date).AddDays(-10).ToString('yyyy-MM-ddTHH:mm:ssZ') }
+                )
+            }
+            function Get-MgIdentityGovernanceAccessReviewDefinitionInstanceDecision {
+                param($AccessReviewScheduleDefinitionId,$AccessReviewInstanceId,[switch]$All,$ErrorAction)
+                if ($AccessReviewInstanceId -eq 'inst-done') {
+                    return @([PSCustomObject]@{
+                        Id='dec-nr'; AccessReviewInstanceId='inst-done'
+                        AccessReviewScheduleDefinitionId='def-r003both'; Decision='NotReviewed'
+                    })
+                }
+                return @()
+            }
+
+            $ctx     = [PSCustomObject]@{ TenantId='test'; Mode='Assessment'; DemoMode=$false; Coverage=$null }
+            $result  = Invoke-DecomAssessmentDiscovery -Context $ctx
+            $rev003  = @($result | Where-Object { $_.FindingId -eq 'DEC-REV-003' })
+            $rev003.Count | Should -BeGreaterOrEqual 1
+            foreach ($f in $rev003) {
+                $f.Severity  | Should -Be 'Medium'
+                $f.RiskScore | Should -Be 50
+            }
+        }
+    }
+
     # Test 22: AR definition scope uncorrelated to any finding emits DEC-REV-004
     It 'AR definition with uncorrelated scope emits DEC-REV-004' {
         InModuleScope Discovery {

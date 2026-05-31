@@ -1935,7 +1935,7 @@ function Invoke-DecomAssessmentDiscovery {
                         -FindingId         'DEC-REV-003' `
                         -Category          'Access Review Governance' `
                         -Severity          'Medium' `
-                        -RiskScore         42 `
+                        -RiskScore         50 `
                         -Confidence        'Medium' `
                         -ObjectType        'TenantScope' `
                         -ObjectId          $defId `
