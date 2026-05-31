@@ -53,7 +53,7 @@ function Confirm-DecomActionTargetValid {
                 foreach ($roleAssignmentId in $targetIds) {
                     try {
                         $assignment = Get-MgRoleManagementDirectoryRoleAssignment `
-                            -UnifiedRoleAssignmentId $roleAssignmentId -ErrorAction SilentlyContinue
+                            -UnifiedRoleAssignmentId $roleAssignmentId -ErrorAction Stop
                         if ($null -eq $assignment) {
                             $result.InvalidTargets.Add("$roleAssignmentId : assignment not found (already removed or state changed)")
                         } elseif ($assignment.PrincipalId -ne $objectId) {

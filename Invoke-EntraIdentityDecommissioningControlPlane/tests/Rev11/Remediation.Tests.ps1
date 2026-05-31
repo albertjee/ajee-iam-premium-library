@@ -303,6 +303,22 @@ Describe 'Rev2.1 Target Revalidation' {
         $result = Confirm-DecomActionTargetValid -Action $action
         $result.Valid | Should -Be $false
     }
+
+    It 'Confirm-DecomActionTargetValid blocks when role assignment read fails' {
+        Mock -ModuleName Remediation Get-MgRoleManagementDirectoryRoleAssignment {
+            throw 'simulated Graph read failure'
+        }
+
+        $action = [PSCustomObject]@{
+            ActionType      = 'RemoveDirectoryRoleAssignment'
+            ObjectId        = 'approved-user-guid'
+            TargetObjectIds = @('ra-001')
+        }
+
+        $result = Confirm-DecomActionTargetValid -Action $action
+        $result.Valid | Should -Be $false
+        $result.ValidationErrors.Count | Should -BeGreaterThan 0
+    }
 }
 
 Describe 'Rev2.1 Evidence Export' {
