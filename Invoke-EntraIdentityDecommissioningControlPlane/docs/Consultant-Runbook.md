@@ -115,6 +115,67 @@ access review history. This is a coverage limitation, not a finding error.
 
 ---
 
+## Execution Workflow (Rev2.1)
+
+### Full engagement sequence
+
+```
+1. Assessment run — read-only, identify findings
+2. WhatIfRemediation run with -GenerateApprovalTemplate — generates action plan
+3. Review action plan with client — confirm each action by ObjectId and DisplayName
+4. Client signs approval manifest — set ApprovalStatus=Approved, ApprovedBy, ApprovedUtc
+5. Run Update-DecomApprovalManifestHash to recompute integrity hashes
+6. ExecuteRemediation run — three-gate validation, preflight summary, execution, evidence pack
+7. Deliver evidence pack to client — execution report HTML, evidence CSV, execution manifest
+```
+
+### ExecuteRemediation command
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+    -Mode                 ExecuteRemediation `
+    -TenantId             "client.onmicrosoft.com" `
+    -EngagementId         "ENG-001" `
+    -ClientName           "Client Name" `
+    -Assessor             "Your Name" `
+    -WhatIfManifestPath   ".\out\<timestamp>\entra-decommissioning-control-plane-run-manifest-*.json" `
+    -ApprovalManifestPath ".\out\<timestamp>\whatif-action-plan-*.json" `
+    -OutputPath           ".\out"
+```
+
+### Max action guardrail
+
+Default `-MaxActions` is 25. To execute more than 25 approved actions:
+
+```powershell
+-MaxActions 50
+```
+
+To execute a specific subset of actions:
+
+```powershell
+-ActionId ACT-001,ACT-002,ACT-005
+```
+
+### Approval manifest optional fields (Rev2.1)
+
+The approval manifest now supports these optional fields for enterprise governance:
+
+```json
+"ApprovalTicket": "CHG123456",
+"ApprovalSystem": "ServiceNow",
+"BusinessOwner": "Jane Smith",
+"TechnicalOwner": "Alex Chen",
+"ApprovalNotes": "Approved for leaver cleanup wave 1",
+"ExecutionWindowStartUtc": "2026-06-01T08:00:00Z",
+"ExecutionWindowEndUtc": "2026-06-01T18:00:00Z"
+```
+
+If `ExecutionWindowStartUtc` and `ExecutionWindowEndUtc` are both present,
+execution is blocked outside that window.
+
+---
+
 ## Known Limitations (Rev1.4)
 
 - Assessment mode is read-only — no changes are made to the tenant

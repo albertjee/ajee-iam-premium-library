@@ -7,10 +7,11 @@ Describe 'Rev2.0 Remediation Tests' {
     BeforeAll {
         $script:ModPath = Join-Path $PSScriptRoot '..\..\src\Modules'
 
-        foreach ($m in @('ExecutionLog','Remediation')) {
+        foreach ($m in @('Utilities','ExecutionLog','Remediation')) {
             Remove-Module $m -Force -ErrorAction SilentlyContinue
         }
 
+        Import-Module (Join-Path $script:ModPath 'Utilities.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModPath 'ExecutionLog.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModPath 'Remediation.psm1') -Force -DisableNameChecking
 
@@ -161,7 +162,7 @@ Describe 'Rev2.0 Remediation Tests' {
             $approvedRoleAssign = 'role-assignment-approved-001'
 
             Mock -ModuleName Remediation Get-MgRoleManagementDirectoryRoleAssignment {
-                [PSCustomObject]@{ Id = $approvedRoleAssign; RoleDefinitionId = 'rdef-001' }
+                [PSCustomObject]@{ Id = $approvedRoleAssign; RoleDefinitionId = 'rdef-001'; PrincipalId = $userId }
             }
             Mock -ModuleName Remediation Remove-MgRoleManagementDirectoryRoleAssignment { }
 
@@ -212,5 +213,258 @@ Describe 'Rev2.0 Remediation Tests' {
 
             $log.Log.Actions[0].Outcome | Should -Be 'Failed'
         }
+    }
+}
+
+Describe 'Rev2.1 Target Revalidation' {
+
+    BeforeAll {
+        $script:ModPath21 = Join-Path $PSScriptRoot '..\..\src\Modules'
+        foreach ($m in @('Utilities','ExecutionLog','Remediation')) {
+            Remove-Module $m -Force -ErrorAction SilentlyContinue
+        }
+        Import-Module (Join-Path $script:ModPath21 'Utilities.psm1') -Force -DisableNameChecking
+        Import-Module (Join-Path $script:ModPath21 'ExecutionLog.psm1') -Force -DisableNameChecking
+        Import-Module (Join-Path $script:ModPath21 'Remediation.psm1') -Force -DisableNameChecking
+    }
+
+    It 'Confirm-DecomActionTargetValid blocks when PrincipalId does not match ObjectId' {
+        Mock -ModuleName Remediation Get-MgRoleManagementDirectoryRoleAssignment {
+            [PSCustomObject]@{ Id = 'ra-001'; PrincipalId = 'different-user-guid' }
+        }
+
+        $action = [PSCustomObject]@{
+            ActionType      = 'RemoveDirectoryRoleAssignment'
+            ObjectId        = 'approved-user-guid'
+            TargetObjectIds = @('ra-001')
+        }
+
+        $result = Confirm-DecomActionTargetValid -Action $action
+        $result.Valid | Should -Be $false
+        ($result.InvalidTargets | Where-Object { $_ -like '*PrincipalId MISMATCH*' }) |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'Confirm-DecomActionTargetValid returns valid when role assignment matches' {
+        Mock -ModuleName Remediation Get-MgRoleManagementDirectoryRoleAssignment {
+            [PSCustomObject]@{ Id = 'ra-001'; PrincipalId = 'approved-user-guid' }
+        }
+
+        $action = [PSCustomObject]@{
+            ActionType      = 'RemoveDirectoryRoleAssignment'
+            ObjectId        = 'approved-user-guid'
+            TargetObjectIds = @('ra-001')
+        }
+
+        $result = Confirm-DecomActionTargetValid -Action $action
+        $result.Valid | Should -Be $true
+        $result.InvalidTargets.Count | Should -Be 0
+    }
+
+    It 'Confirm-DecomActionTargetValid notes stale group membership as invalid target' {
+        Mock -ModuleName Remediation Get-MgGroupMember { @() }
+
+        $action = [PSCustomObject]@{
+            ActionType      = 'RemoveGroupMembership'
+            ObjectId        = 'user-001'
+            TargetObjectIds = @('group-001')
+        }
+
+        $result = Confirm-DecomActionTargetValid -Action $action
+        $result.Valid | Should -Be $true
+        $result.InvalidTargets.Count | Should -BeGreaterThan 0
+    }
+
+    It 'Confirm-DecomActionTargetValid notes stale app role assignment as invalid target' {
+        Mock -ModuleName Remediation Get-MgUserAppRoleAssignment { @() }
+
+        $action = [PSCustomObject]@{
+            ActionType      = 'RevokeAppRoleAssignment'
+            ObjectId        = 'user-001'
+            TargetObjectIds = @('assign-001')
+        }
+
+        $result = Confirm-DecomActionTargetValid -Action $action
+        $result.Valid | Should -Be $true
+        $result.InvalidTargets.Count | Should -BeGreaterThan 0
+    }
+}
+
+Describe 'Rev2.1 Evidence Export' {
+
+    BeforeAll {
+        $script:ModPath21e = Join-Path $PSScriptRoot '..\..\src\Modules'
+        foreach ($m in @('ExecutionLog','Remediation')) {
+            Remove-Module $m -Force -ErrorAction SilentlyContinue
+        }
+        Import-Module (Join-Path $script:ModPath21e 'ExecutionLog.psm1') -Force -DisableNameChecking
+        Import-Module (Join-Path $script:ModPath21e 'Remediation.psm1') -Force -DisableNameChecking
+    }
+
+    It 'Export-DecomExecutionEvidence creates CSV and JSON files' {
+        $log = New-DecomExecutionLog -RunFolder $TestDrive -EngagementId 'ENG-001' `
+            -RunId ([guid]::NewGuid().ToString())
+        Add-DecomExecutionAction -ExecutionLog $log -ActionId 'ACT-001' `
+            -FindingId 'DEC-USER-001' -ObjectId 'u1' -DisplayName 'Test' `
+            -ActionType 'RemoveGroupMembership' -Outcome 'Executed' `
+            -TargetObjectIds @('g1') -TargetsBefore @('g1: existsBefore=true') `
+            -TargetsAfter @('g1: existsAfter=false') -ErrorDetail ''
+        Save-DecomExecutionLog -ExecutionLog $log
+
+        $csvPath  = Join-Path $TestDrive 'evidence.csv'
+        $jsonPath = Join-Path $TestDrive 'evidence.json'
+        $manifest = [PSCustomObject]@{ ApprovedActionsHash = 'hash'; ApprovedBy = 'Jane' }
+
+        Export-DecomExecutionEvidence -ExecutionLog $log -ApprovalManifest $manifest `
+            -CsvPath $csvPath -JsonPath $jsonPath
+
+        Test-Path $csvPath  | Should -Be $true
+        Test-Path $jsonPath | Should -Be $true
+        $csv = Import-Csv $csvPath
+        $csv[0].ActionId | Should -Be 'ACT-001'
+        $csv[0].Outcome  | Should -Be 'Executed'
+    }
+
+    It 'Write-DecomExecutionManifest creates manifest with correct schema version' {
+        $log = New-DecomExecutionLog -RunFolder $TestDrive -EngagementId 'ENG-001' `
+            -RunId ([guid]::NewGuid().ToString())
+        Save-DecomExecutionLog -ExecutionLog $log
+
+        $manifestPath = Join-Path $TestDrive 'exec-manifest.json'
+        $approval = [PSCustomObject]@{
+            WhatIfRunId = 'r1'; ApprovedBy = 'Jane'; ApprovalTicket = 'CHG-001'
+            ApprovalSystem = 'ServiceNow'; ApprovedActionsHash = 'h1'
+            ApprovalEnvelopeHash = 'h2'
+        }
+
+        Write-DecomExecutionManifest -ExecutionLog $log -ApprovalManifest $approval `
+            -Path $manifestPath -EngagementId 'ENG-001' -ClientName 'Contoso' `
+            -TenantId 'contoso.onmicrosoft.com' -Assessor 'Albert Jee' `
+            -EvidenceCsvPath 'ev.csv' -EvidenceJsonPath 'ev.json' -ReportPath 'rep.html'
+
+        $content = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        $content.SchemaVersion  | Should -Be '2.1'
+        $content.Mode           | Should -Be 'ExecuteRemediation'
+        $content.ApprovalTicket | Should -Be 'CHG-001'
+    }
+}
+
+Describe 'Rev2.1 Max Action Guardrail' {
+
+    It 'Entry point MaxActions check is present in source' {
+        $src = Get-Content '.\Invoke-EntraIdentityDecommissioningControlPlane.ps1' -Raw
+        $src | Should -Match 'MaxActions'
+        $src | Should -Match 'exceeds'
+    }
+
+    It 'Entry point ActionId filter is present in source' {
+        $src = Get-Content '.\Invoke-EntraIdentityDecommissioningControlPlane.ps1' -Raw
+        $src | Should -Match '\$ActionId'
+    }
+}
+
+Describe 'Rev2.1 Preflight Report' {
+
+    It 'Entry point RequirePreflightConfirm parameter is present' {
+        $src = Get-Content '.\Invoke-EntraIdentityDecommissioningControlPlane.ps1' -Raw
+        $src | Should -Match 'RequirePreflightConfirm'
+    }
+
+    It 'Entry point preflight EXECUTE prompt is present' {
+        $src = Get-Content '.\Invoke-EntraIdentityDecommissioningControlPlane.ps1' -Raw
+        $src | Should -Match 'EXECUTE'
+    }
+}
+
+Describe 'Rev2.1 Execution Window Validation' {
+
+    BeforeAll {
+        $script:ModPath21w = Join-Path $PSScriptRoot '..\..\src\Modules'
+        Remove-Module ApprovalManifest -Force -ErrorAction SilentlyContinue
+        Import-Module (Join-Path $script:ModPath21w 'ApprovalManifest.psm1') -Force -DisableNameChecking
+    }
+
+    It 'Test-DecomApprovalManifest blocks when current time is before ExecutionWindowStartUtc' {
+        $tomorrow  = (Get-Date).AddDays(1).ToUniversalTime().ToString('o')
+        $dayAfter  = (Get-Date).AddDays(2).ToUniversalTime().ToString('o')
+        $mPath = Join-Path $TestDrive 'approval-before-window.json'
+        $m = [ordered]@{
+            SchemaVersion        = '2.0'
+            ApprovalStatus       = 'Approved'
+            EngagementId         = 'ENG-001'
+            ClientName           = 'Contoso'
+            ApprovedBy           = 'Jane Smith'
+            ApprovedUtc          = (Get-Date).AddDays(-1).ToUniversalTime().ToString('o')
+            ExpiresUtc           = (Get-Date).AddDays(3).ToUniversalTime().ToString('o')
+            AllowNonInteractive  = $false
+            WhatIfRunId          = [guid]::NewGuid().ToString()
+            ApprovedActionsHash  = 'placeholder'
+            ApprovalEnvelopeHash = 'placeholder'
+            ApprovedActions      = @()
+            ExecutionWindowStartUtc = $tomorrow
+            ExecutionWindowEndUtc   = $dayAfter
+        }
+        $m | ConvertTo-Json -Depth 5 | Set-Content $mPath -Encoding UTF8
+        $result = Test-DecomApprovalManifest -ManifestPath $mPath `
+            -CurrentEngagementId 'ENG-001' -CurrentClientName 'Contoso' `
+            -WhatIfRunId $m.WhatIfRunId
+        ($result.Errors | Where-Object { $_ -like '*before ExecutionWindowStartUtc*' }) |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'Test-DecomApprovalManifest blocks when current time is after ExecutionWindowEndUtc' {
+        $yesterday = (Get-Date).AddDays(-2).ToUniversalTime().ToString('o')
+        $anHourAgo = (Get-Date).AddHours(-1).ToUniversalTime().ToString('o')
+        $mPath = Join-Path $TestDrive 'approval-after-window.json'
+        $m = [ordered]@{
+            SchemaVersion        = '2.0'
+            ApprovalStatus       = 'Approved'
+            EngagementId         = 'ENG-001'
+            ClientName           = 'Contoso'
+            ApprovedBy           = 'Jane Smith'
+            ApprovedUtc          = (Get-Date).AddDays(-3).ToUniversalTime().ToString('o')
+            ExpiresUtc           = (Get-Date).AddDays(1).ToUniversalTime().ToString('o')
+            AllowNonInteractive  = $false
+            WhatIfRunId          = [guid]::NewGuid().ToString()
+            ApprovedActionsHash  = 'placeholder'
+            ApprovalEnvelopeHash = 'placeholder'
+            ApprovedActions      = @()
+            ExecutionWindowStartUtc = $yesterday
+            ExecutionWindowEndUtc   = $anHourAgo
+        }
+        $m | ConvertTo-Json -Depth 5 | Set-Content $mPath -Encoding UTF8
+        $result = Test-DecomApprovalManifest -ManifestPath $mPath `
+            -CurrentEngagementId 'ENG-001' -CurrentClientName 'Contoso' `
+            -WhatIfRunId $m.WhatIfRunId
+        ($result.Errors | Where-Object { $_ -like '*after ExecutionWindowEndUtc*' }) |
+            Should -Not -BeNullOrEmpty
+    }
+
+    It 'Test-DecomApprovalManifest does not add window errors when current time is within window' {
+        $anHourAgo = (Get-Date).AddHours(-1).ToUniversalTime().ToString('o')
+        $tomorrow  = (Get-Date).AddDays(1).ToUniversalTime().ToString('o')
+        $mPath = Join-Path $TestDrive 'approval-in-window.json'
+        $m = [ordered]@{
+            SchemaVersion        = '2.0'
+            ApprovalStatus       = 'Approved'
+            EngagementId         = 'ENG-001'
+            ClientName           = 'Contoso'
+            ApprovedBy           = 'Jane Smith'
+            ApprovedUtc          = (Get-Date).AddDays(-1).ToUniversalTime().ToString('o')
+            ExpiresUtc           = (Get-Date).AddDays(3).ToUniversalTime().ToString('o')
+            AllowNonInteractive  = $false
+            WhatIfRunId          = [guid]::NewGuid().ToString()
+            ApprovedActionsHash  = 'placeholder'
+            ApprovalEnvelopeHash = 'placeholder'
+            ApprovedActions      = @()
+            ExecutionWindowStartUtc = $anHourAgo
+            ExecutionWindowEndUtc   = $tomorrow
+        }
+        $m | ConvertTo-Json -Depth 5 | Set-Content $mPath -Encoding UTF8
+        $result = Test-DecomApprovalManifest -ManifestPath $mPath `
+            -CurrentEngagementId 'ENG-001' -CurrentClientName 'Contoso' `
+            -WhatIfRunId $m.WhatIfRunId
+        ($result.Errors | Where-Object { $_ -like '*ExecutionWindow*' }) |
+            Should -BeNullOrEmpty
     }
 }

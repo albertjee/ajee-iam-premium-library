@@ -678,6 +678,37 @@ function Test-DecomApprovalManifest {
         }
     }
 
+    # Optional execution window validation — runs regardless of ApprovedActions state
+    if ($manifest.ExecutionWindowStartUtc -and $manifest.ExecutionWindowEndUtc) {
+        try {
+            $ic       = [System.Globalization.CultureInfo]::InvariantCulture
+            $styles   = [System.Globalization.DateTimeStyles]::RoundtripKind
+            $startRaw = $manifest.ExecutionWindowStartUtc
+            $endRaw   = $manifest.ExecutionWindowEndUtc
+            # PS5.1 ConvertFrom-Json converts ISO 8601 strings to DateTime objects.
+            # Handle both DateTime (already parsed) and string (needs parsing).
+            $windowStart = if ($startRaw -is [datetime]) {
+                $startRaw.ToUniversalTime()
+            } else {
+                [datetime]::Parse([string]$startRaw, $ic, $styles).ToUniversalTime()
+            }
+            $windowEnd = if ($endRaw -is [datetime]) {
+                $endRaw.ToUniversalTime()
+            } else {
+                [datetime]::Parse([string]$endRaw, $ic, $styles).ToUniversalTime()
+            }
+            $now = (Get-Date).ToUniversalTime()
+            if ($now -lt $windowStart) {
+                $errors += "Current time is before ExecutionWindowStartUtc ($($manifest.ExecutionWindowStartUtc))"
+            }
+            if ($now -gt $windowEnd) {
+                $errors += "Current time is after ExecutionWindowEndUtc ($($manifest.ExecutionWindowEndUtc))"
+            }
+        } catch {
+            $errors += "ExecutionWindow dates are not valid: $_"
+        }
+    }
+
     return [PSCustomObject]@{
         Valid = ($errors.Count -eq 0)
         Errors = $errors

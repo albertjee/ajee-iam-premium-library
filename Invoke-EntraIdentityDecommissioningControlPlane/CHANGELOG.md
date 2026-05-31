@@ -1,5 +1,34 @@
 # Changelog
 
+## Rev2.1 — Evidence, Preflight, and Governance Hardening (2026-05-31)
+
+### Added
+- **Target revalidation (Gate C hardening)**: `Confirm-DecomActionTargetValid` validates each action's targets against live Graph state immediately before execution. PrincipalId mismatch on role assignments produces a hard `Blocked` outcome (wrong-object protection). Stale targets produce a warning and continue.
+- **Evidence export**: `Export-DecomExecutionEvidence` flattens all executed actions to per-target CSV rows. `Write-DecomExecutionManifest` writes a structured JSON execution summary with SchemaVersion=2.1, Result counts, and EvidenceFiles paths.
+- **Execution report**: `Export-DecomExecutionReport` in Reporting.psm1 generates a dark-themed client-deliverable HTML with scorecard and per-action evidence table. TargetsBefore/TargetsAfter are HtmlEncoded before rendering.
+- **Preflight report**: Entry point displays a summary table of approved actions (ActionId, FindingId, DisplayName, ActionType, TargetCount, RiskScore) before execution. `-RequirePreflightConfirm` prompts operator to type EXECUTE before proceeding.
+- **MaxActions guardrail**: `-MaxActions` (default 25) blocks execution if approved action count exceeds limit. `-ActionId` filter is applied first, then MaxActions check runs on the filtered set.
+- **Execution window enforcement**: `Test-DecomApprovalManifest` validates `ExecutionWindowStartUtc` / `ExecutionWindowEndUtc` when present. Execution is blocked outside the approved window. PS5.1 `ConvertFrom-Json` DateTime coercion handled via `is [datetime]` pattern.
+- **Approval manifest optional fields**: `ApprovalTicket`, `ApprovalSystem`, `BusinessOwner`, `TechnicalOwner`, `ApprovalNotes`, `ExecutionWindowStartUtc`, `ExecutionWindowEndUtc`.
+- **New params**: `-MaxActions [int]`, `-ActionId [string[]]`, `-RequirePreflightConfirm [switch]`.
+- Updated Consultant-Runbook.md with full Rev2.1 engagement workflow, ExecuteRemediation command, MaxActions/ActionId examples, optional manifest fields documentation.
+
+### Safety model (unchanged from Rev2.0)
+- Three-gate safety model and all frozen files untouched.
+- No new write scope, no new remediation types.
+- ApprovalManifest.psm1 modified only to add execution window validation to `Test-DecomApprovalManifest`.
+
+### Tests
+- Added 13 new Pester tests across 5 new Describe blocks:
+  - Rev2.1 Target Revalidation (4 tests)
+  - Rev2.1 Evidence Export (2 tests)
+  - Rev2.1 Max Action Guardrail (2 source inspection tests)
+  - Rev2.1 Preflight Report (2 source inspection tests)
+  - Rev2.1 Execution Window Validation (3 tests)
+- Total test count: 88, 0 failures.
+
+---
+
 ## Rev2.0 — Controlled Remediation Engine (2026-05-30)
 
 ### Added

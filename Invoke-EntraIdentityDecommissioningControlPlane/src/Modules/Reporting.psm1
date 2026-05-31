@@ -145,7 +145,7 @@ function Export-DecomAssessmentHtml {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Entra Identity Decommissioning Assessment — Rev1.1</title>
+<title>Entra Identity Decommissioning Assessment — Rev2.1</title>
 <style>
 :root {
   --navy:   #0b1220;
@@ -210,11 +210,11 @@ $demoWatermark
 <div class="container">
   <div class="header">
     <h1>Entra Identity Decommissioning Control Plane</h1>
-    <div class="subtitle">Identity Governance Assessment Report — Rev1.1</div>
+    <div class="subtitle">Identity Governance Assessment Report — Rev2.1</div>
     <div class="meta-grid">
       <div class="meta-item"><div class="label">Tenant</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($tenantDisplay))</div></div>
       <div class="meta-item"><div class="label">Run Date</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($runDate))</div></div>
-      <div class="meta-item"><div class="label">Version</div><div class="value">Rev1.1</div></div>
+      <div class="meta-item"><div class="label">Version</div><div class="value">Rev2.1</div></div>
       <div class="meta-item"><div class="label">Mode</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($modeDisplay))</div></div>
       <div class="meta-item"><div class="label">Client</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($clientDisplay))</div></div>
       <div class="meta-item"><div class="label">Engagement ID</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($engagementId))</div></div>
@@ -336,8 +336,8 @@ $($roadmapHtml.ToString())
   </div>
 
   <footer>
-    <span>Generated: $([System.Web.HttpUtility]::HtmlEncode($runDate)) | Entra Identity Decommissioning Control Plane Rev1.1</span>
-    <span>Consultant advisory tool — not a continuous monitoring platform</span>
+    <span>Generated: $([System.Web.HttpUtility]::HtmlEncode($runDate)) | Entra Identity Decommissioning Control Plane Rev2.1</span>
+    <span style="color:var(--muted);">© 2026 Albert Jee. All rights reserved. | Consultant advisory tool — not a continuous monitoring platform</span>
   </footer>
 </div>
 
@@ -355,6 +355,154 @@ function applyFilters() {
   }
 }
 </script>
+</body>
+</html>
+"@
+
+    Set-Content -Path $Path -Value $html -Encoding UTF8
+}
+
+function Export-DecomExecutionReport {
+    param(
+        [PSCustomObject]$ExecutionLog,
+        [object]$ApprovalManifest,
+        [string]$Path,
+        [string]$EngagementId,
+        [string]$ClientName,
+        [string]$Assessor,
+        [string]$TenantId
+    )
+
+    $runDate    = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
+    $actions    = $ExecutionLog.Log.Actions
+    $approvedBy = if ($ApprovalManifest.ApprovedBy)      { $ApprovalManifest.ApprovedBy }      else { '—' }
+    $ticket     = if ($ApprovalManifest.ApprovalTicket)  { $ApprovalManifest.ApprovalTicket }  else { '—' }
+
+    $executedCount   = @($actions | Where-Object { $_.Outcome -eq 'Executed' }).Count
+    $failedCount     = @($actions | Where-Object { $_.Outcome -eq 'Failed' }).Count
+    $partialCount    = @($actions | Where-Object { $_.Outcome -eq 'PartialFailed' }).Count
+    $blockedCount    = @($actions | Where-Object { $_.Outcome -eq 'Blocked' }).Count
+    $declinedCount   = @($actions | Where-Object { $_.Outcome -eq 'OperatorDeclined' }).Count
+    $outOfScopeCount = @($actions | Where-Object { $_.Outcome -eq 'OutOfScope' }).Count
+    $totalCount      = $actions.Count
+
+    $actionRowsHtml = [System.Text.StringBuilder]::new()
+    foreach ($a in $actions) {
+        $outcomeColor = switch ($a.Outcome) {
+            'Executed'         { 'color:#22c55e;font-weight:700' }
+            'PartialFailed'    { 'color:#f59e0b;font-weight:700' }
+            'Failed'           { 'color:#ef4444;font-weight:700' }
+            'Blocked'          { 'color:#ef4444;font-weight:700' }
+            'OperatorDeclined' { 'color:#f59e0b' }
+            default            { 'color:#cbd5e1' }
+        }
+        $beforeSummary = if ($a.TargetsBefore) {
+            ($a.TargetsBefore | ForEach-Object { [System.Web.HttpUtility]::HtmlEncode($_) }) -join '<br>'
+        } else { '—' }
+        $afterSummary = if ($a.TargetsAfter) {
+            ($a.TargetsAfter | ForEach-Object { [System.Web.HttpUtility]::HtmlEncode($_) }) -join '<br>'
+        } else { '—' }
+        $null = $actionRowsHtml.Append(@"
+<tr>
+  <td style="font-family:monospace;font-size:12px;">$([System.Web.HttpUtility]::HtmlEncode($a.ActionId))</td>
+  <td style="font-family:monospace;font-size:12px;">$([System.Web.HttpUtility]::HtmlEncode($a.FindingId))</td>
+  <td>$([System.Web.HttpUtility]::HtmlEncode($a.DisplayName))</td>
+  <td style="font-size:12px;color:var(--muted)">$([System.Web.HttpUtility]::HtmlEncode($a.ActionType))</td>
+  <td style="$outcomeColor">$([System.Web.HttpUtility]::HtmlEncode($a.Outcome))</td>
+  <td style="font-size:11px;color:var(--muted)">$beforeSummary</td>
+  <td style="font-size:11px;color:var(--muted)">$afterSummary</td>
+  <td style="font-size:12px;color:var(--muted)">$([System.Web.HttpUtility]::HtmlEncode($a.ErrorDetail))</td>
+</tr>
+"@)
+    }
+
+    $html = @"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entra Identity Decommissioning — Execution Report Rev2.1</title>
+<style>
+:root{--navy:#0b1220;--gold:#c6a75e;--text:#f8fafc;--muted:#cbd5e1;--cyan:#38bdf8;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:rgba(198,167,94,0.35);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:linear-gradient(135deg,#0b1220,#020617);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+.advisory-bar{width:100%;background:#0a0f1a;border-left:6px solid var(--gold);padding:12px 32px;font-size:13px;color:#94a3b8;}
+.advisory-bar strong{color:var(--gold);}
+.container{max-width:1280px;margin:0 auto;padding:40px;}
+.header{border-left:6px solid var(--gold);padding-left:20px;margin-bottom:32px;}
+.header h1{color:var(--text);font-size:34px;font-weight:700;}
+.header .subtitle{color:var(--muted);font-size:16px;margin-top:6px;}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;}
+.meta-item .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
+.meta-item .value{color:var(--gold);font-size:14px;font-weight:600;margin-top:2px;}
+.section-title{font-size:18px;font-weight:700;color:var(--gold);margin:32px 0 16px;border-bottom:1px solid var(--border);padding-bottom:8px;}
+.scorecard{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px;}
+.score-card{background:rgba(22,32,51,0.92);border-radius:12px;padding:16px;text-align:center;border:1px solid var(--border);}
+.score-card .score-label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.score-card .score-value{font-size:26px;font-weight:700;}
+table{width:100%;border-collapse:collapse;background:rgba(11,18,32,0.7);}
+thead th{background:rgba(22,32,51,0.95);color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);}
+tbody td{padding:12px 14px;border-bottom:1px solid rgba(198,167,94,0.12);font-size:14px;color:var(--text);vertical-align:top;}
+tbody tr:hover{background:rgba(22,32,51,0.6);}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12px;display:flex;justify-content:space-between;align-items:center;}
+</style>
+</head>
+<body>
+<div class="advisory-bar">
+  <strong>Execution Evidence Report</strong> — Rev2.1 | Controlled Remediation — Client Deliverable
+</div>
+<div class="container">
+  <div class="header">
+    <h1>Entra Identity Decommissioning Control Plane</h1>
+    <div class="subtitle">Controlled Remediation Execution Report — Rev2.1</div>
+    <div class="meta-grid">
+      <div class="meta-item"><div class="label">Tenant</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($TenantId))</div></div>
+      <div class="meta-item"><div class="label">Run Date</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($runDate))</div></div>
+      <div class="meta-item"><div class="label">Version</div><div class="value">Rev2.1</div></div>
+      <div class="meta-item"><div class="label">Client</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($ClientName))</div></div>
+      <div class="meta-item"><div class="label">Engagement ID</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($EngagementId))</div></div>
+      <div class="meta-item"><div class="label">Assessor</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($Assessor))</div></div>
+      <div class="meta-item"><div class="label">Approved By</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($approvedBy))</div></div>
+      <div class="meta-item"><div class="label">Approval Ticket</div><div class="value">$([System.Web.HttpUtility]::HtmlEncode($ticket))</div></div>
+      <div class="meta-item"><div class="label">Run ID</div><div class="value" style="font-size:11px;font-family:monospace">$([System.Web.HttpUtility]::HtmlEncode($ExecutionLog.Log.RunId))</div></div>
+    </div>
+  </div>
+
+  <div class="section-title">Execution Scorecard</div>
+  <div class="scorecard">
+    <div class="score-card"><div class="score-label" style="color:var(--green)">Executed</div><div class="score-value" style="color:var(--green)">$executedCount</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--orange)">Partial</div><div class="score-value" style="color:var(--orange)">$partialCount</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--red)">Failed</div><div class="score-value" style="color:var(--red)">$failedCount</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--red)">Blocked</div><div class="score-value" style="color:var(--red)">$blockedCount</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--orange)">Declined</div><div class="score-value" style="color:var(--orange)">$declinedCount</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--muted)">Out of Scope</div><div class="score-value" style="color:var(--muted)">$outOfScopeCount</div></div>
+  </div>
+
+  <div class="section-title">Action Evidence</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Action ID</th>
+        <th>Finding ID</th>
+        <th>Object</th>
+        <th>Action Type</th>
+        <th>Outcome</th>
+        <th>Before State</th>
+        <th>After State</th>
+        <th>Error Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+$($actionRowsHtml.ToString())
+    </tbody>
+  </table>
+
+  <footer>
+    <span>Generated: $([System.Web.HttpUtility]::HtmlEncode($runDate)) | Entra Identity Decommissioning Control Plane Rev2.1</span>
+    <span style="color:var(--muted);">© 2026 Albert Jee. All rights reserved. | Consultant advisory tool — not a continuous monitoring platform</span>
+  </footer>
+</div>
 </body>
 </html>
 "@
