@@ -274,11 +274,11 @@ Describe 'Rev1.1 Reporting Tests' {
     }
 
     Context 'Rev2.2 reporting coverage' {
-        It 'JSON export SchemaVersion is 2.2' {
-            $path = Join-Path $TestDrive 'rev22-schema.json'
+        It 'JSON export SchemaVersion is 2.3' {
+            $path = Join-Path $TestDrive 'rev23-schema.json'
             Export-DecomAssessmentJson -Findings $script:TestFindings -Path $path -Context $script:TestContext
             $json = Get-Content $path -Raw | ConvertFrom-Json
-            $json.SchemaVersion | Should -Be '2.2'
+            $json.SchemaVersion | Should -Be '2.3'
         }
 
         It 'HTML renders without null crash for Rev2.2 PIM finding' {
@@ -314,6 +314,73 @@ Describe 'Rev1.1 Reporting Tests' {
             $csv.FindingId | Should -Contain 'DEC-PIM-002'
             $csv.FindingId | Should -Contain 'DEC-AP-001'
             $csv.FindingId | Should -Contain 'DEC-AP-005'
+        }
+    }
+
+    Context 'Rev2.3 reporting coverage' {
+        It 'Run manifest SchemaVersion is 2.3' {
+            $path = Join-Path $TestDrive 'rev23-manifest-schema.json'
+            $ctx = [PSCustomObject]@{
+                TenantId='contoso.onmicrosoft.com'; Mode='Assessment'; DemoMode=$false
+                EngagementId='TEST-023'; ClientName='Contoso'; Assessor='Albert Jee'
+                Coverage=[ordered]@{ Users=$true; AccessReviews=$false }
+            }
+            Write-DecomRunManifest -Path $path -Context $ctx -Summary @{} -ExportPaths @{}
+            $manifest = Get-Content $path -Raw | ConvertFrom-Json
+            $manifest.SchemaVersion | Should -Be '2.3'
+        }
+
+        It 'Run manifest includes Coverage' {
+            $path = Join-Path $TestDrive 'rev23-manifest-cov.json'
+            $ctx = [PSCustomObject]@{
+                TenantId='test'; Mode='Assessment'; DemoMode=$false
+                EngagementId='TEST-023'; ClientName='Test'; Assessor='Test'
+                Coverage=[ordered]@{ Users=$true; AccessReviews=$false; GuestReviewCorrelation=$false }
+            }
+            Write-DecomRunManifest -Path $path -Context $ctx -Summary @{} -ExportPaths @{}
+            $manifest = Get-Content $path -Raw | ConvertFrom-Json
+            $manifest.PSObject.Properties.Name | Should -Contain 'Coverage'
+        }
+
+        It 'HTML report includes ToolVersion Rev2.3' {
+            $path = Join-Path $TestDrive 'rev23-toolversion.html'
+            $ctx = [PSCustomObject]@{
+                TenantId='test'; Mode='Assessment'; DemoMode=$false
+                EngagementId='T-001'; ClientName='Test'; Assessor='Test'
+                ToolVersion='Rev2.3'
+                Coverage=[ordered]@{ Users=$true }
+            }
+            Export-DecomAssessmentHtml -Findings @() -Path $path -Context $ctx -Summary @{ Critical=0; High=0; Medium=0; Low=0; Informational=0; Total=0 }
+            $html = Get-Content $path -Raw
+            $html | Should -Match 'Rev2\.3'
+        }
+
+        It 'HTML report renders governance evidence coverage rows' {
+            $path = Join-Path $TestDrive 'rev23-gov-coverage.html'
+            $ctx = [PSCustomObject]@{
+                TenantId='test'; Mode='Assessment'; DemoMode=$false
+                EngagementId='T-001'; ClientName='Test'; Assessor='Test'
+                ToolVersion='Rev2.3'
+                Coverage=[ordered]@{
+                    Users=$true; AccessReviews=$true
+                    GuestReviewCorrelation=$false; PimReviewCorrelation=$true
+                    GovernanceEvidenceLimitations=@()
+                }
+            }
+            Export-DecomAssessmentHtml -Findings @() -Path $path -Context $ctx -Summary @{ Critical=0; High=0; Medium=0; Low=0; Informational=0; Total=0 }
+            $html = Get-Content $path -Raw
+            $html | Should -Match 'GuestReviewCorrelation'
+            $html | Should -Match 'AccessReviews'
+        }
+
+        It 'Coverage limitations render without null crash' {
+            $path = Join-Path $TestDrive 'rev23-null-cov.html'
+            $ctx = [PSCustomObject]@{
+                TenantId='test'; Mode='Assessment'; DemoMode=$false
+                EngagementId='T-001'; ClientName='Test'; Assessor='Test'
+                ToolVersion='Rev2.3'; Coverage=$null
+            }
+            { Export-DecomAssessmentHtml -Findings @() -Path $path -Context $ctx -Summary @{ Critical=0; High=0; Medium=0; Low=0; Informational=0; Total=0 } } | Should -Not -Throw
         }
     }
 }

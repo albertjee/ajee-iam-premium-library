@@ -3,6 +3,17 @@ $script:ProtectedPatterns = @(
     'aadconnect','cloudsync','svc-','service-'
 )
 
+function Get-DecomAvailableCommand {
+    param([string[]]$Names)
+
+    foreach ($name in $Names) {
+        $cmd = Get-Command $name -ErrorAction SilentlyContinue
+        if ($null -ne $cmd) { return $name }
+    }
+
+    return $null
+}
+
 function New-DecomCoverage {
     [ordered]@{
         Users                        = $false
@@ -19,6 +30,15 @@ function New-DecomCoverage {
         EntitlementAssignments       = $false
         AccessPackagePolicies        = $false
         AccessReviewScheduleEvidence = $false
+        AccessReviews                  = $false
+        AccessReviewDefinitions        = $false
+        AccessReviewInstances          = $false
+        AccessReviewDecisions          = $false
+        GuestReviewCorrelation         = $false
+        PimReviewCorrelation           = $false
+        AccessPackageReviewCorrelation = $false
+        CAExclusionReviewCorrelation   = $false
+        GovernanceEvidenceLimitations  = @()
     }
 }
 
@@ -446,7 +466,261 @@ function Get-DecomSyntheticFindings {
             -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
             -RecommendedAction 'Review access package assignment linked to sensitive resource; confirm business justification and governance approval' `
             -RemediationMode   'ManualApprovalRequired' `
-            -ConsultantNote    'Sensitive resource heuristic match — Confidence: Medium')
+            -ConsultantNote    'Sensitive resource heuristic match — Confidence: Medium'),
+
+        # --- Rev2.3 synthetic findings ---
+
+        # DEC-REV-001 — Access review data available but no decisions recorded (Informational)
+        (New-DecomFinding `
+            -FindingId         'DEC-REV-001' `
+            -Category          'Access Review Governance' `
+            -Severity          'Informational' `
+            -RiskScore         20 `
+            -Confidence        'Low' `
+            -ObjectType        'TenantScope' `
+            -ObjectId          'tenant-scope' `
+            -DisplayName       'Access Review Decision Coverage' `
+            -UserPrincipalName '' `
+            -Evidence          'Access review definitions found but no review decision records returned — coverage may be partial or reviews may be newly configured.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Verify access review schedules are producing decisions; check reviewer assignments and completion status.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'No decisions recorded — review schedules may be new or incomplete'),
+
+        # DEC-GREV-001 — Guest without recent review evidence (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-GREV-001' `
+            -Category          'Guest Lifecycle' `
+            -Severity          'Medium' `
+            -RiskScore         48 `
+            -Confidence        'Low' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0030-0030-0030-000000000030' `
+            -DisplayName       'ext_review_missing@fabrikam.com' `
+            -UserPrincipalName 'ext_review_missing_fabrikam.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Guest account has no access review decision found within the last 90 days — review coverage cannot be confirmed.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Schedule or confirm access review for guest ext_review_missing@fabrikam.com and ensure decision is recorded.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Guest access review coverage gap — no decision evidence within threshold'),
+
+        # DEC-GREV-002 — Guest without sponsor and without review evidence (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-GREV-002' `
+            -Category          'Guest Lifecycle' `
+            -Severity          'High' `
+            -RiskScore         63 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0031-0031-0031-000000000031' `
+            -DisplayName       'ext_unsponsored@tailspin.com' `
+            -UserPrincipalName 'ext_unsponsored_tailspin.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Guest account lacks sponsor metadata and no access review decision found — business justification cannot be confirmed.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Assign a sponsor to ext_unsponsored@tailspin.com and create access review; consider offboarding if no sponsor can be identified.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Unsponsored guest without review evidence — elevated governance risk'),
+
+        # DEC-GREV-003 — Privileged guest without review evidence (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-GREV-003' `
+            -Category          'Guest Lifecycle' `
+            -Severity          'High' `
+            -RiskScore         72 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0032-0032-0032-000000000032' `
+            -DisplayName       'ext_privileged_norev@fabrikam.com' `
+            -UserPrincipalName 'ext_privileged_norev_fabrikam.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Guest holds privileged access (PIM eligible or directory role) and no access review decision found — privileged external access is ungoverned.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Immediately create access review for privileged guest ext_privileged_norev@fabrikam.com; escalate to security team.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Privileged guest without review evidence — highest risk GREV category'),
+
+        # DEC-PIM-005 — PIM eligible user without review evidence (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-PIM-005' `
+            -Category          'Privileged Access' `
+            -Severity          'High' `
+            -RiskScore         70 `
+            -Confidence        'Low' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0033-0033-0033-000000000033' `
+            -DisplayName       'eligible.noreview@contoso.com' `
+            -UserPrincipalName 'eligible.noreview@contoso.com' `
+            -Evidence          'PIM eligible privileged role assignment found but no access review decision evidence detected — governance review cannot be confirmed.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Create access review for PIM eligible assignment for eligible.noreview@contoso.com and confirm review completion.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'PIM eligible assignment without review evidence — governance gap'),
+
+        # DEC-PIM-006 — PIM eligible user with stale review evidence (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-PIM-006' `
+            -Category          'Privileged Access' `
+            -Severity          'High' `
+            -RiskScore         73 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0034-0034-0034-000000000034' `
+            -DisplayName       'eligible.stalereview@contoso.com' `
+            -UserPrincipalName 'eligible.stalereview@contoso.com' `
+            -Evidence          'PIM eligible privileged role assignment last reviewed 2025-09-15 — more than 180 days ago. Review has lapsed.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Initiate new access review for PIM eligible assignment for eligible.stalereview@contoso.com.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Stale PIM review — last decision beyond 180-day threshold'),
+
+        # DEC-PIM-007 — PIM review correlation unavailable (Informational)
+        (New-DecomFinding `
+            -FindingId         'DEC-PIM-007' `
+            -Category          'Privileged Access' `
+            -Severity          'Informational' `
+            -RiskScore         22 `
+            -Confidence        'Low' `
+            -ObjectType        'TenantScope' `
+            -ObjectId          'tenant-scope' `
+            -DisplayName       'PIM Review Correlation' `
+            -UserPrincipalName '' `
+            -Evidence          'PIM eligible assignment findings detected but access review data unavailable — review correlation could not be performed.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Grant AccessReview.Read.All permission and re-run assessment to enable PIM review correlation.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'PIM review correlation skipped — no AR data available'),
+
+        # DEC-AP-006 — Access package without review schedule (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-006' `
+            -Category          'Governance' `
+            -Severity          'Medium' `
+            -RiskScore         50 `
+            -Confidence        'Low' `
+            -ObjectType        'TenantScope' `
+            -ObjectId          'tenant-scope' `
+            -DisplayName       'Access Package Review Coverage' `
+            -UserPrincipalName '' `
+            -Evidence          'Access package assignments found but no access review definition correlated to entitlement management scope — review coverage cannot be confirmed.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Create access review definitions scoped to entitlement management access packages.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'No AR definition found for entitlement management — coverage gap'),
+
+        # DEC-AP-007 — Access package assignment with stale or unavailable review (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-007' `
+            -Category          'Governance' `
+            -Severity          'Medium' `
+            -RiskScore         54 `
+            -Confidence        'Low' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0035-0035-0035-000000000035' `
+            -DisplayName       'contractor_stale_review@northwind.com' `
+            -UserPrincipalName 'contractor_stale_review_northwind.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Access package assignment has no review decision within 180 days — review evidence stale or unavailable.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Initiate access review for access package assignment for contractor_stale_review@northwind.com.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Stale or missing review decision for access package assignment'),
+
+        # DEC-AP-008 — Access package with incomplete review decision (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-008' `
+            -Category          'Governance' `
+            -Severity          'High' `
+            -RiskScore         66 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0036-0036-0036-000000000036' `
+            -DisplayName       'contractor_pending@northwind.com' `
+            -UserPrincipalName 'contractor_pending_northwind.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Access package assignment review decision is incomplete or not reviewed — reviewer action required.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Follow up with reviewer to complete access review decision for contractor_pending@northwind.com.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Pending review decision requires reviewer action'),
+
+        # DEC-CA-003 — CA exclusion group without review evidence (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-CA-003' `
+            -Category          'Conditional Access' `
+            -Severity          'High' `
+            -RiskScore         68 `
+            -Confidence        'Low' `
+            -ObjectType        'Group' `
+            -ObjectId          'a1b2c3d4-0037-0037-0037-000000000037' `
+            -DisplayName       'CA-MFA-Exclusion-NoReview' `
+            -UserPrincipalName '' `
+            -Evidence          'CA policy exclusion group has no correlated access review definition — members are excluded from policy without review governance.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Create access review definition scoped to CA-MFA-Exclusion-NoReview group to govern CA exclusion membership.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'CA exclusion group without review governance — attack surface is ungoverned'),
+
+        # DEC-CA-004 — CA exclusion group with stale review (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-CA-004' `
+            -Category          'Conditional Access' `
+            -Severity          'High' `
+            -RiskScore         70 `
+            -Confidence        'Low' `
+            -ObjectType        'Group' `
+            -ObjectId          'a1b2c3d4-0038-0038-0038-000000000038' `
+            -DisplayName       'CA-MFA-Exclusion-StaleReview' `
+            -UserPrincipalName '' `
+            -Evidence          'CA policy exclusion group last reviewed 2025-08-01 — more than 90 days ago. Review has lapsed for CA exclusion governance.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Initiate new access review for CA-MFA-Exclusion-StaleReview to re-validate CA exclusion membership.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Stale CA exclusion review — last decision beyond 90-day threshold'),
+
+        # DEC-GOV-001 — Access review API unavailable (Informational)
+        (New-DecomFinding `
+            -FindingId         'DEC-GOV-001' `
+            -Category          'Governance' `
+            -Severity          'Informational' `
+            -RiskScore         18 `
+            -Confidence        'Low' `
+            -ObjectType        'TenantScope' `
+            -ObjectId          'tenant-scope' `
+            -DisplayName       'Access Review API Coverage' `
+            -UserPrincipalName '' `
+            -Evidence          'Access review API cmdlets unavailable — review governance coverage could not be assessed. AccessReview.Read.All permission may be missing.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Grant AccessReview.Read.All permission and re-run assessment to enable access review governance coverage.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Coverage gap — access review API not available in this environment'),
+
+        # DEC-GOV-002 — Access review cmdlet unavailable (Informational)
+        (New-DecomFinding `
+            -FindingId         'DEC-GOV-002' `
+            -Category          'Governance' `
+            -Severity          'Informational' `
+            -RiskScore         16 `
+            -Confidence        'Low' `
+            -ObjectType        'TenantScope' `
+            -ObjectId          'tenant-scope' `
+            -DisplayName       'Access Review Cmdlet Coverage' `
+            -UserPrincipalName '' `
+            -Evidence          'Access review cmdlet (Get-MgIdentityGovernanceAccessReviewDefinition) is not available in the installed Graph module version — upgrade may be required.' `
+            -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+            -RecommendedAction 'Upgrade Microsoft.Graph.Identity.Governance module and re-run assessment to enable access review coverage.' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Module version gap — cmdlet not available in current Graph module')
     )
 }
 
@@ -459,14 +733,20 @@ function Invoke-DecomAssessmentDiscovery {
     $coverage = New-DecomCoverage
 
     if ($DemoMode) {
-        $coverage.Users                  = $true
-        $coverage.Groups                 = $true
-        $coverage.Applications           = $true
-        $coverage.ServicePrincipals      = $true
-        $coverage.DirectoryRoles         = $true
-        $coverage.ConditionalAccess      = $true
-        $coverage.PimEligibleAssignments = $true
-        $coverage.EntitlementAssignments = $true
+        $coverage.Users                          = $true
+        $coverage.Groups                         = $true
+        $coverage.Applications                   = $true
+        $coverage.ServicePrincipals              = $true
+        $coverage.DirectoryRoles                 = $true
+        $coverage.ConditionalAccess              = $true
+        $coverage.PimEligibleAssignments         = $true
+        $coverage.EntitlementAssignments         = $true
+        $coverage.AccessReviews                  = $true
+        $coverage.AccessReviewDefinitions        = $true
+        $coverage.GuestReviewCorrelation         = $true
+        $coverage.PimReviewCorrelation           = $true
+        $coverage.AccessPackageReviewCorrelation = $true
+        $coverage.CAExclusionReviewCorrelation   = $true
         if ($Context) { $Context | Add-Member -NotePropertyName Coverage -NotePropertyValue $coverage -Force }
         [object[]]$synth = @(Get-DecomSyntheticFindings)
         Write-Output -NoEnumerate $synth
@@ -1388,6 +1668,810 @@ function Invoke-DecomAssessmentDiscovery {
     } catch {
         Write-DecomWarn "Access package assignment discovery unavailable (EntitlementManagement.Read.All required): $_"
     }
+
+    # =========================================================================
+    # Rev2.3 — Access Review Governance Sections
+    # =========================================================================
+
+    # Dedup HashSet for all Rev2.3 findings
+    $emittedRev23 = [System.Collections.Generic.HashSet[string]]::new()
+
+    # --- Rev2.3 M2: Access review data collection ---
+    $govApiAvailable    = $false
+    $accessReviewData   = $null
+    $arDefinitions      = @()
+    $arInstances        = @()
+    $arDecisions        = @()
+
+    $arDefCmdlet = Get-DecomAvailableCommand -Names @(
+        'Get-MgIdentityGovernanceAccessReviewDefinition',
+        'Get-MgAccessReviewDefinition'
+    )
+
+    if ($null -eq $arDefCmdlet) {
+        Write-DecomWarn 'Access review definition cmdlet unavailable in installed Graph module'
+        $govApiAvailable = $false
+        $govKey = 'DEC-GOV-002|tenant-scope'
+        if ($emittedRev23.Add($govKey)) {
+            $findings.Add((New-DecomFinding `
+                -FindingId         'DEC-GOV-002' `
+                -Category          'Governance' `
+                -Severity          'Informational' `
+                -RiskScore         16 `
+                -Confidence        'Low' `
+                -ObjectType        'TenantScope' `
+                -ObjectId          'tenant-scope' `
+                -DisplayName       'Access Review Cmdlet Coverage' `
+                -UserPrincipalName '' `
+                -Evidence          'Access review cmdlet (Get-MgIdentityGovernanceAccessReviewDefinition) is not available in the installed Graph module version.' `
+                -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                -RecommendedAction 'Upgrade Microsoft.Graph.Identity.Governance module and re-run assessment to enable access review coverage.' `
+                -RemediationMode   'InformationOnly' `
+                -ConsultantNote    'Module version gap — cmdlet not available in current Graph module'))
+        }
+    } else {
+        try {
+            $arDefinitions = @(& $arDefCmdlet -All -ErrorAction Stop)
+            $coverage.AccessReviews           = $true
+            $coverage.AccessReviewDefinitions = $true
+            Write-DecomInfo "Access review definition discovery: OK ($($arDefinitions.Count) definitions)"
+            $govApiAvailable  = $true
+            $accessReviewData = [PSCustomObject]@{ Definitions=$arDefinitions; Instances=@(); Decisions=@() }
+
+            # Try to collect instances
+            $arInstCmdlet = Get-DecomAvailableCommand -Names @(
+                'Get-MgIdentityGovernanceAccessReviewDefinitionInstance',
+                'Get-MgAccessReviewDefinitionInstance'
+            )
+            if ($null -ne $arInstCmdlet -and $arDefinitions.Count -gt 0) {
+                $allInstances = [System.Collections.Generic.List[object]]::new()
+                foreach ($def in $arDefinitions) {
+                    try {
+                        $defInst = @(& $arInstCmdlet -AccessReviewScheduleDefinitionId $def.Id -All -ErrorAction Stop)
+                        foreach ($inst in $defInst) { $allInstances.Add($inst) }
+                    } catch {
+                        Write-DecomWarn "Access review instance collection failed for definition $($def.Id): $_"
+                    }
+                }
+                $arInstances = @($allInstances)
+                $coverage.AccessReviewInstances = $true
+                $accessReviewData.Instances = $arInstances
+                Write-DecomInfo "Access review instance discovery: OK ($($arInstances.Count) instances)"
+            }
+
+            # Try to collect decisions
+            $arDecCmdlet = Get-DecomAvailableCommand -Names @(
+                'Get-MgIdentityGovernanceAccessReviewDefinitionInstanceDecision',
+                'Get-MgAccessReviewDefinitionInstanceDecision'
+            )
+            if ($null -ne $arDecCmdlet -and $arInstances.Count -gt 0) {
+                $allDecisions = [System.Collections.Generic.List[object]]::new()
+                foreach ($def in $arDefinitions) {
+                    foreach ($inst in ($arInstances | Where-Object { $_.AccessReviewScheduleDefinitionId -eq $def.Id -or $null -ne $_ })) {
+                        try {
+                            $instId = if ($inst.Id) { $inst.Id } else { continue }
+                            $decs = @(& $arDecCmdlet `
+                                -AccessReviewScheduleDefinitionId $def.Id `
+                                -AccessReviewInstanceId $instId `
+                                -All -ErrorAction Stop)
+                            foreach ($d in $decs) { $allDecisions.Add($d) }
+                        } catch {
+                            Write-DecomWarn "Access review decision collection failed: $_"
+                        }
+                    }
+                }
+                $arDecisions = @($allDecisions)
+                $coverage.AccessReviewDecisions = $true
+                $accessReviewData.Decisions = $arDecisions
+                Write-DecomInfo "Access review decision discovery: OK ($($arDecisions.Count) decisions)"
+            }
+
+            # DEC-REV-001: Definitions exist but no decisions
+            if ($arDefinitions.Count -gt 0 -and $arDecisions.Count -eq 0) {
+                $rev001Key = 'DEC-REV-001|tenant-scope'
+                if ($emittedRev23.Add($rev001Key)) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-REV-001' `
+                        -Category          'Access Review Governance' `
+                        -Severity          'Informational' `
+                        -RiskScore         20 `
+                        -Confidence        'Low' `
+                        -ObjectType        'TenantScope' `
+                        -ObjectId          'tenant-scope' `
+                        -DisplayName       'Access Review Decision Coverage' `
+                        -UserPrincipalName '' `
+                        -Evidence          "Access review definitions found ($($arDefinitions.Count)) but no review decision records returned — coverage may be partial or reviews newly configured." `
+                        -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                        -RecommendedAction 'Verify access review schedules are producing decisions; check reviewer assignments and completion status.' `
+                        -RemediationMode   'InformationOnly' `
+                        -ConsultantNote    'No decisions recorded — review schedules may be new or incomplete'))
+                }
+            }
+
+        } catch {
+            Write-DecomWarn "Access review data collection failed: $_"
+            $govApiAvailable = $false
+            $govKey = 'DEC-GOV-002|tenant-scope'
+            if ($emittedRev23.Add($govKey)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-GOV-002' `
+                    -Category          'Governance' `
+                    -Severity          'Informational' `
+                    -RiskScore         16 `
+                    -Confidence        'Low' `
+                    -ObjectType        'TenantScope' `
+                    -ObjectId          'tenant-scope' `
+                    -DisplayName       'Access Review Cmdlet Coverage' `
+                    -UserPrincipalName '' `
+                    -Evidence          'Access review data collection failed — review governance coverage could not be assessed.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction 'Verify AccessReview.Read.All permission and re-run assessment.' `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Access review collection error'))
+            }
+        }
+    }
+
+    # DEC-GOV-001: Emit once if govApiAvailable is false (covers both cmdlet-unavailable and exception paths)
+    if (-not $govApiAvailable) {
+        $gov001Key = 'DEC-GOV-001|tenant-scope'
+        if ($emittedRev23.Add($gov001Key)) {
+            $findings.Add((New-DecomFinding `
+                -FindingId         'DEC-GOV-001' `
+                -Category          'Governance' `
+                -Severity          'Informational' `
+                -RiskScore         18 `
+                -Confidence        'Low' `
+                -ObjectType        'TenantScope' `
+                -ObjectId          'tenant-scope' `
+                -DisplayName       'Access Review API Coverage' `
+                -UserPrincipalName '' `
+                -Evidence          'Access review API cmdlets unavailable — review governance coverage could not be assessed. AccessReview.Read.All permission may be missing.' `
+                -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                -RecommendedAction 'Grant AccessReview.Read.All permission and re-run assessment to enable access review governance coverage.' `
+                -RemediationMode   'InformationOnly' `
+                -ConsultantNote    'Coverage gap — access review API not available in this environment'))
+        }
+    }
+
+    # DEC-GOV-003: Licensing may limit evidence coverage — emit when API available but 0 definitions returned
+    if ($govApiAvailable -and $arDefinitions.Count -eq 0) {
+        $gov003Key = 'DEC-GOV-003|tenant-scope'
+        if ($emittedRev23.Add($gov003Key)) {
+            $findings.Add((New-DecomFinding `
+                -FindingId         'DEC-GOV-003' `
+                -Category          'Governance' `
+                -Severity          'Informational' `
+                -RiskScore         14 `
+                -Confidence        'Low' `
+                -ObjectType        'TenantScope' `
+                -ObjectId          'tenant-scope' `
+                -DisplayName       'Access Review Licensing Coverage' `
+                -UserPrincipalName '' `
+                -Evidence          'Access review API cmdlet is available but returned 0 review definitions. Entra ID Governance licensing (P2 or Governance SKU) may be absent or limited.' `
+                -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                -RecommendedAction 'Verify Entra ID Governance or P2 licensing is assigned and access review definitions exist before concluding no reviews are configured.' `
+                -RemediationMode   'InformationOnly' `
+                -ConsultantNote    'Zero definitions returned — licensing gap or reviews not yet configured'))
+        }
+    }
+
+    # --- Rev2.3 M2B: Live review decision findings (DEC-REV-002/003/004/005) ---
+    if ($govApiAvailable -and $null -ne $accessReviewData) {
+
+        $staleReviewThreshold90 = (Get-Date).AddDays(-90)
+
+        # DEC-REV-002: Instances where EndDateTime is older than 90 days
+        foreach ($inst in $arInstances) {
+            $instEnd = $null
+            try {
+                if ($inst.EndDateTime) { $instEnd = [datetime]$inst.EndDateTime }
+            } catch { $instEnd = $null }
+            if ($null -ne $instEnd -and $instEnd -lt $staleReviewThreshold90) {
+                $defId    = if ($inst.AccessReviewScheduleDefinitionId) { $inst.AccessReviewScheduleDefinitionId } else { 'unknown' }
+                $rev002Key = "DEC-REV-002|$defId|$($inst.Id)"
+                if ($emittedRev23.Add($rev002Key)) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-REV-002' `
+                        -Category          'Access Review Governance' `
+                        -Severity          'Medium' `
+                        -RiskScore         45 `
+                        -Confidence        'Medium' `
+                        -ObjectType        'TenantScope' `
+                        -ObjectId          $defId `
+                        -DisplayName       'Stale Access Review Instance' `
+                        -UserPrincipalName '' `
+                        -Evidence          "Access review instance ended $($instEnd.ToString('yyyy-MM-dd')) — more than 90 days ago. Review cadence may have lapsed." `
+                        -EvidenceSource    'identityGovernance/accessReviews/definitions/{id}/instances' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions/{id}/instances' `
+                        -RecommendedAction 'Verify review schedule and create new review instance to maintain governance cadence.' `
+                        -RemediationMode   'InformationOnly' `
+                        -ConsultantNote    'Review instance ended >90 days ago — cadence may have lapsed'))
+                }
+            }
+        }
+
+        # DEC-REV-003: Instances with incomplete/pending status OR decisions with NotReviewed
+        $incompleteInstIds = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($inst in $arInstances) {
+            $instStatus = if ($inst.Status) { $inst.Status.ToLower() } else { '' }
+            if ($instStatus -in @('inprogress','notstarted','starting')) {
+                $defId    = if ($inst.AccessReviewScheduleDefinitionId) { $inst.AccessReviewScheduleDefinitionId } else { 'unknown' }
+                $rev003Key = "DEC-REV-003|$defId|$($inst.Id)"
+                if ($emittedRev23.Add($rev003Key)) {
+                    [void]$incompleteInstIds.Add($inst.Id)
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-REV-003' `
+                        -Category          'Access Review Governance' `
+                        -Severity          'Medium' `
+                        -RiskScore         42 `
+                        -Confidence        'Medium' `
+                        -ObjectType        'TenantScope' `
+                        -ObjectId          $defId `
+                        -DisplayName       'Incomplete Access Review' `
+                        -UserPrincipalName '' `
+                        -Evidence          "Access review instance has status '$($inst.Status)' — review is not yet complete. Pending reviewer action required." `
+                        -EvidenceSource    'identityGovernance/accessReviews/definitions/{id}/instances' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions/{id}/instances' `
+                        -RecommendedAction 'Follow up with reviewers to complete pending access review decisions.' `
+                        -RemediationMode   'InformationOnly' `
+                        -ConsultantNote    'Incomplete review instance — reviewer action required'))
+                }
+            }
+        }
+        foreach ($dec in $arDecisions) {
+            $decDecision = if ($dec.Decision) { $dec.Decision.ToLower() } else { '' }
+            if ($decDecision -in @('notreviewed','')) {
+                $instId   = if ($dec.AccessReviewInstanceId) { $dec.AccessReviewInstanceId } else { 'unknown' }
+                $defId    = if ($dec.AccessReviewScheduleDefinitionId) { $dec.AccessReviewScheduleDefinitionId } else { 'unknown' }
+                $rev003DecKey = "DEC-REV-003|dec|$defId|$instId"
+                if ($emittedRev23.Add($rev003DecKey)) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-REV-003' `
+                        -Category          'Access Review Governance' `
+                        -Severity          'Medium' `
+                        -RiskScore         42 `
+                        -Confidence        'Medium' `
+                        -ObjectType        'TenantScope' `
+                        -ObjectId          $defId `
+                        -DisplayName       'Pending Review Decision' `
+                        -UserPrincipalName '' `
+                        -Evidence          "Access review decision has not been completed (Decision: '$($dec.Decision)') — reviewer action required." `
+                        -EvidenceSource    'identityGovernance/accessReviews/definitions/{id}/instances/{id}/decisions' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions/{id}/instances/{id}/decisions' `
+                        -RecommendedAction 'Follow up with reviewer to complete the pending access review decision.' `
+                        -RemediationMode   'InformationOnly' `
+                        -ConsultantNote    'NotReviewed decision — reviewer has not acted'))
+                }
+            }
+        }
+
+        # DEC-REV-004: Definitions where scope can't correlate to any finding ObjectId
+        $findingObjectIds = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($f in $findings) {
+            if ($f.ObjectId -and $f.ObjectId -ne 'tenant-scope' -and $f.ObjectId -ne 'contoso.onmicrosoft.com') {
+                [void]$findingObjectIds.Add($f.ObjectId)
+            }
+        }
+        foreach ($def in $arDefinitions) {
+            $defId = if ($def.Id) { $def.Id } else { 'unknown' }
+            $scopeId   = ''
+            $scopeType = ''
+            try {
+                if ($def.Scope -and $def.Scope.Query)     { $scopeId = $def.Scope.Query }
+                if ($def.Scope -and $def.Scope.QueryType) { $scopeType = $def.Scope.QueryType }
+            } catch { $scopeId = '' }
+
+            $correlated = $false
+            if ($scopeId) {
+                foreach ($oid in $findingObjectIds) {
+                    if ($scopeId.Contains($oid)) { $correlated = $true; break }
+                }
+            }
+            if (-not $correlated) {
+                $rev004Key = "DEC-REV-004|$defId"
+                if ($emittedRev23.Add($rev004Key)) {
+                    $defName = if ($def.DisplayName) { $def.DisplayName } else { $defId }
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-REV-004' `
+                        -Category          'Access Review Governance' `
+                        -Severity          'Low' `
+                        -RiskScore         28 `
+                        -Confidence        'Low' `
+                        -ObjectType        'TenantScope' `
+                        -ObjectId          $defId `
+                        -DisplayName       $defName `
+                        -UserPrincipalName '' `
+                        -Evidence          "Access review definition '$defName' scope could not be correlated to any detected finding — scope mapping is unclear." `
+                        -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                        -RecommendedAction 'Review scope configuration for this access review definition to ensure it covers relevant identities.' `
+                        -RemediationMode   'InformationOnly' `
+                        -ConsultantNote    'Low-confidence scope correlation — review definition may cover undetected scope'))
+                }
+            }
+        }
+
+        # DEC-REV-005: Decisions with Deny/NotApproved where principal still has residual access
+        $findingPrincipalIds = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($f in $findings) {
+            if ($f.ObjectId -and $f.ObjectId -ne 'tenant-scope' -and $f.ObjectId -ne 'contoso.onmicrosoft.com') {
+                [void]$findingPrincipalIds.Add($f.ObjectId)
+            }
+        }
+        foreach ($dec in $arDecisions) {
+            $decDecision = if ($dec.Decision) { $dec.Decision.ToLower() } else { '' }
+            if ($decDecision -in @('deny','notapproved','remove')) {
+                $principalId = if ($dec.Principal -and $dec.Principal.Id) { $dec.Principal.Id } else { '' }
+                if ($principalId -and $findingPrincipalIds.Contains($principalId)) {
+                    $rev005Key = "DEC-REV-005|$principalId"
+                    if ($emittedRev23.Add($rev005Key)) {
+                        $principalName = if ($dec.Principal -and $dec.Principal.DisplayName) { $dec.Principal.DisplayName } else { $principalId }
+                        $findings.Add((New-DecomFinding `
+                            -FindingId         'DEC-REV-005' `
+                            -Category          'Access Review Governance' `
+                            -Severity          'High' `
+                            -RiskScore         75 `
+                            -Confidence        'High' `
+                            -ObjectType        'User' `
+                            -ObjectId          $principalId `
+                            -DisplayName       $principalName `
+                            -UserPrincipalName '' `
+                            -Evidence          "Access review decision '$($dec.Decision)' recorded for $principalName but residual access findings still detected — review action may not have been enforced." `
+                            -EvidenceSource    'identityGovernance/accessReviews/definitions/{id}/instances/{id}/decisions' `
+                            -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions/{id}/instances/{id}/decisions' `
+                            -RecommendedAction "Enforce review decision for $principalName — verify access has been removed as directed by reviewer." `
+                            -RemediationMode   'InformationOnly' `
+                            -ConsultantNote    'Review decision conflict — deny/remove recorded but residual access still detected'))
+                    }
+                }
+            }
+        }
+    }
+
+    # --- Rev2.3 M3: Guest review correlation ---
+    $guestFindings = @($findings | Where-Object { $_.FindingId -in @('DEC-GUEST-001','DEC-GUEST-002','DEC-GUEST-003') })
+    if ($guestFindings.Count -gt 0) { $coverage.GuestReviewCorrelation = $true }
+
+    # Build PIM-002 principal lookup for privileged guest detection
+    $pim002PrincipalIds = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($f in $findings) {
+        if ($f.FindingId -eq 'DEC-PIM-002' -and $f.ObjectId) {
+            [void]$pim002PrincipalIds.Add($f.ObjectId)
+        }
+    }
+
+    foreach ($gf in $guestFindings) {
+        $guestId = $gf.ObjectId
+        if (-not $guestId) { continue }
+
+        $isPrivileged    = $false
+        $lacksSponsorship = $false
+
+        if ($gf.FindingId -eq 'DEC-GUEST-002') {
+            $isPrivileged     = $true
+            $lacksSponsorship = $true
+        } elseif ($gf.FindingId -eq 'DEC-GUEST-003') {
+            $lacksSponsorship = $true
+            if ($pim002PrincipalIds.Contains($guestId)) { $isPrivileged = $true }
+        } elseif ($gf.FindingId -eq 'DEC-GUEST-001') {
+            if ($pim002PrincipalIds.Contains($guestId)) { $isPrivileged = $true }
+            if ($gf.Evidence -match 'Administrator|privileged|Global|role') { $isPrivileged = $true }
+        }
+
+        # Try to correlate review decision for this guest
+        $reviewResult = [PSCustomObject]@{
+            Found           = $false
+            Confidence      = 'Low'
+            ReviewId        = ''
+            ReviewName      = ''
+            LastDecisionUtc = $null
+            Status          = ''
+            DecisionSummary = ''
+            Evidence        = ''
+        }
+
+        if ($null -ne $accessReviewData) {
+            foreach ($dec in $arDecisions) {
+                $decPrincipalId = if ($dec.Principal -and $dec.Principal.Id) { $dec.Principal.Id } else { '' }
+                if ($decPrincipalId -eq $guestId) {
+                    $reviewResult.Found = $true
+                    $reviewResult.DecisionSummary = if ($dec.Decision) { $dec.Decision } else { 'Unknown' }
+                    try {
+                        if ($dec.ReviewedDateTime) {
+                            $reviewResult.LastDecisionUtc = [datetime]$dec.ReviewedDateTime
+                        }
+                    } catch { }
+                    break
+                }
+            }
+        }
+
+        $grevKey = ''
+        if ($isPrivileged -and -not $reviewResult.Found) {
+            $grevKey = "DEC-GREV-003|$guestId"
+            if ($emittedRev23.Add($grevKey)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-GREV-003' `
+                    -Category          'Guest Lifecycle' `
+                    -Severity          'High' `
+                    -RiskScore         72 `
+                    -Confidence        'Medium' `
+                    -ObjectType        'User' `
+                    -ObjectId          $guestId `
+                    -DisplayName       $gf.DisplayName `
+                    -UserPrincipalName $gf.UserPrincipalName `
+                    -Evidence          'Guest holds privileged access (PIM eligible or directory role) and no access review decision found — privileged external access is ungoverned.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Immediately create access review for privileged guest $($gf.UserPrincipalName); escalate to security team." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Privileged guest without review evidence — highest risk GREV category'))
+            }
+        } elseif ($lacksSponsorship -and -not $reviewResult.Found) {
+            $grevKey = "DEC-GREV-002|$guestId"
+            if ($emittedRev23.Add($grevKey)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-GREV-002' `
+                    -Category          'Guest Lifecycle' `
+                    -Severity          'High' `
+                    -RiskScore         63 `
+                    -Confidence        'Medium' `
+                    -ObjectType        'User' `
+                    -ObjectId          $guestId `
+                    -DisplayName       $gf.DisplayName `
+                    -UserPrincipalName $gf.UserPrincipalName `
+                    -Evidence          'Guest account lacks sponsor metadata and no access review decision found — business justification cannot be confirmed.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Assign a sponsor to $($gf.UserPrincipalName) and create access review; consider offboarding if no sponsor can be identified." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Unsponsored guest without review evidence — elevated governance risk'))
+            }
+        } elseif (-not $reviewResult.Found) {
+            $grevKey = "DEC-GREV-001|$guestId"
+            if ($emittedRev23.Add($grevKey)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-GREV-001' `
+                    -Category          'Guest Lifecycle' `
+                    -Severity          'Medium' `
+                    -RiskScore         48 `
+                    -Confidence        'Low' `
+                    -ObjectType        'User' `
+                    -ObjectId          $guestId `
+                    -DisplayName       $gf.DisplayName `
+                    -UserPrincipalName $gf.UserPrincipalName `
+                    -Evidence          'Guest account has no access review decision found within the last 90 days — review coverage cannot be confirmed.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Schedule or confirm access review for guest $($gf.UserPrincipalName) and ensure decision is recorded." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Guest access review coverage gap — no decision evidence within threshold'))
+            }
+        }
+    }
+
+    # --- Rev2.3 M4: PIM review correlation ---
+    $pimFindings = @($findings | Where-Object { $_.FindingId -in @('DEC-PIM-001','DEC-PIM-002','DEC-PIM-004') })
+    if ($pimFindings.Count -gt 0) { $coverage.PimReviewCorrelation = $true }
+
+    $pimReviewThreshold180 = (Get-Date).AddDays(-180)
+
+    foreach ($pf in $pimFindings) {
+        $principalId = $pf.ObjectId
+        if (-not $principalId -or $principalId -eq 'tenant-scope') { continue }
+
+        # Safe variable guard for eligibleAssignments
+        $eligVarCheck   = Get-Variable 'eligibleAssignments' -ErrorAction SilentlyContinue
+        $safeEligible   = if ($null -ne $eligVarCheck -and $null -ne $eligVarCheck.Value) { @($eligVarCheck.Value) } else { @() }
+
+        $roleDefId = ''
+        $matchAssignment = $safeEligible | Where-Object { $_.PrincipalId -eq $principalId } | Select-Object -First 1
+        if ($matchAssignment -and $matchAssignment.RoleDefinitionId) {
+            $roleDefId = $matchAssignment.RoleDefinitionId
+        }
+
+        $dedupSuffix = if ($roleDefId) { "$principalId|$roleDefId" } else { $principalId }
+
+        # Try to find review decision for this principal
+        $pimReviewFound    = $false
+        $pimLastDecision   = $null
+        if ($null -ne $accessReviewData) {
+            foreach ($dec in $arDecisions) {
+                $decPrincipalId = if ($dec.Principal -and $dec.Principal.Id) { $dec.Principal.Id } else { '' }
+                if ($decPrincipalId -eq $principalId) {
+                    $pimReviewFound = $true
+                    try {
+                        if ($dec.ReviewedDateTime) { $pimLastDecision = [datetime]$dec.ReviewedDateTime }
+                    } catch { }
+                    break
+                }
+            }
+        }
+
+        if ($null -eq $accessReviewData) {
+            # DEC-PIM-007: emit once — no AR data at all
+            $pim007Key = 'DEC-PIM-007|tenant-scope'
+            if ($emittedRev23.Add($pim007Key)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-PIM-007' `
+                    -Category          'Privileged Access' `
+                    -Severity          'Informational' `
+                    -RiskScore         22 `
+                    -Confidence        'Low' `
+                    -ObjectType        'TenantScope' `
+                    -ObjectId          'tenant-scope' `
+                    -DisplayName       'PIM Review Correlation' `
+                    -UserPrincipalName '' `
+                    -Evidence          'PIM eligible assignment findings detected but access review data unavailable — review correlation could not be performed.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction 'Grant AccessReview.Read.All permission and re-run assessment to enable PIM review correlation.' `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'PIM review correlation skipped — no AR data available'))
+            }
+        } elseif ($pimReviewFound -and $null -ne $pimLastDecision -and $pimLastDecision -lt $pimReviewThreshold180) {
+            # DEC-PIM-006: review found but older than 180 days
+            $pim006Key = "DEC-PIM-006|$dedupSuffix"
+            if ($emittedRev23.Add($pim006Key)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-PIM-006' `
+                    -Category          'Privileged Access' `
+                    -Severity          'High' `
+                    -RiskScore         73 `
+                    -Confidence        'Medium' `
+                    -ObjectType        'User' `
+                    -ObjectId          $principalId `
+                    -DisplayName       $pf.DisplayName `
+                    -UserPrincipalName $pf.UserPrincipalName `
+                    -Evidence          "PIM eligible privileged role assignment last reviewed $($pimLastDecision.ToString('yyyy-MM-dd')) — more than 180 days ago. Review has lapsed." `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Initiate new access review for PIM eligible assignment for $($pf.UserPrincipalName)." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Stale PIM review — last decision beyond 180-day threshold'))
+            }
+        } elseif (-not $pimReviewFound) {
+            # DEC-PIM-005: no review evidence found
+            $pim005Key = "DEC-PIM-005|$dedupSuffix"
+            if ($emittedRev23.Add($pim005Key)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-PIM-005' `
+                    -Category          'Privileged Access' `
+                    -Severity          'High' `
+                    -RiskScore         70 `
+                    -Confidence        'Low' `
+                    -ObjectType        'User' `
+                    -ObjectId          $principalId `
+                    -DisplayName       $pf.DisplayName `
+                    -UserPrincipalName $pf.UserPrincipalName `
+                    -Evidence          'PIM eligible privileged role assignment found but no access review decision evidence detected — governance review cannot be confirmed.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Create access review for PIM eligible assignment for $($pf.UserPrincipalName) and confirm review completion." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'PIM eligible assignment without review evidence — governance gap'))
+            }
+        }
+    }
+
+    # --- Rev2.3 M5: Access package review correlation ---
+    $apFindings = @($findings | Where-Object {
+        $_.FindingId -in @('DEC-AP-001','DEC-AP-002','DEC-AP-003','DEC-AP-004','DEC-AP-005') -and
+        $_.ObjectId -ne 'tenant-scope' -and $_.ObjectId -ne 'contoso.onmicrosoft.com'
+    })
+    if ($apFindings.Count -gt 0) { $coverage.AccessPackageReviewCorrelation = $true }
+
+    # DEC-AP-006: emit once if no AR definition correlated to entitlement management
+    if ($apFindings.Count -gt 0) {
+        $emDefForAP = $false
+        foreach ($def in $arDefinitions) {
+            $scopeQuery = ''
+            try { if ($def.Scope -and $def.Scope.Query) { $scopeQuery = $def.Scope.Query } } catch { }
+            if ($scopeQuery -match 'entitlementManagement|accessPackage') {
+                $emDefForAP = $true
+                break
+            }
+        }
+        if (-not $emDefForAP) {
+            $ap006Key = 'DEC-AP-006|tenant-scope'
+            if ($emittedRev23.Add($ap006Key)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-AP-006' `
+                    -Category          'Governance' `
+                    -Severity          'Medium' `
+                    -RiskScore         50 `
+                    -Confidence        'Low' `
+                    -ObjectType        'TenantScope' `
+                    -ObjectId          'tenant-scope' `
+                    -DisplayName       'Access Package Review Coverage' `
+                    -UserPrincipalName '' `
+                    -Evidence          'Access package assignment findings found but no access review definition correlated to entitlement management scope.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction 'Create access review definitions scoped to entitlement management access packages.' `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'No AR definition found for entitlement management — coverage gap'))
+            }
+        }
+    }
+
+    # Per-principal AP review correlation: DEC-AP-008 (incomplete) > DEC-AP-007 (stale/unavailable)
+    $apReviewThreshold180 = (Get-Date).AddDays(-180)
+    foreach ($apf in $apFindings) {
+        $apPrincipalId = $apf.ObjectId
+        if (-not $apPrincipalId) { continue }
+
+        $apDecisionFound    = $false
+        $apDecisionComplete = $false
+        $apLastDecision     = $null
+        if ($null -ne $accessReviewData) {
+            foreach ($dec in $arDecisions) {
+                $decPrincipalId = if ($dec.Principal -and $dec.Principal.Id) { $dec.Principal.Id } else { '' }
+                if ($decPrincipalId -eq $apPrincipalId) {
+                    $apDecisionFound = $true
+                    $decVal = if ($dec.Decision) { $dec.Decision.ToLower() } else { '' }
+                    if ($decVal -notin @('notreviewed','')) { $apDecisionComplete = $true }
+                    try {
+                        if ($dec.ReviewedDateTime) { $apLastDecision = [datetime]$dec.ReviewedDateTime }
+                    } catch { }
+                    break
+                }
+            }
+        }
+
+        if ($apDecisionFound -and -not $apDecisionComplete) {
+            # DEC-AP-008: incomplete decision
+            $ap008Key = "DEC-AP-008|$apPrincipalId"
+            if ($emittedRev23.Add($ap008Key)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-AP-008' `
+                    -Category          'Governance' `
+                    -Severity          'High' `
+                    -RiskScore         66 `
+                    -Confidence        'Medium' `
+                    -ObjectType        'User' `
+                    -ObjectId          $apPrincipalId `
+                    -DisplayName       $apf.DisplayName `
+                    -UserPrincipalName $apf.UserPrincipalName `
+                    -Evidence          'Access package assignment review decision is incomplete or not reviewed — reviewer action required.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Follow up with reviewer to complete access review decision for $($apf.UserPrincipalName)." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Pending review decision requires reviewer action'))
+            }
+        } elseif (-not $apDecisionFound -or ($null -ne $apLastDecision -and $apLastDecision -lt $apReviewThreshold180)) {
+            # DEC-AP-007: stale or unavailable
+            $ap007Key = "DEC-AP-007|$apPrincipalId"
+            if ($emittedRev23.Add($ap007Key)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-AP-007' `
+                    -Category          'Governance' `
+                    -Severity          'Medium' `
+                    -RiskScore         54 `
+                    -Confidence        'Low' `
+                    -ObjectType        'User' `
+                    -ObjectId          $apPrincipalId `
+                    -DisplayName       $apf.DisplayName `
+                    -UserPrincipalName $apf.UserPrincipalName `
+                    -Evidence          'Access package assignment has no review decision within 180 days — review evidence stale or unavailable.' `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Initiate access review for access package assignment for $($apf.UserPrincipalName)." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Stale or missing review decision for access package assignment'))
+            }
+        }
+    }
+
+    # --- Rev2.3 M6: CA exclusion review correlation ---
+    $caFindings = @($findings | Where-Object { $_.FindingId -in @('DEC-CA-001','DEC-CA-002') })
+    if ($caFindings.Count -gt 0) { $coverage.CAExclusionReviewCorrelation = $true }
+
+    $caGroupFindings = @($caFindings | Where-Object { $_.FindingId -eq 'DEC-CA-002' -and $_.ObjectType -eq 'Group' })
+    $caStaleThreshold90 = (Get-Date).AddDays(-90)
+
+    foreach ($caf in $caGroupFindings) {
+        $caGroupId   = $caf.ObjectId
+        $caGroupName = $caf.DisplayName
+        if (-not $caGroupId) { continue }
+
+        # Check if any AR definition scope references this group ID or name
+        $matchedDef = $null
+        foreach ($def in $arDefinitions) {
+            $scopeQuery = ''
+            try { if ($def.Scope -and $def.Scope.Query) { $scopeQuery = $def.Scope.Query } } catch { }
+            if ($scopeQuery.Contains($caGroupId)) {
+                $matchedDef = $def
+                break
+            }
+            # Name match fallback
+            if ($caGroupName -and $def.DisplayName -and $def.DisplayName -match [regex]::Escape($caGroupName)) {
+                $matchedDef = $def
+                break
+            }
+        }
+
+        if ($null -eq $matchedDef) {
+            # No match — DEC-CA-003
+            $ca003Key = "DEC-CA-003|$caGroupId"
+            if ($emittedRev23.Add($ca003Key)) {
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-CA-003' `
+                    -Category          'Conditional Access' `
+                    -Severity          'High' `
+                    -RiskScore         68 `
+                    -Confidence        'Low' `
+                    -ObjectType        'Group' `
+                    -ObjectId          $caGroupId `
+                    -DisplayName       $caGroupName `
+                    -UserPrincipalName '' `
+                    -Evidence          "CA policy exclusion group '$caGroupName' has no correlated access review definition — members excluded without review governance." `
+                    -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                    -RecommendedAction "Create access review definition scoped to '$caGroupName' group to govern CA exclusion membership." `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'CA exclusion group without review governance — attack surface is ungoverned'))
+            }
+        } else {
+            # Matched definition — check if instances are all stale (>90 days)
+            $matchedDefId = $matchedDef.Id
+            $defInstances = @($arInstances | Where-Object {
+                $_.AccessReviewScheduleDefinitionId -eq $matchedDefId
+            })
+            $hasRecentInstance = $false
+            foreach ($inst in $defInstances) {
+                $instEnd = $null
+                try { if ($inst.EndDateTime) { $instEnd = [datetime]$inst.EndDateTime } } catch { }
+                if ($null -ne $instEnd -and $instEnd -ge $caStaleThreshold90) {
+                    $hasRecentInstance = $true
+                    break
+                }
+            }
+            if (-not $hasRecentInstance -and $defInstances.Count -gt 0) {
+                # All instances older than 90 days — DEC-CA-004
+                $ca004Key = "DEC-CA-004|$caGroupId"
+                if ($emittedRev23.Add($ca004Key)) {
+                    $lastInstEnd = $null
+                    foreach ($inst in $defInstances) {
+                        try {
+                            if ($inst.EndDateTime) {
+                                $ie = [datetime]$inst.EndDateTime
+                                if ($null -eq $lastInstEnd -or $ie -gt $lastInstEnd) { $lastInstEnd = $ie }
+                            }
+                        } catch { }
+                    }
+                    $lastStr = if ($null -ne $lastInstEnd) { $lastInstEnd.ToString('yyyy-MM-dd') } else { 'unknown' }
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-CA-004' `
+                        -Category          'Conditional Access' `
+                        -Severity          'High' `
+                        -RiskScore         70 `
+                        -Confidence        'Low' `
+                        -ObjectType        'Group' `
+                        -ObjectId          $caGroupId `
+                        -DisplayName       $caGroupName `
+                        -UserPrincipalName '' `
+                        -Evidence          "CA policy exclusion group '$caGroupName' last reviewed $lastStr — more than 90 days ago. Review has lapsed for CA exclusion governance." `
+                        -EvidenceSource    'identityGovernance/accessReviews/definitions' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/accessReviews/definitions' `
+                        -RecommendedAction "Initiate new access review for '$caGroupName' to re-validate CA exclusion membership." `
+                        -RemediationMode   'InformationOnly' `
+                        -ConsultantNote    'Stale CA exclusion review — last decision beyond 90-day threshold'))
+                }
+            }
+        }
+    }
+
+    # =========================================================================
+    # End of Rev2.3 sections
+    # =========================================================================
 
     if ($Context) { $Context | Add-Member -NotePropertyName Coverage -NotePropertyValue $coverage -Force }
     [object[]]$result = @($findings)

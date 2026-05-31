@@ -24,7 +24,7 @@ param(
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev2.2'
+$script:ToolVersion = 'Rev2.3'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red

@@ -81,3 +81,54 @@ For privileged role removals, Rev2.0 generates one executable action per exact d
 | DEC-AP-003 | Medium | Access package assignment has no visible expiration evidence |
 | DEC-AP-004 | Medium | Access package review coverage could not be confirmed |
 | DEC-AP-005 | High | Access package assignment linked to sensitive resource/group heuristic |
+
+## Rev2.3 — Access Review Correlation and Governance Proof Findings
+
+### Access Review / Governance Proof Findings
+
+| FindingId | Category | Title | Severity | RiskScore |
+|---|---|---|---:|---:|
+| DEC-REV-001 | Governance | Access review coverage unavailable or partial | Informational | 20 |
+| DEC-REV-002 | Governance | Access review decision evidence stale or older than threshold | Medium | 45 |
+| DEC-REV-003 | Governance | Access review has incomplete decisions | Medium | 50 |
+| DEC-REV-004 | Governance | Access review scope does not clearly map to residual access finding | Medium | 46 |
+| DEC-REV-005 | Governance | Access review decision conflicts with current residual access | High | 67 |
+
+### Guest Governance Review Findings
+
+| FindingId | Category | Title | Severity | RiskScore |
+|---|---|---|---:|---:|
+| DEC-GREV-001 | Guest Lifecycle | Guest has no confirmable recent access review evidence | Medium | 48 |
+| DEC-GREV-002 | Guest Lifecycle | Guest sponsor metadata missing and review evidence unavailable | High | 63 |
+| DEC-GREV-003 | Guest Lifecycle | Guest privileged access lacks confirmable review evidence | High | 72 |
+
+### PIM Governance Review Findings
+
+| FindingId | Category | Title | Severity | RiskScore |
+|---|---|---|---:|---:|
+| DEC-PIM-005 | Privileged Access | Eligible PIM assignment lacks confirmable review evidence | High | 70 |
+| DEC-PIM-006 | Privileged Access | Eligible PIM assignment review evidence stale | High | 73 |
+| DEC-PIM-007 | Privileged Access | PIM activation/review correlation unavailable | Informational | 22 |
+
+### Access Package Review Findings
+
+| FindingId | Category | Title | Severity | RiskScore |
+|---|---|---|---:|---:|
+| DEC-AP-006 | Governance | Access package lacks confirmable access review schedule evidence | Medium | 50 |
+| DEC-AP-007 | Governance | Access package assignment review evidence stale or unavailable | Medium | 54 |
+| DEC-AP-008 | Governance | Access package review decision incomplete or not applied | High | 66 |
+
+### Conditional Access Exclusion Review Findings
+
+| FindingId | Category | Title | Severity | RiskScore |
+|---|---|---|---:|---:|
+| DEC-CA-003 | Conditional Access | CA exclusion group lacks confirmable access review evidence | High | 68 |
+| DEC-CA-004 | Conditional Access | CA exclusion review evidence stale or unavailable | High | 70 |
+
+### Tenant-Level Governance Evidence Findings
+
+| FindingId | Category | Title | Severity | RiskScore |
+|---|---|---|---:|---:|
+| DEC-GOV-001 | Governance | Governance evidence coverage is partial | Informational | 18 |
+| DEC-GOV-002 | Governance | Access review API unavailable or permission-limited | Informational | 16 |
+| DEC-GOV-003 | Governance | Entra ID Governance licensing may limit evidence coverage | Informational | 14 |

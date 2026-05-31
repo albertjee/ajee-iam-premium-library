@@ -58,3 +58,14 @@ the tool and validate output format without a live tenant connection.
 | `Group.Read.All` | Delegated | Read group metadata for sensitive resource heuristics |
 
 If these permissions, APIs, modules, or tenant licenses are unavailable, Rev2.2 reports partial coverage instead of failing the full assessment.
+
+## Rev2.3 Optional Read-Only Permissions
+
+| Permission | Type | Purpose |
+|---|---|---|
+| `AccessReview.Read.All` | Delegated | Read access review definitions, instances, and decisions where available |
+| `EntitlementManagement.Read.All` | Delegated | Correlate access package assignments and policies to review evidence |
+| `PrivilegedAccess.Read.AzureAD` | Delegated | Correlate PIM eligibility evidence where available |
+| `Group.Read.All` | Delegated | Correlate CA exclusion groups and access package resource groups |
+
+If these permissions, Graph APIs, cmdlets, or tenant licenses are unavailable, Rev2.3 reports partial governance evidence coverage instead of failing the full assessment.

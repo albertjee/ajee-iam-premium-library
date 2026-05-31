@@ -1,5 +1,34 @@
 # Changelog
 
+## Rev2.3 — Access Review Correlation and Governance Proof Expansion
+
+### Added
+- Read-only access review evidence collection where Graph/API coverage is available.
+- Governance proof coverage model for review definitions, instances, decisions, and correlation.
+- DEC-REV-001 through DEC-REV-005 for access review coverage and decision evidence.
+- DEC-GREV-001 through DEC-GREV-003 for guest review correlation.
+- DEC-PIM-005 through DEC-PIM-007 for PIM review correlation.
+- DEC-AP-006 through DEC-AP-008 for access package review correlation.
+- DEC-CA-003 and DEC-CA-004 for Conditional Access exclusion review correlation.
+- DEC-GOV-001 through DEC-GOV-003 for tenant-level governance evidence limitations.
+- Rev2.3 synthetic findings for governance proof demo mode (+14 findings).
+- HTML/JSON/run manifest coverage fields for access review evidence.
+
+### Safety
+- Rev2.3 is read-only.
+- No new ExecuteRemediation action types.
+- No new write scopes.
+- No PIM remediation.
+- No Entitlement Management remediation.
+- No access review creation or decision application.
+- Existing Rev2.x controlled remediation safety model unchanged.
+
+### Tests
+- Added Rev2.3 discovery, safety, and reporting tests.
+- Baseline: 116 (Rev2.2). Rev2.3 target: >= 145 tests, 0 failures.
+
+---
+
 ## Rev2.2 — PIM and Entitlement Management Visibility Expansion
 
 ### Added
