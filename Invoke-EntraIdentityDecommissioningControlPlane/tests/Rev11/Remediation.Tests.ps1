@@ -188,5 +188,29 @@ Describe 'Rev2.0 Remediation Tests' {
             Should -Invoke -CommandName Remove-MgUserAppRoleAssignment         -ModuleName Remediation -Exactly 0
             Should -Invoke -CommandName Remove-MgRoleManagementDirectoryRoleAssignment -ModuleName Remediation -Exactly 0
         }
+
+        It 'does not mark action Executed when write fails even if after-state query returns empty' {
+            Mock -ModuleName Remediation Remove-MgGroupMemberByRef {
+                throw 'simulated remove failure'
+            }
+            Mock -ModuleName Remediation Get-MgGroupMember {
+                @([PSCustomObject]@{ Id = 'user-001' })
+            } -ParameterFilter { $GroupId -eq 'group-001' }
+
+            $action = [PSCustomObject]@{
+                ActionId        = 'ACT-FAIL'
+                FindingId       = 'DEC-USER-001'
+                ObjectId        = 'user-001'
+                DisplayName     = 'Test User'
+                ActionType      = 'RemoveGroupMembership'
+                TargetObjectIds = @('group-001')
+                ProtectedObject = $false
+            }
+
+            $log = New-DecomExecutionLog -RunFolder $TestDrive -EngagementId 'ENG-001' -RunId ([guid]::NewGuid().ToString())
+            Invoke-DecomRemediation -ApprovedActions @($action) -ExecutionLog $log -AllowNonInteractive $true
+
+            $log.Log.Actions[0].Outcome | Should -Be 'Failed'
+        }
     }
 }

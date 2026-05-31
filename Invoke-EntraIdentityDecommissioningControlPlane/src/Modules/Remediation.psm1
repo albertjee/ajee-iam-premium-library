@@ -130,8 +130,10 @@ function Invoke-DecomRemediation {
         # Re-query state after execution (records actual existsAfter)
         $targetsAfter = Get-DecomTargetState -Action $action
 
-        # Outcome: Executed if all targets absent, PartialFailed if some remain, Failed if all remain
-        $outcome = if ($targetsAfter.Count -eq 0) {
+        # Write failures take precedence — a failed write must not be masked by an empty after-state re-query
+        $outcome = if ($failedTargets.Count -gt 0) {
+            if ($failedTargets.Count -lt $targetIds.Count) { 'PartialFailed' } else { 'Failed' }
+        } elseif ($targetsAfter.Count -eq 0) {
             'Executed'
         } elseif ($targetsAfter.Count -lt $targetIds.Count) {
             'PartialFailed'
