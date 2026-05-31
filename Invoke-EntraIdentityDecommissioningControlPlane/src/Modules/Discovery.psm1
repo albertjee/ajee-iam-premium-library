@@ -270,6 +270,8 @@ function Invoke-DecomAssessmentDiscovery {
 
     $findings      = [System.Collections.Generic.List[object]]::new()
     $staleThreshold = (Get-Date).AddDays(-90)
+    $disabledUsers = @()
+    $apps          = @()
 
     # --- DEC-USER-001: Disabled users with group memberships ---
     try {
@@ -408,6 +410,7 @@ function Invoke-DecomAssessmentDiscovery {
     }
 
     # --- Extended application analysis (DEC-APP-002, 003, 004, 005) ---
+    if ($apps.Count -gt 0) {
     $disabledUserIds = if ($disabledUsers) {
         [System.Collections.Generic.HashSet[string]]@($disabledUsers | ForEach-Object { $_.Id })
     } else {
@@ -530,6 +533,7 @@ function Invoke-DecomAssessmentDiscovery {
             Write-DecomWarn "Credential check failed for '$($app.DisplayName)': $_"
         }
     }
+    } # end if ($apps.Count -gt 0)
 
     # --- DEC-SPN-001: Service principals with no owner ---
     try {
@@ -576,6 +580,7 @@ function Invoke-DecomAssessmentDiscovery {
     }
 
     # --- DEC-USER-002: Disabled users with app role assignments ---
+    if ($disabledUsers.Count -gt 0) {
     foreach ($user in $disabledUsers) {
         try {
             $appRoles = @(Get-MgUserAppRoleAssignment -UserId $user.Id -All -ErrorAction Stop)
@@ -608,6 +613,7 @@ function Invoke-DecomAssessmentDiscovery {
             Write-DecomWarn "App role assignment check failed for $($user.UserPrincipalName): $_"
         }
     }
+    } # end if ($disabledUsers.Count -gt 0)
 
     # --- Coverage probes for remaining areas (no detection logic yet) ---
     try {
