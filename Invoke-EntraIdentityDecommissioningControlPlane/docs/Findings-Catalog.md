@@ -74,10 +74,10 @@ For privileged role removals, Rev2.0 generates one executable action per exact d
 |---|---|---|
 | DEC-PIM-001 | Critical | Disabled user has eligible privileged role assignment |
 | DEC-PIM-002 | Critical | Guest has eligible privileged role assignment |
-| DEC-PIM-003 | Medium | PIM activation/review evidence unavailable |
+| DEC-PIM-003 | Medium | PIM activation/review evidence unavailable (tenant-level coverage gap) |
 | DEC-PIM-004 | High | Eligible privileged assignment requires governance review |
-| DEC-AP-001 | High | Disabled user has active access package assignment |
-| DEC-AP-002 | Medium | Guest has access package assignment requiring sponsor review |
+| DEC-AP-001 | High | Disabled user has access package assignment |
+| DEC-AP-002 | Medium | Guest has access package assignment |
 | DEC-AP-003 | Medium | Access package assignment has no visible expiration evidence |
 | DEC-AP-004 | Medium | Access package review coverage could not be confirmed |
-| DEC-AP-005 | High | Access package assignment linked to sensitive resource or group |
+| DEC-AP-005 | High | Access package assignment linked to sensitive resource/group heuristic |

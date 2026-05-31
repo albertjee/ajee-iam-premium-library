@@ -6,14 +6,14 @@
 - Read-only PIM eligible assignment visibility.
 - DEC-PIM-001: Disabled user has eligible privileged role assignment.
 - DEC-PIM-002: Guest has eligible privileged role assignment.
-- DEC-PIM-003: PIM activation/review evidence unavailable.
+- DEC-PIM-003: PIM activation/review evidence unavailable (tenant-level coverage gap).
 - DEC-PIM-004: Eligible privileged assignment requires governance review.
 - Read-only Entitlement Management / Access Package visibility.
-- DEC-AP-001: Disabled user has active access package assignment.
-- DEC-AP-002: Guest has access package assignment requiring sponsor review.
+- DEC-AP-001: Disabled user has access package assignment.
+- DEC-AP-002: Guest has access package assignment.
 - DEC-AP-003: Access package assignment has no visible expiration evidence.
 - DEC-AP-004: Access package review coverage could not be confirmed.
-- DEC-AP-005: Access package assignment linked to sensitive resource or group.
+- DEC-AP-005: Access package assignment linked to sensitive resource/group heuristic.
 - Rev2.2 coverage model for PIM, Entitlement Management, and Access Review evidence.
 - `$script:ToolVersion` single source of truth in entry point; all report headers and footers use `$Context.ToolVersion`.
 - SchemaVersion bumped to 2.2 in JSON export and run manifest.
