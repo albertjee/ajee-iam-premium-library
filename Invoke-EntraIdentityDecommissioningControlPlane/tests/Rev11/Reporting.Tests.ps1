@@ -272,4 +272,48 @@ Describe 'Rev1.1 Reporting Tests' {
             Test-Path $path | Should -Be $true
         }
     }
+
+    Context 'Rev2.2 reporting coverage' {
+        It 'JSON export SchemaVersion is 2.2' {
+            $path = Join-Path $TestDrive 'rev22-schema.json'
+            Export-DecomAssessmentJson -Findings $script:TestFindings -Path $path -Context $script:TestContext
+            $json = Get-Content $path -Raw | ConvertFrom-Json
+            $json.SchemaVersion | Should -Be '2.2'
+        }
+
+        It 'HTML renders without null crash for Rev2.2 PIM finding' {
+            $pimFinding = New-DecomFinding `
+                -FindingId 'DEC-PIM-001' -Category 'Privileged Access' `
+                -Severity 'Critical' -RiskScore 86 -Confidence 'High' `
+                -ObjectType 'User' -ObjectId ([guid]::NewGuid().Guid) `
+                -DisplayName 'Disabled Admin (PIM)' `
+                -UserPrincipalName 'disabled.admin@contoso.com' `
+                -Evidence 'Disabled user retains eligible privileged role assignment.' `
+                -EvidenceSource 'roleManagement/directory/roleEligibilityScheduleInstances' `
+                -RecommendedAction 'Review and remove eligible role assignment' `
+                -RemediationMode 'ManualApprovalRequired'
+            $path    = Join-Path $TestDrive 'rev22-pim-html.html'
+            $summary = @{ Critical=1; High=0; Medium=0; Low=0; Informational=0; Total=1 }
+            $ctx     = [PSCustomObject]@{
+                Mode='Assessment'; TenantId='contoso.onmicrosoft.com'
+                EngagementId='TEST-022'; ClientName='Contoso'; Assessor='Albert Jee'
+                DemoMode=$false; Coverage=@{}; ToolVersion='Rev2.2'
+            }
+            { Export-DecomAssessmentHtml -Findings @($pimFinding) -Path $path -Context $ctx -Summary $summary } | Should -Not -Throw
+            Test-Path $path | Should -Be $true
+        }
+
+        It 'CSV export includes Rev2.2 finding IDs from synthetic dataset' {
+            Import-Module .\src\Modules\Discovery.psm1 -Force -DisableNameChecking
+            Import-Module .\src\Modules\Utilities.psm1  -Force -DisableNameChecking
+            $findings = @(Get-DecomSyntheticFindings)
+            $path = Join-Path $TestDrive 'rev22-findings.csv'
+            Export-DecomAssessmentCsv -Findings $findings -Path $path
+            $csv = Import-Csv $path
+            $csv.FindingId | Should -Contain 'DEC-PIM-001'
+            $csv.FindingId | Should -Contain 'DEC-PIM-002'
+            $csv.FindingId | Should -Contain 'DEC-AP-001'
+            $csv.FindingId | Should -Contain 'DEC-AP-005'
+        }
+    }
 }

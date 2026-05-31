@@ -1054,15 +1054,13 @@ function Invoke-DecomAssessmentDiscovery {
             Write-DecomInfo "PIM eligible assignment discovery: OK ($($eligibleAssignments.Count) eligible assignments)"
 
             # Build lookup sets for disabled and guest users (reuse from earlier in function)
-            $pimDisabledIdSet = if ($disabledUsers -and $disabledUsers.Count -gt 0) {
-                [System.Collections.Generic.HashSet[string]]@($disabledUsers | ForEach-Object { $_.Id })
-            } else {
-                [System.Collections.Generic.HashSet[string]]::new()
+            $pimDisabledIdSet = [System.Collections.Generic.HashSet[string]]::new()
+            if ($disabledUsers -and $disabledUsers.Count -gt 0) {
+                foreach ($u in $disabledUsers) { if ($u -and $u.Id) { [void]$pimDisabledIdSet.Add([string]$u.Id) } }
             }
-            $pimGuestIdSet = if ($null -ne $guestsFull -and $guestsFull.Count -gt 0) {
-                [System.Collections.Generic.HashSet[string]]@($guestsFull | ForEach-Object { $_.Id })
-            } else {
-                [System.Collections.Generic.HashSet[string]]::new()
+            $pimGuestIdSet = [System.Collections.Generic.HashSet[string]]::new()
+            if ($null -ne $guestsFull -and $guestsFull.Count -gt 0) {
+                foreach ($g in $guestsFull) { if ($g -and $g.Id) { [void]$pimGuestIdSet.Add([string]$g.Id) } }
             }
 
             $pim003Emitted = $false
@@ -1224,15 +1222,13 @@ function Invoke-DecomAssessmentDiscovery {
             Write-DecomInfo "Access package assignment discovery: OK ($($apAssignments.Count) assignments)"
 
             # Build lookup sets
-            $apDisabledIdSet = if ($disabledUsers -and $disabledUsers.Count -gt 0) {
-                [System.Collections.Generic.HashSet[string]]@($disabledUsers | ForEach-Object { $_.Id })
-            } else {
-                [System.Collections.Generic.HashSet[string]]::new()
+            $apDisabledIdSet = [System.Collections.Generic.HashSet[string]]::new()
+            if ($disabledUsers -and $disabledUsers.Count -gt 0) {
+                foreach ($u in $disabledUsers) { if ($u -and $u.Id) { [void]$apDisabledIdSet.Add([string]$u.Id) } }
             }
-            $apGuestIdSet = if ($null -ne $guestsFull -and $guestsFull.Count -gt 0) {
-                [System.Collections.Generic.HashSet[string]]@($guestsFull | ForEach-Object { $_.Id })
-            } else {
-                [System.Collections.Generic.HashSet[string]]::new()
+            $apGuestIdSet = [System.Collections.Generic.HashSet[string]]::new()
+            if ($null -ne $guestsFull -and $guestsFull.Count -gt 0) {
+                foreach ($g in $guestsFull) { if ($g -and $g.Id) { [void]$apGuestIdSet.Add([string]$g.Id) } }
             }
 
             $sensitiveKeywords = @('admin','privileged','global','security','breakglass','break-glass',

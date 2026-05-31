@@ -439,3 +439,42 @@ Describe 'Rev2.0 Safety Tests' {
         }
     }
 }
+
+Describe 'Rev2.2 Safety Tests' {
+
+    BeforeAll {
+        $script:epPath22   = Join-Path $PSScriptRoot '..\..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        $script:discPath22 = Join-Path $PSScriptRoot '..\..\src\Modules\Discovery.psm1'
+        $script:remPath22  = Join-Path $PSScriptRoot '..\..\src\Modules\Remediation.psm1'
+    }
+
+    Context 'Rev2.2 write scope safety' {
+        It 'Entry point does not add PrivilegedAccess.ReadWrite scope' {
+            $content = Get-Content $script:epPath22 -Raw
+            $content | Should -Not -Match 'PrivilegedAccess\.ReadWrite'
+        }
+
+        It 'Entry point does not add EntitlementManagement.ReadWrite scope' {
+            $content = Get-Content $script:epPath22 -Raw
+            $content | Should -Not -Match 'EntitlementManagement\.ReadWrite'
+        }
+
+        It 'Entry point does not add AccessReview.ReadWrite scope' {
+            $content = Get-Content $script:epPath22 -Raw
+            $content | Should -Not -Match 'AccessReview\.ReadWrite'
+        }
+    }
+
+    Context 'Rev2.2 Discovery.psm1 write verb safety' {
+        It 'Discovery.psm1 contains no Update-Mg calls' {
+            $content = Get-Content $script:discPath22 -Raw
+            $content | Should -Not -Match '\bUpdate-Mg'
+        }
+
+        It 'Remediation.psm1 does not include DEC-PIM or DEC-AP write actions' {
+            $content = Get-Content $script:remPath22 -Raw
+            $content | Should -Not -Match 'DEC-PIM-0'
+            $content | Should -Not -Match "'DEC-AP-0"
+        }
+    }
+}
