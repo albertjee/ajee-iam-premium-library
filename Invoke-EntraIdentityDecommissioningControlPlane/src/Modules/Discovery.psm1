@@ -1909,7 +1909,7 @@ function Invoke-DecomAssessmentDiscovery {
                         -FindingId         'DEC-REV-003' `
                         -Category          'Access Review Governance' `
                         -Severity          'Medium' `
-                        -RiskScore         42 `
+                        -RiskScore         50 `
                         -Confidence        'Medium' `
                         -ObjectType        'TenantScope' `
                         -ObjectId          $defId `
@@ -1980,8 +1980,8 @@ function Invoke-DecomAssessmentDiscovery {
                     $findings.Add((New-DecomFinding `
                         -FindingId         'DEC-REV-004' `
                         -Category          'Access Review Governance' `
-                        -Severity          'Low' `
-                        -RiskScore         28 `
+                        -Severity          'Medium' `
+                        -RiskScore         46 `
                         -Confidence        'Low' `
                         -ObjectType        'TenantScope' `
                         -ObjectId          $defId `
@@ -2016,7 +2016,7 @@ function Invoke-DecomAssessmentDiscovery {
                             -FindingId         'DEC-REV-005' `
                             -Category          'Access Review Governance' `
                             -Severity          'High' `
-                            -RiskScore         75 `
+                            -RiskScore         67 `
                             -Confidence        'High' `
                             -ObjectType        'User' `
                             -ObjectId          $principalId `
@@ -2092,8 +2092,15 @@ function Invoke-DecomAssessmentDiscovery {
             }
         }
 
+        # Check if review decision is recent (within 90 days)
+        $guestReviewThreshold90 = (Get-Date).AddDays(-90)
+        $hasRecentGuestReview = $false
+        if ($reviewResult.Found -and $null -ne $reviewResult.LastDecisionUtc) {
+            $hasRecentGuestReview = ($reviewResult.LastDecisionUtc -ge $guestReviewThreshold90)
+        }
+
         $grevKey = ''
-        if ($isPrivileged -and -not $reviewResult.Found) {
+        if ($isPrivileged -and -not $hasRecentGuestReview) {
             $grevKey = "DEC-GREV-003|$guestId"
             if ($emittedRev23.Add($grevKey)) {
                 $findings.Add((New-DecomFinding `
@@ -2113,7 +2120,7 @@ function Invoke-DecomAssessmentDiscovery {
                     -RemediationMode   'InformationOnly' `
                     -ConsultantNote    'Privileged guest without review evidence — highest risk GREV category'))
             }
-        } elseif ($lacksSponsorship -and -not $reviewResult.Found) {
+        } elseif ($lacksSponsorship -and -not $hasRecentGuestReview) {
             $grevKey = "DEC-GREV-002|$guestId"
             if ($emittedRev23.Add($grevKey)) {
                 $findings.Add((New-DecomFinding `
@@ -2133,7 +2140,7 @@ function Invoke-DecomAssessmentDiscovery {
                     -RemediationMode   'InformationOnly' `
                     -ConsultantNote    'Unsponsored guest without review evidence — elevated governance risk'))
             }
-        } elseif (-not $reviewResult.Found) {
+        } elseif (-not $hasRecentGuestReview) {
             $grevKey = "DEC-GREV-001|$guestId"
             if ($emittedRev23.Add($grevKey)) {
                 $findings.Add((New-DecomFinding `

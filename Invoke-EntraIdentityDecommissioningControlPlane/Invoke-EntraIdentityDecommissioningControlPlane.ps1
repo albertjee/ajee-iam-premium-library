@@ -299,6 +299,7 @@ if (-not $DemoMode -and $Mode -in @('Assessment','WhatIfRemediation','ExportPlan
             'AuditLog.Read.All',
             'RoleManagement.Read.Directory',
             'EntitlementManagement.Read.All',
+            'AccessReview.Read.All',
             'Policy.Read.All'
         )
         Connect-MgGraph -Scopes $scopes -TenantId $TenantId -ErrorAction Stop | Out-Null
