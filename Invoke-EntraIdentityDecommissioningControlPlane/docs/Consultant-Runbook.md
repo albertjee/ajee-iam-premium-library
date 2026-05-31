@@ -1,37 +1,150 @@
 # Consultant Runbook — Entra Identity Decommissioning Control Plane
 
-## Pre-Engagement
+**Rev1.4 | Assessment-first identity governance for Microsoft Entra ID**
 
-- Confirm tenant scope and read-only permissions
-- Confirm whether sign-in/audit logs are available
-- Confirm whether guest and app ownership analysis is in scope
-- Confirm whether remediation planning is in scope
+---
+
+## Pre-Engagement Checklist
+
+Before running the assessment tool on a client tenant:
+
+- [ ] Confirm tenant scope — single tenant or multi-tenant engagement
+- [ ] Confirm the assessment is authorized by the client's IT or security team
+- [ ] Request read-only Graph permissions (see Required-Permissions.md)
+- [ ] Confirm whether sign-in/audit logs are available (AuditLog.Read.All)
+- [ ] Confirm whether guest and app ownership analysis is in scope
+- [ ] Confirm whether Conditional Access analysis is in scope (Policy.Read.All)
+- [ ] Confirm whether IGA/Entitlement Management is in scope (P3 license required)
+- [ ] Run demo mode locally to confirm tooling is working before the engagement call
+- [ ] Agree on output handling — where reports will be stored and who will have access
+
+---
 
 ## Execution
 
-1. Run assessment mode (no parameters required)
-2. Validate coverage warnings in console output
-3. Review critical and high findings
-4. Export CSV, JSON, HTML, and Markdown outputs
-5. Review exceptions with client
+### Step 1 — Run demo mode first
+
+Always run demo mode before connecting to a client tenant. Confirms tooling is working
+and gives you a preview of the report format to share with the client.
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode
+```
+
+### Step 2 — Run live assessment
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+    -TenantId     "client.onmicrosoft.com" `
+    -EngagementId "ENG-001" `
+    -ClientName   "Client Name" `
+    -Assessor     "Your Name" `
+    -OutputPath   ".\out"
+```
+
+Sign in with a read-only account that has the required Graph permissions.
+The tool will prompt for interactive authentication.
+
+### Step 3 — Review coverage warnings
+
+Check the console output for `[WARN]` lines. These indicate areas where Graph
+permissions were unavailable and coverage is partial. Common examples:
+
+- `AuditLog.Read.All` not granted → sign-in activity unavailable
+- `EntitlementManagement.Read.All` not granted → IGA coverage incomplete
+- `Policy.Read.All` not granted → CA analysis unavailable
+
+Document coverage gaps in your engagement notes. The run manifest JSON also records
+which coverage areas succeeded and which were unavailable.
+
+### Step 4 — Review findings
+
+Open the HTML report in a browser. Review:
+1. Critical and High findings first — these drive the remediation plan
+2. Medium findings — governance hygiene items
+3. Coverage summary — what was and was not assessed
+4. Assumptions and Limitations section
+
+---
 
 ## Client Workshop
 
-- Start with executive scorecard (HTML report)
-- Explain residual access risk by category
-- Review critical findings
-- Separate true risks from approved exceptions
-- Agree on remediation ownership and timeline
+### Opening the conversation
+
+Start with the HTML executive scorecard:
+- Show the KPI grid: total findings, Critical+High count, protected objects, coverage mode
+- Explain the safety model: "This tool ran in read-only mode — nothing was changed"
+- Walk through finding categories before diving into specific findings
+
+### Working through findings
+
+For each Critical and High finding:
+1. Confirm the finding is accurate (not a false positive)
+2. Identify the business owner for the affected object
+3. Agree on the recommended action
+4. Confirm whether the finding is a true risk or an approved exception
+5. Assign ownership and timeline
+
+### Common client questions
+
+**"Is this tool making any changes to our environment?"**
+No. Assessment mode is read-only. The safety banner confirms this on every run.
+ExecuteRemediation is blocked until Rev2.0 and requires an approved remediation manifest.
+
+**"Why does a disabled user still have these permissions?"**
+This is the most common finding. Offboarding workflows often miss app role assignments,
+group memberships, and privileged roles when disabling accounts.
+
+**"What is a protected object?"**
+Accounts matching break-glass, emergency, sync, or service account patterns are
+classified as protected. The tool flags them but never recommends automatic remediation.
+
+**"What does 'access review status unknown' mean for CA exclusions?"**
+The tool detects that a CA exclusion group has members, but does not yet query
+access review history. This is a coverage limitation, not a finding error.
+
+---
 
 ## Post-Workshop
 
-- Update remediation plan with approvals
-- Mark findings as Approved / Rejected / Deferred
-- Prepare optional controlled ExecuteRemediation phase for Rev2.0
+1. Export the remediation plan in WhatIfRemediation mode if needed
+2. Update the plan with client-confirmed approvals
+3. Mark findings as: Approved for Remediation / Approved Exception / Deferred
+4. Store the signed remediation plan as the approval artifact for Rev2.0 execution
+5. Schedule a follow-up assessment 30-60 days after remediation to verify closure
 
-## Known Limitations
+---
 
-- Assessment mode reads only — no changes to tenant
-- Sign-in log analysis requires AuditLog.Read.All scope
-- IGA coverage requires EntitlementManagement.Read.All scope
-- Rev1.1 does not support hybrid or on-premises AD DS environments
+## Known Limitations (Rev1.4)
+
+- Assessment mode is read-only — no changes are made to the tenant
+- Sign-in activity requires `AuditLog.Read.All` — unavailable without this scope
+- IGA/Entitlement Management requires `EntitlementManagement.Read.All` and a P3 license
+- CA exclusion review status is not verified against access review history (Rev1.4)
+- DEC-ROLE-001 detects disabled privileged users only — stale sign-in privileged role detection is planned
+- PIM eligible role assignments are not yet analyzed (planned)
+- Hybrid / on-premises AD DS environments are not in scope
+- Multi-tenant assessment requires running the tool separately per tenant
+
+---
+
+## Troubleshooting
+
+**Tool opens in Notepad instead of running:**
+Run explicitly with pwsh:
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File ".\Invoke-EntraIdentityDecommissioningControlPlane.ps1" -DemoMode
+```
+
+**Graph connection fails:**
+Confirm the account has the required permissions and the tenant ID is correct.
+Check for conditional access policies blocking the sign-in.
+
+**Coverage: Partial in the report:**
+One or more Graph areas returned 403. Check the `[WARN]` lines in the console output
+for which permissions are missing.
+
+**0 findings on live tenant:**
+Check coverage warnings. If all discovery areas succeeded but 0 findings were returned,
+the tenant may be well-governed — or the disabled user set may be empty.
+Run with `-DemoMode` to confirm the tool is generating findings correctly.

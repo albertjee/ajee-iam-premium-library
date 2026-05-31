@@ -1,5 +1,27 @@
 # Changelog
 
+## Rev1.7 — README & Branding Polish (2026-05-30)
+
+### Updated
+- README.md: complete rewrite as consultant-grade dual-tool reference
+  - Assessment Control Plane (Rev1.4) fully documented with quick start, modes, outputs, permissions, severity model
+  - Decommissioning Execution Engine (Premium v2.0) summarized with reference to src/README.md
+  - Repository layout, engagement workflow, safety model, version history, and requirements sections added
+- Consultant-Runbook.md: expanded from stub to full engagement runbook
+  - Pre-engagement checklist
+  - Step-by-step execution guide
+  - Client workshop guidance with common questions and answers
+  - Post-workshop process
+  - Known limitations updated to Rev1.4
+  - Troubleshooting section added
+
+### No code changes
+- No .ps1, .psm1, or .Tests.ps1 files modified
+- No frozen files touched
+- 42/42 Pester tests remain passing
+
+---
+
 ## Rev1.4 — Guest Lifecycle + Privileged Access + Conditional Access Detection (2026-05-30)
 
 ### Added (Live Detectors)

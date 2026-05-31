@@ -1,266 +1,229 @@
-# Entra Identity Decommissioning Control Plane — Premium v2.0
+# Entra Identity Decommissioning Control Plane
 
-> **Status:** Complete — batch engine, resume, state persistence, premium remediation phases, batch reporting, diff report, policy overlays, approval gate, and mailbox extended controls.
-> Builds on top of Lite v1.5 without modifying any Lite modules.
+> **Consultant-grade identity governance tooling for Microsoft Entra ID.**
+> Assessment-first design. No tenant modifications without explicit approval.
 
 ---
 
-## What Premium adds
+## Overview
 
-Lite v1.5 decommissions one user per run. Premium v2.0 wraps the Lite workflow in a batch engine that processes N users sequentially, checkpoints state to disk after every entry, supports resuming interrupted runs, and adds premium remediation phases not available in Lite.
+Two tools in one repo:
 
-| Capability | Lite v1.5 | Premium v2.0 |
+| Tool | Entry Point | Purpose |
 |---|---|---|
-| UPNs per run | 1 | N (unlimited list) |
-| Batch envelope | — | `New-DecomBatchContext` |
-| Per-UPN lifecycle tracking | — | Pending → Running → Completed/Failed/Skipped |
-| Checkpoint on disk | — | `Save-DecomBatchState` (JSON, atomic write) |
-| Resume interrupted batch | — | `Restore-DecomBatchState` + `-ResumePath` |
-| Batch roll-up summary | — | `Get-DecomBatchSummary` |
-| Pre-flight approval gate | — | `Invoke-DecomBatchApproval` (with expiry enforcement) |
-| Per-UPN policy overrides | — | `Read-DecomBatchPolicy` / `Get-DecomUpnPolicy` |
-| Pre-run diff report | — | `Export-DecomBatchDiffReport` (HTML + JSON, risk-classified) |
-| Litigation hold | — | `Set-DecomLitigationHold` |
-| License removal | — | `Remove-DecomLicenses` |
-| Device disable + wipe/retire | — | `Invoke-DecomDeviceRemediation` |
-| App ownership removal | — | `Remove-DecomAppOwnership` |
-| Azure RBAC removal | — | `Remove-DecomAzureRBAC` |
-| Mail forwarding control | — | `Set-DecomMailForwarding` / `Remove-DecomMailForwarding` |
-| Batch HTML/JSON reports | — | `Export-DecomBatchHtmlReport` / `Export-DecomBatchJsonReport` |
-| Cross-UPN evidence manifest | — | `Write-DecomBatchEvidenceManifest` |
-| Core workflow engine | `Invoke-DecomWorkflow` | same — called per UPN, unchanged |
-| PS version | 5.1 | 5.1 (PS7 for v2.1 modules) |
+| **Assessment Control Plane** | `Invoke-EntraIdentityDecommissioningControlPlane.ps1` | Discovery, scoring, and remediation planning — read-only |
+| **Decommissioning Execution Engine** | `src/Start-Decom.ps1` / `src/Start-DecomBatch.ps1` | Controlled batch identity remediation — requires approval gate |
+
+The Assessment Control Plane (Rev1.4) is the recommended starting point for any engagement.
+It produces an executive HTML report, CSV findings export, and approval-ready remediation plan
+before any execution is considered.
 
 ---
 
-## Pester Test Suites
+## Assessment Control Plane (Rev1.4)
 
-**191/191 Premium tests passing. 41/41 Lite tests passing. 232 total.**
+### What it does
 
-```powershell
-# Lite suite — 41 tests (core single-UPN workflow)
-Invoke-Pester .\tests\Decom.Tests.ps1 -Output Detailed
+Connects to Microsoft Entra ID in read-only mode and detects residual access risk across:
 
-# Premium suite — 191 tests (batch control plane + remediation)
-Invoke-Pester .\tests\Premium\ -Output Detailed
-```
-
-| Test File | Tests | Covers |
+| Category | Finding IDs | What it detects |
 |---|---|---|
-| `tests/Decom.Tests.ps1` | 41 | Lite workflow — evidence sealing, guardrails, phase engine |
-| `tests/Premium/DecomBatch.Tests.ps1` | 57 | BatchContext, BatchState, BatchOrchestrator, resume flow |
-| `tests/Premium/DecomBatchReporting.Tests.ps1` | 35 | JSON/HTML batch reports, evidence manifest |
-| `tests/Premium/DecomPremiumRemediation.Tests.ps1` | 46 | Compliance, License, Device, AppOwnership, AzureRBAC |
-| `tests/Premium/DecomV21.Tests.ps1` | 43 | BatchDiff, BatchPolicy, BatchApproval, MailboxExtended |
-| `tests/Premium/DecomCoverageGap.Tests.ps1` | 10 | High-severity gap tests (GAP-05 through GAP-16) |
+| User Lifecycle | DEC-USER-001, 002, 003 | Disabled users with group memberships, app roles, privileged roles |
+| Application | DEC-APP-001 through 005 | Ownerless apps, disabled-user owners, expiring/expired credentials, single owners |
+| Service Principal | DEC-SPN-001 | Ownerless enterprise applications |
+| Guest Lifecycle | DEC-GUEST-001, 002, 003 | Stale guests, privileged guests, guests without sponsor metadata |
+| Privileged Access | DEC-ROLE-001 | Disabled identities holding active privileged roles |
+| Conditional Access | DEC-CA-001, DEC-CA-002 | CA policy exclusions requiring review |
+| Governance | DEC-IGA-001 | Coverage gaps when optional scopes are unavailable |
 
-Pester v5.6.1 required. Tests use function stubs — no Graph or Exchange connectivity needed.
+### Quick start
+
+**Demo mode (no Graph connection required):**
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode
+```
+
+**Live assessment against your tenant:**
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+    -TenantId     "contoso.onmicrosoft.com" `
+    -EngagementId "ENG-001" `
+    -ClientName   "Contoso" `
+    -Assessor     "Your Name" `
+    -OutputPath   ".\out"
+```
+
+### Run modes
+
+| Mode | Description |
+|---|---|
+| `Assessment` (default) | Read-only discovery and scoring. No tenant modifications. |
+| `WhatIfRemediation` | Assessment + remediation plan. No tenant modifications. |
+| `ExportPlan` | Export remediation plan only. No tenant modifications. |
+| `ExecuteRemediation` | Reserved — blocked in Rev1.x. Available in Rev2.0. |
+
+### Outputs
+
+Each run creates a timestamped folder under `.\out\` containing:
+
+| File | Description |
+|---|---|
+| `*-assessment-*.csv` | All findings in spreadsheet format |
+| `*-findings-*.json` | Machine-readable findings with full schema |
+| `*-report-*.html` | Executive HTML report — dark theme, filterable findings table |
+| `*-remediation-plan-*.md` | Approval-ready Markdown remediation plan |
+| `*-run-manifest-*.json` | Run audit record with coverage and finding summary |
+
+### Required permissions
+
+| Permission | Purpose |
+|---|---|
+| `User.Read.All` | User lifecycle and guest discovery |
+| `Directory.Read.All` | Groups, roles, directory relationships |
+| `Application.Read.All` | App registrations, owners, credentials |
+| `AuditLog.Read.All` | Sign-in activity for stale identity detection |
+| `RoleManagement.Read.Directory` | Privileged role assignments |
+| `Policy.Read.All` | Conditional Access policy analysis |
+| `EntitlementManagement.Read.All` | IGA coverage (optional — P3 license required) |
+
+### Finding severity model
+
+| Severity | RiskScore range | Example |
+|---|---|---|
+| Critical | 80–100 | Disabled user holds Global Administrator |
+| High | 60–79 | App owned exclusively by disabled user |
+| Medium | 40–59 | App with single owner |
+| Low | 25–39 | Stale guest last sign-in 210 days ago |
+| Informational | 0–24 | Coverage gap — optional scope unavailable |
+
+### Test suite
+
+```powershell
+Invoke-Pester -Path .\tests\Rev11\ -Output Detailed
+# 42/42 tests passing, 0 failures
+```
 
 ---
 
-## Directory layout
+## Decommissioning Execution Engine (Premium v2.0)
 
-```
-src/
-  Start-Decom.ps1                     # Lite single-UPN launcher
-  Invoke-DecomWorkflow.ps1            # Lite workflow engine
-  Modules/                            # Lite modules (14 modules)
-  Premium/
-    Start-DecomBatch.ps1              # Premium batch launcher
-    Modules/
-      BatchContext.psm1               # batch envelope, per-UPN entry management
-      BatchState.psm1                 # JSON checkpoint: save / restore
-      BatchOrchestrator.psm1          # Invoke-DecomBatch: sequential orchestrator
-      BatchOrchestratorParallel.psm1  # parallel orchestrator (v2.1 — reserved)
-      BatchReporting.psm1             # HTML/JSON batch reports + evidence manifest
-      BatchDiff.psm1                  # pre-run diff report with risk classification
-      BatchPolicy.psm1                # per-UPN policy overlays from JSON file
-      BatchApproval.psm1              # pre-flight approval gate with expiry
-      ComplianceRemediation.psm1      # litigation hold
-      LicenseRemediation.psm1         # license removal
-      DeviceRemediation.psm1          # device disable + Intune wipe/retire
-      AppOwnership.psm1               # app registration + SPN ownership removal
-      AzureRBAC.psm1                  # Azure RBAC direct assignment removal
-      MailboxExtended.psm1            # mail forwarding control (v2.1)
-      AccessRemoval.psm1              # group, role, OAuth, auth method removal
+### What it does
 
-tests/
-  Decom.Tests.ps1                     # Lite suite — 41 tests
-  Premium/
-    DecomBatch.Tests.ps1              # 57 tests — Phase 1 modules
-    DecomBatchReporting.Tests.ps1     # 35 tests — BatchReporting
-    DecomPremiumRemediation.Tests.ps1 # 46 tests — remediation modules
-    DecomV21.Tests.ps1                # 43 tests — v2.1 modules
-    DecomCoverageGap.Tests.ps1        # 10 tests — high-severity gap coverage
-
-output/
-  <BatchId>/
-    batch-state.json                  # checkpoint file (resume anchor)
-    batch-report.html                 # human-readable batch summary
-    batch-report.json                 # machine-readable batch roll-up
-    batch-evidence.manifest.json      # cross-UPN evidence integrity index
-    batch-diff.html                   # pre-run WhatIf diff report
-    batch-diff.json                   # machine-readable diff
-    batch-approval.json               # approval audit record
-    <sanitised-upn>/
-      run.log
-      evidence.ndjson
-      report.json
-      report.html
-```
-
----
-
-## Quick start
-
-### New batch
+Controlled batch execution of identity decommissioning workflows. Requires an approved
+remediation plan and an active Entra ID connection with write permissions.
 
 ```powershell
-cd src\Premium
-
-.\Start-DecomBatch.ps1 `
-    -UpnList        alice@contoso.com, bob@contoso.com, carol@contoso.com `
-    -TicketId       CHG-12345 `
-    -EvidenceLevel  Forensic `
-    -RemoveLicenses `
-    -NonInteractive `
-    -Force
-```
-
-### WhatIf dry run
-
-```powershell
-.\Start-DecomBatch.ps1 `
+# New batch run
+.\src\Start-DecomBatch.ps1 `
     -UpnList  alice@contoso.com, bob@contoso.com `
     -TicketId CHG-12345 `
     -WhatIfMode
-```
 
-### Resume an interrupted batch
-
-```powershell
-.\Start-DecomBatch.ps1 `
+# Resume interrupted batch
+.\src\Start-DecomBatch.ps1 `
     -ResumePath 'C:\output\<BatchId>\batch-state.json'
 ```
 
-### Resume — skip known-bad entries, retry the rest
+Key capabilities: batch envelope, per-UPN lifecycle tracking, checkpoint/resume,
+pre-flight approval gate, diff report, policy overlays, litigation hold,
+license removal, device remediation, app ownership removal, Azure RBAC removal.
 
-```powershell
-.\Start-DecomBatch.ps1 `
-    -ResumePath 'C:\output\<BatchId>\batch-state.json' `
-    -SkipFailed
+See [Execution Engine README](src/README.md) for full documentation.
+
+---
+
+## Repository layout
+
+```
+Invoke-EntraIdentityDecommissioningControlPlane.ps1   <- Assessment entry point (Rev1.4)
+src/
+  Start-Decom.ps1                 <- Lite single-UPN decommissioning launcher
+  Start-DecomBatch.ps1            <- Premium batch decommissioning launcher
+  Invoke-DecomWorkflow.ps1        <- Core workflow engine
+  LiteModules/                    <- 14 Lite decommissioning modules
+  Modules/
+    Utilities.psm1                <- Assessment console helpers + finding factory
+    Discovery.psm1                <- Assessment discovery engine (Rev1.4)
+    Analysis.psm1                 <- Assessment scoring engine
+    Reporting.psm1                <- Assessment HTML + export functions
+    RemediationPlan.psm1          <- Assessment remediation plan generator
+    AccessRemoval.psm1            <- Premium: group/role/OAuth removal
+    AppOwnership.psm1             <- Premium: app ownership removal
+    AzureRBAC.psm1                <- Premium: Azure RBAC removal
+    BatchApproval.psm1            <- Premium: pre-flight approval gate
+    BatchContext.psm1             <- Premium: batch envelope management
+    BatchDiff.psm1                <- Premium: pre-run diff report
+    BatchOrchestrator.psm1        <- Premium: sequential batch orchestrator
+    BatchOrchestratorParallel.psm1<- Premium: parallel orchestrator (reserved)
+    BatchPolicy.psm1              <- Premium: per-UPN policy overlays
+    BatchReporting.psm1           <- Premium: HTML/JSON batch reports
+    BatchState.psm1               <- Premium: checkpoint save/restore
+    ComplianceRemediation.psm1    <- Premium: litigation hold
+    DeviceRemediation.psm1        <- Premium: device disable/wipe/retire
+    LicenseRemediation.psm1       <- Premium: license removal
+    MailboxExtended.psm1          <- Premium: mail forwarding control
+tests/
+  Rev11/
+    Safety.Tests.ps1              <- Assessment safety tests
+    Analysis.Tests.ps1            <- Assessment scoring tests
+    Reporting.Tests.ps1           <- Assessment export tests
+  Decom.Tests.ps1                 <- Lite suite (41 tests)
+  Premium/                        <- Premium batch suite (191 tests)
+docs/
+  Consultant-Runbook.md           <- Engagement runbook
+  Required-Permissions.md         <- Graph permission reference
+  Findings-Catalog.md             <- All finding IDs with severity and description
+samples/
+  sample-findings.csv
+  sample-findings.json
+  sample-report.html
+  sample-remediation-plan.md
+out/                              <- Local run outputs (gitignored)
 ```
 
 ---
 
-## Module reference
+## Engagement workflow
 
-### BatchContext.psm1
-
-| Function | Description |
-|---|---|
-| `New-DecomBatchContext` | Creates the batch envelope. Pass `-UpnList` to pre-populate entries. |
-| `New-DecomBatchEntry` | Adds a UPN to an existing batch. Idempotent — safe to call twice. |
-| `Get-DecomBatchEntry` | Retrieves a single entry by UPN. Returns `$null` if not found. |
-| `Set-DecomBatchEntryStatus` | Updates lifecycle status. Sets `StartedUtc` / `CompletedUtc` automatically. |
-| `Get-DecomBatchSummary` | Returns roll-up counts and `AllDone` / `AnyFailed` flags. |
-
-**Entry lifecycle:** `Pending` → `Running` → `Completed` / `Failed` / `Skipped` / `Resumed`
-
-### BatchState.psm1
-
-| Function | Description |
-|---|---|
-| `Get-DecomBatchStatePath` | Returns canonical path: `<OutputRoot>\<BatchId>\batch-state.json` |
-| `Save-DecomBatchState` | Serialises batch to JSON. Atomic write via .tmp-then-copy. |
-| `Restore-DecomBatchState` | Deserialises from JSON. Reconstructs typed object graph. |
-
-### BatchOrchestrator.psm1
-
-| Function | Description |
-|---|---|
-| `Invoke-DecomBatch` | Iterates actionable entries, calls Lite `Invoke-DecomWorkflow` per UPN, runs Premium remediation phases, checkpoints after every entry, returns `BatchResult`. |
-
-**Idempotency rules:**
-
-| Entry status | Behaviour |
-|---|---|
-| `Completed` | Always skipped |
-| `Skipped` | Always skipped |
-| `Running` (on resume) | Treated as interrupted — re-runs as `Resumed` |
-| `Failed` | Re-runs by default; skipped if `-SkipFailed` |
-| `Pending` / `Resumed` | Runs normally |
-
-### BatchApproval.psm1
-
-| Function | Description |
-|---|---|
-| `Invoke-DecomBatchApproval` | Validates pre-signed approval file. Enforces BatchId binding, TicketId match, Approved flag, and ExpiresUtc expiry. |
-| `Get-DecomApprovalStatus` | Reads current approval record from disk. |
-
-### BatchPolicy.psm1
-
-| Function | Description |
-|---|---|
-| `Read-DecomBatchPolicy` | Loads and validates a JSON policy file. |
-| `Get-DecomUpnPolicy` | Resolves effective policy for a UPN — merges DefaultPolicy with UPN-specific overrides. |
-| `New-DecomBatchPolicyTemplate` | Generates a starter policy JSON file. |
-
-### BatchReporting.psm1
-
-| Function | Description |
-|---|---|
-| `Export-DecomBatchJsonReport` | Writes machine-readable JSON roll-up to `<BatchId>\batch-report.json`. |
-| `Export-DecomBatchHtmlReport` | Writes print-ready HTML summary to `<BatchId>\batch-report.html`. |
-| `Write-DecomBatchEvidenceManifest` | Writes cross-UPN evidence index with SHA-256 hashes to `<BatchId>\batch-evidence.manifest.json`. |
-
-### BatchDiff.psm1
-
-| Function | Description |
-|---|---|
-| `New-DecomBatchDiffEntry` | Creates a diff entry with risk inference (High/Medium/Low) and change type. |
-| `Export-DecomBatchDiffReport` | Writes HTML + JSON pre-run diff report. |
-
-### Premium Remediation Modules
-
-| Module | Key Functions |
-|---|---|
-| `ComplianceRemediation.psm1` | `Set-DecomLitigationHold` |
-| `LicenseRemediation.psm1` | `Get-DecomLicenseState`, `Remove-DecomLicenses` |
-| `DeviceRemediation.psm1` | `Get-DecomDeviceState`, `Disable-DecomEntraDevices`, `Invoke-DecomDeviceRemediation` |
-| `AppOwnership.psm1` | `Get-DecomAppOwnershipState`, `Remove-DecomAppOwnership` |
-| `AzureRBAC.psm1` | `Get-DecomAzureRBACState`, `Remove-DecomAzureRBAC` |
-| `MailboxExtended.psm1` | `Get-DecomMailForwardingState`, `Set-DecomMailForwarding`, `Remove-DecomMailForwarding` |
+```
+1. Run assessment (DemoMode first, then live)
+2. Review HTML report with client
+3. Agree on remediation scope
+4. Export remediation plan (WhatIfRemediation mode)
+5. Obtain approval (sign remediation plan)
+6. Execute controlled remediation (Rev2.0 — coming)
+```
 
 ---
 
-## Governance rules
+## Safety model
 
-- **TicketId is mandatory** when running `-Force -NonInteractive`.
-- **Approval gate** (`Invoke-DecomBatchApproval`) must pass before `Invoke-DecomBatch` runs in production. Approval records are time-bound — expired approvals are rejected.
-- **BYOD protection is locked** — devices with `TrustType = Workplace` receive selective retire only, never a full wipe, regardless of operator input.
-- **Sole-owner protection** — app registrations where the target UPN is the only owner are flagged Warning and not removed automatically.
-- The `-Force` flag applies to all UPNs in the batch. Use `-WhatIfMode` for pre-flight dry runs on large lists.
-
----
-
-## Phases
-
-| Phase | Status | Description |
-|---|---|---|
-| 1 | Complete | Batch engine, per-UPN lifecycle, resume, state persistence |
-| 2 | Complete | Batch reporting, cross-UPN evidence manifest, premium remediation phases |
-| 2.1 | Complete | Diff report, policy overlays, approval gate, mailbox extended controls |
-| 3 | Planned | Group/role/OAuth/auth method removal automation |
-| 4 | Reserved | Parallel execution (MaxParallel — PS5.1 runspace pool) |
+- Assessment mode is **read-only by design** — no Graph write permissions requested
+- `ExecuteRemediation` is blocked in all Rev1.x releases — reserved for Rev2.0
+- All findings include `RemediationMode` field:
+  - `ManualApprovalRequired` — requires human sign-off before action
+  - `AutoRemediable` — safe for scripted execution with approval
+  - `ProtectedObject` — never auto-remediate (break-glass, sync, service accounts)
+  - `InformationOnly` — no action required
+- Protected object patterns: `breakglass`, `break-glass`, `emergency`, `sync`, `aadconnect`, `cloudsync`, `svc-`, `service-`
 
 ---
 
-## PS5.1 compatibility notes
+## Version history
 
-- No 3-argument `Join-Path`
-- No `ForEach-Object -Parallel` — sequential only in v2.0
-- No `RandomNumberGenerator.Fill` — GUIDs via `[guid]::NewGuid()`
-- No .NET 6+ APIs
-- `ConvertTo-Json` / `ConvertFrom-Json` depth 6
-- Ordered dictionaries use `System.Collections.Specialized.OrderedDictionary` with `OrdinalIgnoreCase` comparer for cross-module boundary stability
+| Version | Description |
+|---|---|
+| Rev1.4 | Guest lifecycle, privileged access residue, CA exclusion analysis — 42 tests |
+| Rev1.3 | Application ownership drift, credential expiry, service principal owners — 35 tests |
+| Rev1.2 | Evidence model hardening, null safety, protected object enforcement — 28 tests |
+| Rev1.1 | Assessment-first entry point, demo mode, HTML report, safety model — 20 tests |
+| Premium v2.0 | Batch decommissioning engine, approval gate, resume, premium remediation |
+
+---
+
+## Requirements
+
+- PowerShell 5.1 or later
+- Microsoft.Graph PowerShell SDK (`Install-Module Microsoft.Graph`)
+- Pester v5.x for test suite (`Install-Module Pester -MinimumVersion 5.0`)
+- Read-only Graph permissions (see Required Permissions above)
