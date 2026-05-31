@@ -5,15 +5,20 @@ $script:ProtectedPatterns = @(
 
 function New-DecomCoverage {
     [ordered]@{
-        Users                 = $false
-        Groups                = $false
-        Applications          = $false
-        ServicePrincipals     = $false
-        DirectoryRoles        = $false
-        SignInLogs            = $false
-        AuditLogs             = $false
-        ConditionalAccess     = $false
-        EntitlementManagement = $false
+        Users                        = $false
+        Groups                       = $false
+        Applications                 = $false
+        ServicePrincipals            = $false
+        DirectoryRoles               = $false
+        SignInLogs                   = $false
+        AuditLogs                    = $false
+        ConditionalAccess            = $false
+        EntitlementManagement        = $false
+        PimEligibleAssignments       = $false
+        PimActivationEvidence        = $false
+        EntitlementAssignments       = $false
+        AccessPackagePolicies        = $false
+        AccessReviewScheduleEvidence = $false
     }
 }
 
@@ -297,7 +302,151 @@ function Get-DecomSyntheticFindings {
             -GraphEndpoint     '/v1.0/groups/{id}/members' `
             -RecommendedAction 'Create access review for CA-MFA-Exclusion-VendorAccounts; validate all 8 members still require CA exclusion' `
             -RemediationMode   'ManualApprovalRequired' `
-            -ConsultantNote    'CA exclusion groups with unverified review status expand the attack surface')
+            -ConsultantNote    'CA exclusion groups with unverified review status expand the attack surface'),
+
+        # DEC-PIM-001 — Disabled user has eligible privileged role (Critical)
+        (New-DecomFinding `
+            -FindingId         'DEC-PIM-001' `
+            -Category          'Privileged Access' `
+            -Severity          'Critical' `
+            -RiskScore         86 `
+            -Confidence        'High' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0019-0019-0019-000000000019' `
+            -DisplayName       'Disabled Admin (PIM)' `
+            -UserPrincipalName 'disabled.admin@contoso.com' `
+            -Evidence          'Disabled user retains eligible privileged role assignment. Eligibility should be reviewed before account closure is considered complete.' `
+            -EvidenceSource    'roleManagement/directory/roleEligibilityScheduleInstances' `
+            -GraphEndpoint     '/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' `
+            -RecommendedAction 'Review and remove eligible privileged role assignment from disabled user disabled.admin@contoso.com' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'PIM eligible assignment on disabled user is a governance gap requiring explicit closure'),
+
+        # DEC-PIM-002 — Guest has eligible privileged role (Critical)
+        (New-DecomFinding `
+            -FindingId         'DEC-PIM-002' `
+            -Category          'Privileged Access' `
+            -Severity          'Critical' `
+            -RiskScore         84 `
+            -Confidence        'High' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0020-0020-0020-000000000020' `
+            -DisplayName       'ext_privileged@fabrikam.com' `
+            -UserPrincipalName 'ext_privileged_fabrikam.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Guest identity retains eligible privileged role assignment. Review external privileged access governance and sponsor approval.' `
+            -EvidenceSource    'roleManagement/directory/roleEligibilityScheduleInstances' `
+            -GraphEndpoint     '/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' `
+            -RecommendedAction 'Review and remove eligible privileged role from guest; confirm sponsor approval for any continued access' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'External identity with eligible privileged role requires explicit governance justification'),
+
+        # DEC-PIM-003 — PIM activation/review evidence unavailable (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-PIM-003' `
+            -Category          'Privileged Access' `
+            -Severity          'Medium' `
+            -RiskScore         46 `
+            -Confidence        'Medium' `
+            -ObjectType        'Tenant' `
+            -ObjectId          'contoso.onmicrosoft.com' `
+            -DisplayName       'PIM Coverage' `
+            -UserPrincipalName '' `
+            -Evidence          'PIM activation and review evidence could not be confirmed from available Graph data. Coverage may be partial.' `
+            -EvidenceSource    'roleManagement/directory/roleEligibilityScheduleInstances' `
+            -GraphEndpoint     '/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' `
+            -RecommendedAction 'Grant PrivilegedAccess.Read.AzureAD permission and re-run assessment for full PIM coverage' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'PIM evidence gap — not a finding against tenant configuration'),
+
+        # DEC-AP-001 — Disabled user has active access package assignment (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-001' `
+            -Category          'Governance' `
+            -Severity          'High' `
+            -RiskScore         70 `
+            -Confidence        'High' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0021-0021-0021-000000000021' `
+            -DisplayName       'Offboarded Employee' `
+            -UserPrincipalName 'offboarded.employee@contoso.com' `
+            -Evidence          'Disabled user retains access package assignment. Review Entitlement Management lifecycle closure.' `
+            -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+            -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+            -RecommendedAction 'Review and remove access package assignment from disabled user offboarded.employee@contoso.com' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'Active access package assignment for disabled user represents lifecycle closure gap'),
+
+        # DEC-AP-002 — Guest has access package assignment requiring sponsor review (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-002' `
+            -Category          'Governance' `
+            -Severity          'Medium' `
+            -RiskScore         52 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0022-0022-0022-000000000022' `
+            -DisplayName       'ext_vendor2@tailspin.com' `
+            -UserPrincipalName 'ext_vendor2_tailspin.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Guest has access package assignment; sponsor or review status requires validation.' `
+            -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+            -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+            -RecommendedAction 'Confirm sponsor approval and review status for guest access package assignment' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'Guest access package requires explicit sponsor validation'),
+
+        # DEC-AP-003 — Assignment has no visible expiration evidence (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-003' `
+            -Category          'Governance' `
+            -Severity          'Medium' `
+            -RiskScore         48 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0023-0023-0023-000000000023' `
+            -DisplayName       'contractor@northwind.com' `
+            -UserPrincipalName 'contractor_northwind.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Access package assignment does not expose expiration evidence; review assignment lifecycle policy.' `
+            -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+            -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+            -RecommendedAction 'Review access package lifecycle policy and set expiration for assignment' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'Assignment without expiration evidence requires lifecycle review'),
+
+        # DEC-AP-004 — Access package review coverage could not be confirmed (Medium)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-004' `
+            -Category          'Governance' `
+            -Severity          'Medium' `
+            -RiskScore         44 `
+            -Confidence        'Low' `
+            -ObjectType        'Tenant' `
+            -ObjectId          'contoso.onmicrosoft.com' `
+            -DisplayName       'Access Package Review Coverage' `
+            -UserPrincipalName '' `
+            -Evidence          'Access package review coverage could not be confirmed from available Graph data.' `
+            -EvidenceSource    'identityGovernance/entitlementManagement/accessPackages' `
+            -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/accessPackages' `
+            -RecommendedAction 'Grant AccessReview.Read.All and re-run assessment for full access review coverage' `
+            -RemediationMode   'InformationOnly' `
+            -ConsultantNote    'Access review coverage gap — not a finding against tenant configuration'),
+
+        # DEC-AP-005 — Assignment linked to sensitive resource/group (High)
+        (New-DecomFinding `
+            -FindingId         'DEC-AP-005' `
+            -Category          'Governance' `
+            -Severity          'High' `
+            -RiskScore         68 `
+            -Confidence        'Medium' `
+            -ObjectType        'User' `
+            -ObjectId          'a1b2c3d4-0024-0024-0024-000000000024' `
+            -DisplayName       'contractor2@fabrikam.com' `
+            -UserPrincipalName 'contractor2_fabrikam.com#EXT#@contoso.onmicrosoft.com' `
+            -Evidence          'Access package assignment appears linked to sensitive resource or group based on resource metadata/name heuristic.' `
+            -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+            -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+            -RecommendedAction 'Review access package assignment linked to sensitive resource; confirm business justification and governance approval' `
+            -RemediationMode   'ManualApprovalRequired' `
+            -ConsultantNote    'Sensitive resource heuristic match — Confidence: Medium')
     )
 }
 
@@ -310,12 +459,14 @@ function Invoke-DecomAssessmentDiscovery {
     $coverage = New-DecomCoverage
 
     if ($DemoMode) {
-        $coverage.Users             = $true
-        $coverage.Groups            = $true
-        $coverage.Applications      = $true
-        $coverage.ServicePrincipals = $true
-        $coverage.DirectoryRoles    = $true
-        $coverage.ConditionalAccess = $true
+        $coverage.Users                  = $true
+        $coverage.Groups                 = $true
+        $coverage.Applications           = $true
+        $coverage.ServicePrincipals      = $true
+        $coverage.DirectoryRoles         = $true
+        $coverage.ConditionalAccess      = $true
+        $coverage.PimEligibleAssignments = $true
+        $coverage.EntitlementAssignments = $true
         if ($Context) { $Context | Add-Member -NotePropertyName Coverage -NotePropertyValue $coverage -Force }
         [object[]]$synth = @(Get-DecomSyntheticFindings)
         Write-Output -NoEnumerate $synth
@@ -892,6 +1043,142 @@ function Invoke-DecomAssessmentDiscovery {
         Write-DecomWarn "Conditional access discovery unavailable (Policy.Read.All required): $_"
     }
 
+    # --- Rev2.2 PIM: Eligible privileged assignment visibility ---
+    try {
+        $pimCmdlet = Get-Command 'Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance' -ErrorAction SilentlyContinue
+        if ($null -eq $pimCmdlet) {
+            Write-DecomWarn 'PIM eligible assignment cmdlet unavailable in installed Graph module'
+        } else {
+            $eligibleAssignments = @(Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance -All -ErrorAction Stop)
+            $coverage.PimEligibleAssignments = $true
+            Write-DecomInfo "PIM eligible assignment discovery: OK ($($eligibleAssignments.Count) eligible assignments)"
+
+            # Build lookup sets for disabled and guest users (reuse from earlier in function)
+            $pimDisabledIdSet = if ($disabledUsers -and $disabledUsers.Count -gt 0) {
+                [System.Collections.Generic.HashSet[string]]@($disabledUsers | ForEach-Object { $_.Id })
+            } else {
+                [System.Collections.Generic.HashSet[string]]::new()
+            }
+            $pimGuestIdSet = if ($null -ne $guestsFull -and $guestsFull.Count -gt 0) {
+                [System.Collections.Generic.HashSet[string]]@($guestsFull | ForEach-Object { $_.Id })
+            } else {
+                [System.Collections.Generic.HashSet[string]]::new()
+            }
+
+            $pim003Emitted = $false
+
+            foreach ($assignment in $eligibleAssignments) {
+                $principalId = $assignment.PrincipalId
+                if (-not $principalId) { continue }
+
+                $roleDefId   = if ($assignment.RoleDefinitionId) { $assignment.RoleDefinitionId } else { '' }
+                $roleName    = if ($assignment.RoleDefinition -and $assignment.RoleDefinition.DisplayName) {
+                    $assignment.RoleDefinition.DisplayName
+                } else { $roleDefId }
+
+                # Resolve display name from disabled/guest lookups
+                $principalName = ''
+                $principalUpn  = ''
+                if ($disabledUsers) {
+                    $matchUser = $disabledUsers | Where-Object { $_.Id -eq $principalId } | Select-Object -First 1
+                    if ($matchUser) {
+                        $principalName = $matchUser.DisplayName
+                        $principalUpn  = $matchUser.UserPrincipalName
+                    }
+                }
+                if (-not $principalName -and $null -ne $guestsFull) {
+                    $matchGuest = $guestsFull | Where-Object { $_.Id -eq $principalId } | Select-Object -First 1
+                    if ($matchGuest) {
+                        $principalName = $matchGuest.DisplayName
+                        $principalUpn  = $matchGuest.UserPrincipalName
+                    }
+                }
+                if (-not $principalName) { $principalName = $principalId }
+
+                # DEC-PIM-001: Disabled user has eligible privileged role
+                if ($pimDisabledIdSet.Contains($principalId)) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-PIM-001' `
+                        -Category          'Privileged Access' `
+                        -Severity          'Critical' `
+                        -RiskScore         86 `
+                        -Confidence        'High' `
+                        -ObjectType        'User' `
+                        -ObjectId          $principalId `
+                        -DisplayName       $principalName `
+                        -UserPrincipalName $principalUpn `
+                        -Evidence          "Disabled user retains eligible privileged role assignment$(if ($roleName) {" for role: $roleName"}). Eligibility should be reviewed before account closure is considered complete." `
+                        -EvidenceSource    'roleManagement/directory/roleEligibilityScheduleInstances' `
+                        -GraphEndpoint     '/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' `
+                        -RecommendedAction "Review and remove eligible privileged role assignment from disabled user $principalUpn" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'PIM eligible assignment on disabled user is a governance gap requiring explicit closure'))
+                }
+                # DEC-PIM-002: Guest has eligible privileged role
+                elseif ($pimGuestIdSet.Contains($principalId)) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-PIM-002' `
+                        -Category          'Privileged Access' `
+                        -Severity          'Critical' `
+                        -RiskScore         84 `
+                        -Confidence        'High' `
+                        -ObjectType        'User' `
+                        -ObjectId          $principalId `
+                        -DisplayName       $principalName `
+                        -UserPrincipalName $principalUpn `
+                        -Evidence          "Guest identity retains eligible privileged role assignment$(if ($roleName) {" for role: $roleName"}). Review external privileged access governance and sponsor approval." `
+                        -EvidenceSource    'roleManagement/directory/roleEligibilityScheduleInstances' `
+                        -GraphEndpoint     '/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' `
+                        -RecommendedAction "Review and remove eligible privileged role from guest $principalUpn; confirm sponsor approval for any continued access" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'External identity with eligible privileged role requires explicit governance justification'))
+                }
+                # DEC-PIM-004: Eligible privileged assignment requires governance review
+                else {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-PIM-004' `
+                        -Category          'Privileged Access' `
+                        -Severity          'High' `
+                        -RiskScore         66 `
+                        -Confidence        'Medium' `
+                        -ObjectType        'User' `
+                        -ObjectId          $principalId `
+                        -DisplayName       $principalName `
+                        -UserPrincipalName $principalUpn `
+                        -Evidence          "Eligible privileged role assignment$(if ($roleName) {" for role: $roleName"}) — activation and review status unknown." `
+                        -EvidenceSource    'roleManagement/directory/roleEligibilityScheduleInstances' `
+                        -GraphEndpoint     '/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' `
+                        -RecommendedAction "Review governance controls for eligible privileged assignment for principal $principalId" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'Eligible privileged assignment requires governance review; activation evidence unavailable'))
+                }
+            }
+
+            # DEC-PIM-003: Emit at most once if eligible assignments exist but activation evidence unavailable
+            if ($eligibleAssignments.Count -gt 0 -and -not $pim003Emitted) {
+                $pim003Emitted = $true
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-PIM-003' `
+                    -Category          'Privileged Access' `
+                    -Severity          'Medium' `
+                    -RiskScore         46 `
+                    -Confidence        'Low' `
+                    -ObjectType        'Tenant' `
+                    -ObjectId          'tenant-scope' `
+                    -DisplayName       'PIM Coverage' `
+                    -UserPrincipalName '' `
+                    -Evidence          'PIM activation and review evidence could not be confirmed from available Graph data. Coverage may be partial.' `
+                    -EvidenceSource    'roleManagement/directory/roleEligibilityScheduleInstances' `
+                    -GraphEndpoint     '/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' `
+                    -RecommendedAction 'Grant PrivilegedAccess.Read.AzureAD permission and re-run assessment for full PIM coverage' `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'PIM evidence gap — not a finding against tenant configuration'))
+            }
+        }
+    } catch {
+        Write-DecomWarn "PIM eligible assignment discovery unavailable: $_"
+    }
+
     # --- Coverage probes for remaining areas (no detection logic yet) ---
     try {
         $null = Get-MgGroup -Top 1 -ErrorAction Stop
@@ -918,12 +1205,192 @@ function Invoke-DecomAssessmentDiscovery {
         Write-DecomWarn "Audit log discovery unavailable (AuditLog.Read.All required): $_"
     }
 
+    # --- Rev2.2 AP: Access Package assignment visibility ---
     try {
-        $null = Get-MgEntitlementManagementAccessPackage -Top 1 -ErrorAction Stop
-        $coverage.EntitlementManagement = $true
-        Write-DecomInfo "Entitlement management discovery: OK"
+        # Check cmdlet availability first
+        $apAssignCmdlet  = Get-Command 'Get-MgEntitlementManagementAssignment' -ErrorAction SilentlyContinue
+        $apAssignCmdlet2 = Get-Command 'Get-MgIdentityGovernanceEntitlementManagementAccessPackageAssignment' -ErrorAction SilentlyContinue
+
+        $apAssignments = $null
+        if ($null -ne $apAssignCmdlet) {
+            $apAssignments = @(Get-MgEntitlementManagementAssignment -All -ErrorAction Stop)
+        } elseif ($null -ne $apAssignCmdlet2) {
+            $apAssignments = @(Get-MgIdentityGovernanceEntitlementManagementAccessPackageAssignment -All -ErrorAction Stop)
+        }
+
+        if ($null -ne $apAssignments) {
+            $coverage.EntitlementManagement  = $true
+            $coverage.EntitlementAssignments = $true
+            Write-DecomInfo "Access package assignment discovery: OK ($($apAssignments.Count) assignments)"
+
+            # Build lookup sets
+            $apDisabledIdSet = if ($disabledUsers -and $disabledUsers.Count -gt 0) {
+                [System.Collections.Generic.HashSet[string]]@($disabledUsers | ForEach-Object { $_.Id })
+            } else {
+                [System.Collections.Generic.HashSet[string]]::new()
+            }
+            $apGuestIdSet = if ($null -ne $guestsFull -and $guestsFull.Count -gt 0) {
+                [System.Collections.Generic.HashSet[string]]@($guestsFull | ForEach-Object { $_.Id })
+            } else {
+                [System.Collections.Generic.HashSet[string]]::new()
+            }
+
+            $sensitiveKeywords = @('admin','privileged','global','security','breakglass','break-glass',
+                                   'tier0','tier-0','pim','identity','entra')
+
+            $ap004Emitted = $false
+
+            foreach ($assignment in $apAssignments) {
+                # Resolve principal ID
+                $principalId = ''
+                if ($assignment.AccessPackageSubject -and $assignment.AccessPackageSubject.ObjectId) {
+                    $principalId = $assignment.AccessPackageSubject.ObjectId
+                } elseif ($assignment.TargetId) {
+                    $principalId = $assignment.TargetId
+                }
+                if (-not $principalId) { continue }
+
+                # Resolve state — active if Delivered, active, or no state
+                $state = if ($assignment.State) { $assignment.State.ToLower() } else { 'active' }
+                if ($state -notin @('delivered','active','pendingdelivery','')) {
+                    if ($state -in @('expired','canceled','rejected')) { continue }
+                }
+
+                # Resolve display name
+                $principalName = ''
+                $principalUpn  = ''
+                if ($assignment.AccessPackageSubject) {
+                    if ($assignment.AccessPackageSubject.DisplayName) { $principalName = $assignment.AccessPackageSubject.DisplayName }
+                    if ($assignment.AccessPackageSubject.Email)       { $principalUpn  = $assignment.AccessPackageSubject.Email }
+                }
+                if (-not $principalName) { $principalName = $principalId }
+
+                # Resolve access package name
+                $pkgName = ''
+                if ($assignment.AccessPackage -and $assignment.AccessPackage.DisplayName) {
+                    $pkgName = $assignment.AccessPackage.DisplayName
+                }
+
+                # DEC-AP-001: Disabled user has active access package assignment
+                if ($principalId -and $apDisabledIdSet.Contains($principalId)) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-AP-001' `
+                        -Category          'Governance' `
+                        -Severity          'High' `
+                        -RiskScore         70 `
+                        -Confidence        'High' `
+                        -ObjectType        'User' `
+                        -ObjectId          $principalId `
+                        -DisplayName       $principalName `
+                        -UserPrincipalName $principalUpn `
+                        -Evidence          "Disabled user retains access package assignment$(if ($pkgName) {" for package: $pkgName"}). Review Entitlement Management lifecycle closure." `
+                        -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+                        -RecommendedAction "Review and remove access package assignment from disabled user $principalUpn" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'Active access package assignment for disabled user represents lifecycle closure gap'))
+                }
+                # DEC-AP-002: Guest has access package assignment
+                elseif ($principalId -and $apGuestIdSet.Contains($principalId)) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-AP-002' `
+                        -Category          'Governance' `
+                        -Severity          'Medium' `
+                        -RiskScore         52 `
+                        -Confidence        'Medium' `
+                        -ObjectType        'User' `
+                        -ObjectId          $principalId `
+                        -DisplayName       $principalName `
+                        -UserPrincipalName $principalUpn `
+                        -Evidence          "Guest has access package assignment$(if ($pkgName) {" for package: $pkgName"}); sponsor or review status requires validation." `
+                        -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+                        -RecommendedAction "Confirm sponsor approval and review status for guest $principalUpn access package assignment" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'Guest access package requires explicit sponsor validation'))
+                }
+
+                # DEC-AP-003: Assignment has no visible expiration evidence
+                $hasExpiry = $false
+                if ($assignment.Schedule -and $assignment.Schedule.Expiration) {
+                    if ($assignment.Schedule.Expiration.EndDateTime -or
+                        $assignment.Schedule.Expiration.Duration) {
+                        $hasExpiry = $true
+                    }
+                }
+                if (-not $hasExpiry -and $assignment.ExpiredDateTime) { $hasExpiry = $true }
+                if (-not $hasExpiry) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-AP-003' `
+                        -Category          'Governance' `
+                        -Severity          'Medium' `
+                        -RiskScore         48 `
+                        -Confidence        'Medium' `
+                        -ObjectType        'User' `
+                        -ObjectId          $principalId `
+                        -DisplayName       $principalName `
+                        -UserPrincipalName $principalUpn `
+                        -Evidence          "Access package assignment$(if ($pkgName) {" for package: $pkgName"}) does not expose expiration evidence; review assignment lifecycle policy." `
+                        -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+                        -RecommendedAction 'Review access package lifecycle policy and set expiration for this assignment' `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'Assignment without expiration evidence requires lifecycle review'))
+                }
+
+                # DEC-AP-005: Assignment linked to sensitive resource (heuristic)
+                $isSensitive = $false
+                if ($pkgName) {
+                    foreach ($kw in $sensitiveKeywords) {
+                        if ($pkgName.ToLower().Contains($kw)) { $isSensitive = $true; break }
+                    }
+                }
+                if ($isSensitive) {
+                    $findings.Add((New-DecomFinding `
+                        -FindingId         'DEC-AP-005' `
+                        -Category          'Governance' `
+                        -Severity          'High' `
+                        -RiskScore         68 `
+                        -Confidence        'Medium' `
+                        -ObjectType        'User' `
+                        -ObjectId          $principalId `
+                        -DisplayName       $principalName `
+                        -UserPrincipalName $principalUpn `
+                        -Evidence          "Access package assignment appears linked to sensitive resource or group based on resource metadata/name heuristic." `
+                        -EvidenceSource    'identityGovernance/entitlementManagement/assignments' `
+                        -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/assignments' `
+                        -RecommendedAction "Review access package assignment linked to sensitive resource '$pkgName'; confirm business justification and governance approval" `
+                        -RemediationMode   'ManualApprovalRequired' `
+                        -ConsultantNote    'Sensitive resource heuristic match — Confidence: Medium'))
+                }
+            }
+
+            # DEC-AP-004: Emit once — access review coverage could not be confirmed
+            if (-not $ap004Emitted) {
+                $ap004Emitted = $true
+                $findings.Add((New-DecomFinding `
+                    -FindingId         'DEC-AP-004' `
+                    -Category          'Governance' `
+                    -Severity          'Medium' `
+                    -RiskScore         44 `
+                    -Confidence        'Low' `
+                    -ObjectType        'Tenant' `
+                    -ObjectId          'tenant-scope' `
+                    -DisplayName       'Access Package Review Coverage' `
+                    -UserPrincipalName '' `
+                    -Evidence          'Access package review coverage could not be confirmed from available Graph data.' `
+                    -EvidenceSource    'identityGovernance/entitlementManagement/accessPackages' `
+                    -GraphEndpoint     '/v1.0/identityGovernance/entitlementManagement/accessPackages' `
+                    -RecommendedAction 'Grant AccessReview.Read.All and re-run assessment for full access review coverage' `
+                    -RemediationMode   'InformationOnly' `
+                    -ConsultantNote    'Access review coverage gap — not a finding against tenant configuration'))
+            }
+
+        } else {
+            Write-DecomWarn 'Access package assignment cmdlets unavailable in installed Graph module'
+        }
     } catch {
-        Write-DecomWarn "Entitlement management discovery unavailable (EntitlementManagement.Read.All required): $_"
+        Write-DecomWarn "Access package assignment discovery unavailable (EntitlementManagement.Read.All required): $_"
     }
 
     if ($Context) { $Context | Add-Member -NotePropertyName Coverage -NotePropertyValue $coverage -Force }
