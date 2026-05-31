@@ -384,7 +384,7 @@ function Invoke-DecomAssessmentDiscovery {
 
         foreach ($app in $apps) {
             try {
-                $owners = @(Get-MgApplicationOwner -ApplicationId $app.Id -ErrorAction Stop)
+                $owners = @(Get-MgApplicationOwner -ApplicationId $app.Id -ErrorAction Stop | Where-Object { $null -ne $_ })
                 if ($owners.Count -eq 0) {
                     $findings.Add((New-DecomFinding `
                         -FindingId    'DEC-APP-001' `
@@ -476,7 +476,7 @@ function Invoke-DecomAssessmentDiscovery {
 
     foreach ($app in $apps) {
         try {
-            $owners = @(Get-MgApplicationOwner -ApplicationId $app.Id -ErrorAction Stop)
+            $owners = @(Get-MgApplicationOwner -ApplicationId $app.Id -ErrorAction Stop | Where-Object { $null -ne $_ })
 
             # DEC-APP-002: All owners are disabled users
             if ($owners.Count -gt 0) {
@@ -691,7 +691,7 @@ function Invoke-DecomAssessmentDiscovery {
             $dirRoles = @(Get-MgDirectoryRole -ErrorAction Stop)
             foreach ($role in $dirRoles) {
                 if ($privilegedRoleNames -contains $role.DisplayName) {
-                    $members = @(Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -ErrorAction Stop)
+                    $members = @(Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -ErrorAction Stop | Where-Object { $null -ne $_ })
                     foreach ($m in $members) {
                         [void]$privilegedRoleMembers.Add($m.Id)
                     }
@@ -769,7 +769,7 @@ function Invoke-DecomAssessmentDiscovery {
 
         foreach ($role in $allRoles) {
             try {
-                $roleMembers = @(Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -ErrorAction Stop)
+                $roleMembers = @(Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -ErrorAction Stop | Where-Object { $null -ne $_ })
                 foreach ($member in $roleMembers) {
                     if ($member.AdditionalProperties['@odata.type'] -ne '#microsoft.graph.user') { continue }
                     if (-not $disabledUserIdSet.Contains($member.Id)) { continue }
