@@ -310,12 +310,12 @@ if ($Mode -eq 'ExecuteRemediation') {
         -ReportPath           $remediationReportPath
     Write-DecomOk "Execution manifest: $execSummaryPath"
 
-    $executedCount      = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Executed' }).Count
-    $failedCount        = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Failed' }).Count
-    $partialFailedCount = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'PartialFailed' }).Count
-    $blockedCount       = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Blocked' }).Count
-    $declinedCount      = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'OperatorDeclined' }).Count
-    $outOfScopeCount    = ($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'OutOfScope' }).Count
+    $executedCount      = @($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Executed' }).Count
+    $failedCount        = @($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Failed' }).Count
+    $partialFailedCount = @($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'PartialFailed' }).Count
+    $blockedCount       = @($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'Blocked' }).Count
+    $declinedCount      = @($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'OperatorDeclined' }).Count
+    $outOfScopeCount    = @($executionLog.Log.Actions | Where-Object { $_.Outcome -eq 'OutOfScope' }).Count
 
     Write-Host ''
     Write-Host ('=' * 64) -ForegroundColor DarkCyan
