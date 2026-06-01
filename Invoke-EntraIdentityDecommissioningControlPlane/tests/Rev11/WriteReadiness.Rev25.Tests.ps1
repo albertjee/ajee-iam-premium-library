@@ -13,8 +13,8 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         Remove-Module WriteReadiness -Force -ErrorAction SilentlyContinue
     }
 
-    It 'Registry contains exactly four executable finding IDs' {
-        $script:registry.Count | Should -Be 4
+    It 'Registry contains exactly fourteen executable finding IDs' {
+        $script:registry.Count | Should -Be 14
     }
 
     It 'Registry includes DEC-USER-001' {
@@ -37,12 +37,12 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         $script:registry.FindingId | Should -Not -Contain 'DEC-APP-001'
     }
 
-    It 'Registry does not include Rev2.3 finding DEC-PIM-001' {
-        $script:registry.FindingId | Should -Not -Contain 'DEC-PIM-001'
+    It 'Registry includes Rev3.0 finding DEC-PIM-001' {
+        $script:registry.FindingId | Should -Contain 'DEC-PIM-001'
     }
 
-    It 'Registry does not include Rev2.3 finding DEC-AP-001' {
-        $script:registry.FindingId | Should -Not -Contain 'DEC-AP-001'
+    It 'Registry includes Rev3.0 finding DEC-AP-001' {
+        $script:registry.FindingId | Should -Contain 'DEC-AP-001'
     }
 
     It 'Registry does not include Rev2.4 finding DEC-GOV-001' {
@@ -54,13 +54,14 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         $nonExecutable.Count | Should -Be 0
     }
 
-    It 'All registry entries have IntroducedIn Rev2.0' {
-        $notRev20 = @($script:registry | Where-Object { $_.IntroducedIn -ne 'Rev2.0' })
-        $notRev20.Count | Should -Be 0
+    It 'Registry entries have valid IntroducedIn version labels' {
+        $validVersions = @('Rev2.0', 'Rev3.0')
+        $invalid = @($script:registry | Where-Object { $_.IntroducedIn -notin $validVersions })
+        $invalid.Count | Should -Be 0
     }
 
-    It 'All registry write scopes are limited to Rev2.0 controlled scopes' {
-        $allowed = @('GroupMember.ReadWrite.All','AppRoleAssignment.ReadWrite.All','RoleManagement.ReadWrite.Directory')
+    It 'All registry write scopes are in the approved scope list' {
+        $allowed = @('GroupMember.ReadWrite.All','AppRoleAssignment.ReadWrite.All','RoleManagement.ReadWrite.Directory','EntitlementManagement.ReadWrite.All')
         foreach ($entry in $script:registry) {
             $allowed | Should -Contain $entry.WriteScope
         }
@@ -132,7 +133,7 @@ Describe 'WriteReadiness.psm1 — Rev3 Write-Readiness Report' {
         $script:testOutputDir = Join-Path $env:TEMP 'Decom-WR-Test'
         New-Item -ItemType Directory -Path $script:testOutputDir -Force | Out-Null
         $script:context = [PSCustomObject]@{
-            ToolVersion  = 'Rev2.5'
+            ToolVersion  = 'Rev3.0'
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -155,7 +156,7 @@ Describe 'WriteReadiness.psm1 — Rev3 Write-Readiness Report' {
     }
 
     It 'Write-readiness report has correct schema version' {
-        $script:report.SchemaVersion | Should -Be '2.5'
+        $script:report.SchemaVersion | Should -Be '3.0'
     }
 
     It 'Write-readiness report contains ExecutionScopeRegistry' {
@@ -171,7 +172,7 @@ Describe 'WriteReadiness.psm1 — Rev3 Write-Readiness Report' {
         $files = Get-ChildItem -Path $script:testOutputDir -Filter 'rev3-write-readiness-report-*.json'
         $files.Count | Should -BeGreaterThan 0
         $json = Get-Content $files[0].FullName -Raw | ConvertFrom-Json
-        $json.SchemaVersion | Should -Be '2.5'
+        $json.SchemaVersion | Should -Be '3.0'
         $json.Recommendation | Should -Be 'ReadyForRev3Design'
     }
 
@@ -190,6 +191,6 @@ Describe 'WriteReadiness.psm1 — Rev3 Write-Readiness Report' {
         $files = Get-ChildItem -Path $script:testOutputDir -Filter 'execution-scope-registry-*.json'
         $files.Count | Should -BeGreaterThan 0
         $json = Get-Content $files[0].FullName -Raw | ConvertFrom-Json
-        $json.SchemaVersion | Should -Be '2.5'
+        $json.SchemaVersion | Should -Be '3.0'
     }
 }

@@ -25,11 +25,11 @@ param(
     [switch]$GenerateExecutivePack,
     [switch]$SelfTest,
     [switch]$GenerateReleasePackage,
-    [string]$ReleasePackagePath = '.\release\Rev2.5'
+    [string]$ReleasePackagePath = '.\release\Rev3.0'
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev2.5'
+$script:ToolVersion = 'Rev3.0'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -46,7 +46,7 @@ if ($SelfTest -and $Mode -eq 'ExecuteRemediation') {
 }
 
 if ($GenerateReleasePackage -and $Mode -eq 'ExecuteRemediation') {
-    Write-Host "[ERROR] -GenerateReleasePackage should not be used with -Mode ExecuteRemediation for Rev2.5." -ForegroundColor Red
+    Write-Host "[ERROR] -GenerateReleasePackage should not be used with -Mode ExecuteRemediation for Rev3.0." -ForegroundColor Red
     exit 1
 }
 
@@ -244,7 +244,8 @@ if ($Mode -eq 'ExecuteRemediation') {
             'Policy.Read.All',
             'GroupMember.ReadWrite.All',
             'AppRoleAssignment.ReadWrite.All',
-            'RoleManagement.ReadWrite.Directory'
+            'RoleManagement.ReadWrite.Directory',
+            'EntitlementManagement.ReadWrite.All'
         )
         Connect-MgGraph -Scopes $writeScopes -TenantId $TenantId -ErrorAction Stop | Out-Null
         Write-DecomOk "Graph connection established with write scopes"

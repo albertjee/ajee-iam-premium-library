@@ -66,6 +66,37 @@ function Confirm-DecomActionTargetValid {
                     }
                 }
             }
+
+            'RemoveAccessPackageAssignment' {
+                foreach ($assignmentId in $targetIds) {
+                    try {
+                        $assignment = Get-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction SilentlyContinue
+                        if ($null -eq $assignment) {
+                            $result.InvalidTargets.Add("$assignmentId : assignment not found (already removed or state changed)")
+                        }
+                    } catch {
+                        $result.ValidationErrors.Add("$assignmentId : assignment check failed — $_")
+                        $result.Valid = $false
+                    }
+                }
+            }
+
+            'RemovePimEligibleAssignment' {
+                foreach ($scheduleId in $targetIds) {
+                    try {
+                        $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction SilentlyContinue
+                        if ($null -eq $schedule) {
+                            $result.InvalidTargets.Add("$scheduleId : eligible schedule not found (already removed or state changed)")
+                        } elseif ($schedule.PrincipalId -ne $objectId) {
+                            $result.InvalidTargets.Add("$scheduleId : PrincipalId MISMATCH — approved ObjectId=$objectId but schedule PrincipalId=$($schedule.PrincipalId) — BLOCKED")
+                            $result.Valid = $false
+                        }
+                    } catch {
+                        $result.ValidationErrors.Add("$scheduleId : eligible schedule check failed — $_")
+                        $result.Valid = $false
+                    }
+                }
+            }
         }
     } catch {
         $result.ErrorDetail = $_.ToString()
@@ -80,9 +111,23 @@ $script:ExecutionMap = @{
     'DEC-USER-002' = 'RevokeAppRoleAssignment'
     'DEC-USER-003' = 'RemoveDirectoryRoleAssignment'
     'DEC-ROLE-001' = 'RemoveDirectoryRoleAssignment'
+    'DEC-AP-001'   = 'RemoveAccessPackageAssignment'
+    'DEC-AP-002'   = 'RemoveAccessPackageAssignment'
+    'DEC-AP-007'   = 'RemoveAccessPackageAssignment'
+    'DEC-AP-008'   = 'RemoveAccessPackageAssignment'
+    'DEC-PIM-001'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-002'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-003'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-004'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-005'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-006'  = 'RemovePimEligibleAssignment'
 }
 
-$script:ManualApprovalFindingIds = @('DEC-USER-002','DEC-USER-003','DEC-ROLE-001')
+$script:ManualApprovalFindingIds = @(
+    'DEC-USER-002','DEC-USER-003','DEC-ROLE-001',
+    'DEC-AP-001','DEC-AP-002','DEC-AP-007','DEC-AP-008',
+    'DEC-PIM-001','DEC-PIM-002','DEC-PIM-003','DEC-PIM-004','DEC-PIM-005','DEC-PIM-006'
+)
 
 function Invoke-DecomRemediation {
     param(
@@ -212,6 +257,52 @@ function Invoke-DecomRemediation {
                 }
             }
 
+            'RemoveAccessPackageAssignment' {
+                if (-not (Get-Command 'Remove-MgEntitlementManagementAssignment' -ErrorAction SilentlyContinue)) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore $targetsBefore -TargetsAfter @() `
+                        -ErrorDetail 'Access package assignment removal cmdlet unavailable.'
+                    continue
+                }
+                foreach ($assignmentId in $targetIds) {
+                    try {
+                        $existing = Get-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction SilentlyContinue
+                        if ($null -ne $existing) {
+                            Remove-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction Stop
+                        }
+                    } catch {
+                        $failedTargets.Add($assignmentId)
+                        $errorDetail += "Assignment $assignmentId : $_; "
+                    }
+                }
+            }
+
+            'RemovePimEligibleAssignment' {
+                if (-not (Get-Command 'Remove-MgRoleManagementDirectoryRoleEligibilitySchedule' -ErrorAction SilentlyContinue)) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore $targetsBefore -TargetsAfter @() `
+                        -ErrorDetail 'PIM eligible assignment removal cmdlet unavailable.'
+                    continue
+                }
+                foreach ($scheduleId in $targetIds) {
+                    try {
+                        $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction SilentlyContinue
+                        if ($null -ne $schedule) {
+                            Remove-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction Stop
+                        }
+                    } catch {
+                        $failedTargets.Add($scheduleId)
+                        $errorDetail += "Schedule $scheduleId : $_; "
+                    }
+                }
+            }
+
             default {
                 Add-DecomExecutionAction `
                     -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
@@ -285,6 +376,28 @@ function Get-DecomTargetState {
                         -UnifiedRoleAssignmentId $roleAssignmentId -ErrorAction SilentlyContinue
                     if ($null -ne $a) {
                         $present.Add($roleAssignmentId)
+                    }
+                } catch { }
+            }
+        }
+
+        'RemoveAccessPackageAssignment' {
+            foreach ($assignmentId in $targetIds) {
+                try {
+                    $assignment = Get-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction SilentlyContinue
+                    if ($null -ne $assignment) {
+                        $present.Add($assignmentId)
+                    }
+                } catch { }
+            }
+        }
+
+        'RemovePimEligibleAssignment' {
+            foreach ($scheduleId in $targetIds) {
+                try {
+                    $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction SilentlyContinue
+                    if ($null -ne $schedule) {
+                        $present.Add($scheduleId)
                     }
                 } catch { }
             }

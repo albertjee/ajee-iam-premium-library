@@ -14,7 +14,7 @@ Describe 'ReleasePackaging.psm1 — Required Docs' {
         New-Item -ItemType Directory -Path $script:releaseDir     -Force | Out-Null
 
         $script:context = [PSCustomObject]@{
-            ToolVersion  = 'Rev2.5'
+            ToolVersion  = 'Rev3.0'
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -26,7 +26,7 @@ Describe 'ReleasePackaging.psm1 — Required Docs' {
         New-DecomReleasePackage -Context $script:context -OutputPath $script:releaseDir
         Pop-Location
 
-        $script:releaseRevDir = Join-Path $script:releaseDir 'Rev2.5'
+        $script:releaseRevDir = Join-Path $script:releaseDir 'Rev3.0'
     }
 
     AfterAll {
@@ -63,7 +63,7 @@ Describe 'ReleasePackaging.psm1 — Required Docs' {
         try {
             Push-Location $fakeRoot
             $ctx = [PSCustomObject]@{
-                ToolVersion  = 'Rev2.5'
+                ToolVersion  = 'Rev3.0'
                 OutputPath   = $fakeRoot
                 ClientName   = 'TestClient'
                 EngagementId = 'test-eng'
@@ -96,7 +96,7 @@ Describe 'ReleasePackaging.psm1 — Validation Outputs' {
         New-Item -ItemType Directory -Path $script:releaseDir -Force | Out-Null
 
         $script:context = [PSCustomObject]@{
-            ToolVersion  = 'Rev2.5'
+            ToolVersion  = 'Rev3.0'
             OutputPath   = $script:runOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -107,7 +107,7 @@ Describe 'ReleasePackaging.psm1 — Validation Outputs' {
         New-DecomReleasePackage -Context $script:context -OutputPath $script:releaseDir
         Pop-Location
 
-        $script:releaseRevDir  = Join-Path $script:releaseDir 'Rev2.5'
+        $script:releaseRevDir  = Join-Path $script:releaseDir 'Rev3.0'
         $manifestPath          = Join-Path $script:releaseRevDir 'release-package-manifest.json'
         $script:manifest       = Get-Content $manifestPath -Raw | ConvertFrom-Json
     }

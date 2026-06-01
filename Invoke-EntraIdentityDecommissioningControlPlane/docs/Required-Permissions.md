@@ -47,7 +47,8 @@ They are never requested during Assessment, WhatIfRemediation, or ExportPlan.
 |---|---|---|---|
 | `GroupMember.ReadWrite.All` | Delegated | Remove user from approved group memberships | DEC-USER-001 |
 | `AppRoleAssignment.ReadWrite.All` | Delegated | Revoke approved app role assignments | DEC-USER-002 |
-| `RoleManagement.ReadWrite.Directory` | Delegated | Remove approved privileged role assignments | DEC-USER-003, DEC-ROLE-001 |
+| `RoleManagement.ReadWrite.Directory` | Delegated | Remove approved privileged role assignments | DEC-USER-003, DEC-ROLE-001, DEC-PIM-001–DEC-PIM-006 |
+| `EntitlementManagement.ReadWrite.All` | Delegated | Remove approved access package assignments (Rev3.0) | DEC-AP-001, DEC-AP-002, DEC-AP-007, DEC-AP-008 |
 
 ## DemoMode
 
@@ -75,6 +76,21 @@ If these permissions, APIs, modules, or tenant licenses are unavailable, Rev2.2 
 | `Group.Read.All` | Delegated | Correlate CA exclusion groups and access package resource groups |
 
 If these permissions, Graph APIs, cmdlets, or tenant licenses are unavailable, Rev2.3 reports partial governance evidence coverage instead of failing the full assessment.
+
+## Rev3.0 — New Write Permissions Required for AP and PIM Actions
+
+Rev3.0 introduces two new controlled remediation action types. Both require write permissions requested only after Gate A (WhatIf manifest) and Gate B (approval manifest with SchemaVersion ≥ 3.0) pass.
+
+| Permission | Type | Action Types | Finding IDs |
+|---|---|---|---|
+| `EntitlementManagement.ReadWrite.All` | Delegated | `RemoveAccessPackageAssignment` | DEC-AP-001, DEC-AP-002, DEC-AP-007, DEC-AP-008 |
+| `RoleManagement.ReadWrite.Directory` | Delegated | `RemovePimEligibleAssignment` | DEC-PIM-001 through DEC-PIM-006 |
+
+`RoleManagement.ReadWrite.Directory` was already required by Rev2.0 for `RemoveDirectoryRoleAssignment`. Rev3.0 extends its use to PIM eligible assignment removal.
+
+`EntitlementManagement.ReadWrite.All` is new in Rev3.0. It is added to the write-scope `Connect-MgGraph` call in the entry point only when ExecuteRemediation mode is active.
+
+If `Remove-MgEntitlementManagementAssignment` or `Remove-MgRoleManagementDirectoryRoleEligibilitySchedule` is unavailable in the session (module not loaded), the action is logged `Blocked` with `cmdlet unavailable` error detail. The run continues for all other actions.
 
 ## Rev2.5 — No New Permissions Required
 

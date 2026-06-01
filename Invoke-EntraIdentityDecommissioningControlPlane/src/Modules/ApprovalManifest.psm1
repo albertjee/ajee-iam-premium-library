@@ -90,6 +90,16 @@ $script:ExecutionMap = @{
     'DEC-USER-002' = 'RevokeAppRoleAssignment'
     'DEC-USER-003' = 'RemoveDirectoryRoleAssignment'
     'DEC-ROLE-001' = 'RemoveDirectoryRoleAssignment'
+    'DEC-AP-001'   = 'RemoveAccessPackageAssignment'
+    'DEC-AP-002'   = 'RemoveAccessPackageAssignment'
+    'DEC-AP-007'   = 'RemoveAccessPackageAssignment'
+    'DEC-AP-008'   = 'RemoveAccessPackageAssignment'
+    'DEC-PIM-001'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-002'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-003'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-004'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-005'  = 'RemovePimEligibleAssignment'
+    'DEC-PIM-006'  = 'RemovePimEligibleAssignment'
 }
 
 function Resolve-DecomExecutableTargets {
@@ -194,8 +204,55 @@ function Resolve-DecomExecutableTargets {
                 $result.Resolved = ($targets.Count -gt 0)
             }
 
+            { $_ -in 'DEC-AP-001','DEC-AP-002','DEC-AP-007','DEC-AP-008' } {
+                $assignments = @(Get-MgEntitlementManagementAssignment `
+                    -Filter "targetId eq '$($Finding.ObjectId)'" -All -ErrorAction Stop)
+                $targets = @(
+                    foreach ($a in $assignments) {
+                        $displayName = if ($a.AccessPackage -and $a.AccessPackage.DisplayName) {
+                            $a.AccessPackage.DisplayName
+                        } else {
+                            $a.Id
+                        }
+                        [PSCustomObject]@{
+                            TargetObjectId    = $a.Id
+                            TargetDisplayName = $displayName
+                            RoleAssignmentId  = ''
+                            RoleDefinitionId  = ''
+                            RoleDisplayName   = ''
+                        }
+                    }
+                )
+                $result.TargetObjects = $targets
+                $result.Resolved = ($targets.Count -gt 0)
+            }
+
+            { $_ -in 'DEC-PIM-001','DEC-PIM-002','DEC-PIM-003','DEC-PIM-004','DEC-PIM-005','DEC-PIM-006' } {
+                $schedules = @(Get-MgRoleManagementDirectoryRoleEligibilitySchedule `
+                    -Filter "principalId eq '$($Finding.ObjectId)'" -All -ErrorAction Stop)
+                $targets = @(
+                    foreach ($s in $schedules) {
+                        $roleName = $s.RoleDefinitionId
+                        try {
+                            $roleDef = Get-MgRoleManagementDirectoryRoleDefinition `
+                                -UnifiedRoleDefinitionId $s.RoleDefinitionId -ErrorAction Stop
+                            if ($roleDef.DisplayName) { $roleName = $roleDef.DisplayName }
+                        } catch {}
+                        [PSCustomObject]@{
+                            TargetObjectId    = $s.Id
+                            TargetDisplayName = $roleName
+                            RoleAssignmentId  = ''
+                            RoleDefinitionId  = $s.RoleDefinitionId
+                            RoleDisplayName   = $roleName
+                        }
+                    }
+                )
+                $result.TargetObjects = $targets
+                $result.Resolved = ($targets.Count -gt 0)
+            }
+
             default {
-                $result.ErrorDetail = "FindingId '$($Finding.FindingId)' is not in Rev2.0 execution scope"
+                $result.ErrorDetail = "FindingId '$($Finding.FindingId)' is not in execution scope"
             }
         }
     } catch {
@@ -389,7 +446,7 @@ function New-DecomWhatIfActionPlan {
     $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actionsArray
 
     $manifest = [ordered]@{
-        SchemaVersion = '2.0'
+        SchemaVersion = '3.0'
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o')
         EngagementId = $EngagementId
         ClientName = $ClientName
@@ -585,11 +642,23 @@ function Test-DecomApprovalManifest {
             }
         }
 
-        # Every action FindingId is in Rev2.0 execution scope
+        # Every action FindingId is in execution scope
         foreach ($action in $manifest.ApprovedActions) {
             if (-not $script:ExecutionMap.ContainsKey($action.FindingId)) {
-                $errors += "Every action FindingId is in Rev2.0 execution scope"
+                $errors += "FindingId '$($action.FindingId)' is not in execution scope"
                 break
+            }
+        }
+
+        # Rev3.0 action types require SchemaVersion 3.0 or higher
+        $rev3ActionTypes = @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment')
+        $rev3Actions = @($manifest.ApprovedActions | Where-Object { $_.ActionType -in $rev3ActionTypes })
+        if ($rev3Actions.Count -gt 0) {
+            $schemaVer = [string]$manifest.SchemaVersion
+            $major = 0
+            if ($schemaVer -match '^(\d+)\.') { [int]$major = $Matches[1] }
+            if ($major -lt 3) {
+                $errors += "Rev3.0 action types (AP/PIM) require approval manifest SchemaVersion 3.0 or higher (found: $schemaVer)"
             }
         }
 

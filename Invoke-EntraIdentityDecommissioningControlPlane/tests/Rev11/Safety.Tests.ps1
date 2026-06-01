@@ -454,9 +454,13 @@ Describe 'Rev2.2 Safety Tests' {
             $content | Should -Not -Match 'PrivilegedAccess\.ReadWrite'
         }
 
-        It 'Entry point does not add EntitlementManagement.ReadWrite scope' {
+        It 'Rev3.0: Entry point EntitlementManagement.ReadWrite scope, if present, is bounded to ExecuteRemediation' {
             $content = Get-Content $script:epPath22 -Raw
-            $content | Should -Not -Match 'EntitlementManagement\.ReadWrite'
+            if ($content -match 'EntitlementManagement\.ReadWrite') {
+                $posEM   = $content.IndexOf('EntitlementManagement.ReadWrite')
+                $posExec = $content.IndexOf('ExecuteRemediation')
+                $posEM | Should -BeGreaterThan $posExec
+            }
         }
 
         It 'Entry point does not add AccessReview.ReadWrite scope' {
@@ -471,10 +475,10 @@ Describe 'Rev2.2 Safety Tests' {
             $content | Should -Not -Match '\bUpdate-Mg'
         }
 
-        It 'Remediation.psm1 does not include DEC-PIM or DEC-AP write actions' {
+        It 'Rev3.0: Remediation.psm1 contains authorized DEC-AP and DEC-PIM write action registrations' {
             $content = Get-Content $script:remPath22 -Raw
-            $content | Should -Not -Match 'DEC-PIM-0'
-            $content | Should -Not -Match "'DEC-AP-0"
+            $content | Should -Match 'DEC-AP-001'
+            $content | Should -Match 'DEC-PIM-001'
         }
     }
 }
@@ -490,10 +494,9 @@ Describe 'Rev2.4 Safety Tests' {
 
     Context 'Rev2.4 write scope safety' {
 
-        It 'Entry point contains no new ReadWrite scope additions' {
+        It 'Entry point contains no unauthorized ReadWrite scope additions' {
             $content = Get-Content $script:epPath24 -Raw
             $content | Should -Not -Match 'AccessReview\.ReadWrite'
-            $content | Should -Not -Match 'EntitlementManagement\.ReadWrite'
             $content | Should -Not -Match 'PrivilegedAccess\.ReadWrite'
             $content | Should -Not -Match 'Directory\.ReadWrite'
             $content | Should -Not -Match 'User\.ReadWrite'
@@ -562,9 +565,9 @@ Describe 'Rev2.4 Safety Tests' {
             $posB    | Should -BeLessThan $posConn
         }
 
-        It 'ToolVersion is Rev2.5 in entry point' {
+        It 'ToolVersion is Rev3.0 in entry point' {
             $content = Get-Content $script:epPath24 -Raw
-            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev2\.5'"
+            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.0'"
         }
     }
 
@@ -652,10 +655,10 @@ Describe 'Rev2.5 Safety Tests' {
             $content | Should -Not -Match 'ReleaseValidation'
         }
 
-        It 'Remediation.psm1 does not contain new Rev3 action types' {
+        It 'Remediation.psm1 contains authorized Rev3.0 action types and excludes unauthorized ones' {
             $content = Get-Content $script:remPath25 -Raw
-            $content | Should -Not -Match 'RemoveAccessPackageAssignment'
-            $content | Should -Not -Match 'RemovePimEligibleAssignment'
+            $content | Should -Match 'RemoveAccessPackageAssignment'
+            $content | Should -Match 'RemovePimEligibleAssignment'
             $content | Should -Not -Match 'RemoveGuestGroupMembership'
             $content | Should -Not -Match 'AddApplicationOwner'
             $content | Should -Not -Match 'RemoveExpiredCredential'
@@ -697,10 +700,9 @@ Describe 'Rev2.5 Safety Tests' {
             $content | Should -Match 'ExecuteRemediation cannot run in DemoMode'
         }
 
-        It 'Entry point contains no new write scope additions' {
+        It 'Entry point contains no unauthorized write scope additions' {
             $content = Get-Content $script:epPath25 -Raw
             $content | Should -Not -Match 'AccessReview\.ReadWrite'
-            $content | Should -Not -Match 'EntitlementManagement\.ReadWrite'
             $content | Should -Not -Match 'PrivilegedAccess\.ReadWrite'
             $content | Should -Not -Match 'Directory\.ReadWrite'
             $content | Should -Not -Match 'User\.ReadWrite'

@@ -5,6 +5,8 @@ Describe 'CatalogValidation.psm1' {
     BeforeAll {
         $script:ModulesPath = Join-Path $PSScriptRoot '..\..\src\Modules'
         Remove-Module CatalogValidation -Force -ErrorAction SilentlyContinue
+        Remove-Module Utilities -Force -ErrorAction SilentlyContinue
+        Import-ModULE (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'CatalogValidation.psm1') -Force -DisableNameChecking
 
         # Create temp catalog file for import/export tests
@@ -177,7 +179,7 @@ Describe 'CatalogValidation.psm1' {
         $catalog  = Import-DecomFindingsCatalog -CatalogPath $script:testCatalogPath
         $valResult = Test-DecomFindingCatalogAlignment -Findings $script:testFindings -Catalog $catalog
         $context = [PSCustomObject]@{
-            ToolVersion  = 'Rev2.5'
+            ToolVersion  = 'Rev3.0'
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -187,15 +189,15 @@ Describe 'CatalogValidation.psm1' {
         $files = Get-ChildItem -Path $script:testOutputDir -Filter 'catalog-validation-report-*.json'
         $files.Count | Should -BeGreaterThan 0
         $json = Get-Content $files[0].FullName -Raw | ConvertFrom-Json
-        $json.SchemaVersion | Should -Be '2.5'
-        $json.ToolVersion   | Should -Be 'Rev2.5'
+        $json.SchemaVersion | Should -Be '3.0'
+        $json.ToolVersion   | Should -Be 'Rev3.0'
     }
 
     It 'should export validation results to Markdown' {
         $catalog  = Import-DecomFindingsCatalog -CatalogPath $script:testCatalogPath
         $valResult = Test-DecomFindingCatalogAlignment -Findings $script:testFindings -Catalog $catalog
         $context = [PSCustomObject]@{
-            ToolVersion  = 'Rev2.5'
+            ToolVersion  = 'Rev3.0'
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -206,6 +208,6 @@ Describe 'CatalogValidation.psm1' {
         $files.Count | Should -BeGreaterThan 0
         $md = Get-Content $files[0].FullName -Raw
         $md | Should -Match '# Catalog Validation Report'
-        $md | Should -Match 'SchemaVersion.*2\.5'
+        $md | Should -Match 'SchemaVersion.*3\.0'
     }
 }

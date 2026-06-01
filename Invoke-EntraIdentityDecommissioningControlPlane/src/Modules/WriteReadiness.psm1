@@ -45,6 +45,106 @@ function Get-DecomExecutionScopeRegistry {
             RequiresPerActionPrompt = $true
             IntroducedIn = 'Rev2.0'
             Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-AP-001'
+            ActionType = 'RemoveAccessPackageAssignment'
+            WriteScope = 'EntitlementManagement.ReadWrite.All'
+            TargetType = 'AccessPackageAssignment'
+            TargetObjectIdsRepresent = 'Access package assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-PIM-001'
+            ActionType = 'RemovePimEligibleAssignment'
+            WriteScope = 'RoleManagement.ReadWrite.Directory'
+            TargetType = 'PrivilegedAccessAssignment'
+            TargetObjectIdsRepresent = 'PIM eligible assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-AP-002'
+            ActionType = 'RemoveAccessPackageAssignment'
+            WriteScope = 'EntitlementManagement.ReadWrite.All'
+            TargetType = 'AccessPackageAssignment'
+            TargetObjectIdsRepresent = 'Access package assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-AP-007'
+            ActionType = 'RemoveAccessPackageAssignment'
+            WriteScope = 'EntitlementManagement.ReadWrite.All'
+            TargetType = 'AccessPackageAssignment'
+            TargetObjectIdsRepresent = 'Access package assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-AP-008'
+            ActionType = 'RemoveAccessPackageAssignment'
+            WriteScope = 'EntitlementManagement.ReadWrite.All'
+            TargetType = 'AccessPackageAssignment'
+            TargetObjectIdsRepresent = 'Access package assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-PIM-002'
+            ActionType = 'RemovePimEligibleAssignment'
+            WriteScope = 'RoleManagement.ReadWrite.Directory'
+            TargetType = 'PrivilegedAccessAssignment'
+            TargetObjectIdsRepresent = 'PIM eligible assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-PIM-003'
+            ActionType = 'RemovePimEligibleAssignment'
+            WriteScope = 'RoleManagement.ReadWrite.Directory'
+            TargetType = 'PrivilegedAccessAssignment'
+            TargetObjectIdsRepresent = 'PIM eligible assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-PIM-004'
+            ActionType = 'RemovePimEligibleAssignment'
+            WriteScope = 'RoleManagement.ReadWrite.Directory'
+            TargetType = 'PrivilegedAccessAssignment'
+            TargetObjectIdsRepresent = 'PIM eligible assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-PIM-005'
+            ActionType = 'RemovePimEligibleAssignment'
+            WriteScope = 'RoleManagement.ReadWrite.Directory'
+            TargetType = 'PrivilegedAccessAssignment'
+            TargetObjectIdsRepresent = 'PIM eligible assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-PIM-006'
+            ActionType = 'RemovePimEligibleAssignment'
+            WriteScope = 'RoleManagement.ReadWrite.Directory'
+            TargetType = 'PrivilegedAccessAssignment'
+            TargetObjectIdsRepresent = 'PIM eligible assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.0'
+            Status = 'Executable'
         }
     )
 }
@@ -251,7 +351,7 @@ function New-DecomRev3WriteReadinessReport {
     $rev3Candidates = Get-DecomRev3WriteCandidateRegistry
 
     $report = [PSCustomObject]@{
-        SchemaVersion = '2.5'
+        SchemaVersion = '3.0'
         ToolVersion = $Context.ToolVersion
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o')
         EngagementId = $Context.EngagementId
@@ -363,7 +463,7 @@ function Export-DecomExecutionScopeRegistryJson {
     $JsonPath   = Join-Path $Context.OutputPath "$fileBase-$Timestamp.json"
 
     $jsonObject = [PSCustomObject]@{
-        SchemaVersion = '2.5'
+        SchemaVersion = '3.0'
         ToolVersion   = $Context.ToolVersion
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         EngagementId  = $Context.EngagementId

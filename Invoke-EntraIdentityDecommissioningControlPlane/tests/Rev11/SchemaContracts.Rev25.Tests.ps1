@@ -13,7 +13,7 @@ Describe 'SchemaContracts.psm1' {
 
     It 'Get-DecomSchemaContract should return Finding contract with required fields' {
         $contract = Get-DecomSchemaContract -ObjectType 'Finding'
-        $contract.SchemaVersion | Should -Be '2.5'
+        $contract.SchemaVersion | Should -Be '3.0'
         $contract.RequiredFields | Should -Contain 'FindingId'
         $contract.RequiredFields | Should -Contain 'Severity'
         $contract.RequiredFields | Should -Contain 'RiskScore'

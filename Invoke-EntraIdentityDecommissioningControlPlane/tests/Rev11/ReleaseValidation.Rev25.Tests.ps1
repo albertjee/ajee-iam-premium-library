@@ -13,7 +13,7 @@ Describe 'ReleaseValidation.psm1' {
         New-Item -ItemType Directory -Path $script:testOutputDir -Force | Out-Null
 
         $script:context = [PSCustomObject]@{
-            ToolVersion  = 'Rev2.5'
+            ToolVersion  = 'Rev3.0'
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -84,8 +84,8 @@ Describe 'ReleaseValidation.psm1' {
         It 'Release validation JSON has correct schema version' {
             $files = Get-ChildItem -Path $script:testOutputDir -Filter 'release-validation-report-*.json'
             $json  = Get-Content $files[0].FullName -Raw | ConvertFrom-Json
-            $json.SchemaVersion | Should -Be '2.5'
-            $json.ToolVersion   | Should -Be 'Rev2.5'
+            $json.SchemaVersion | Should -Be '3.0'
+            $json.ToolVersion   | Should -Be 'Rev3.0'
         }
 
         It 'Release validation creates Markdown report' {

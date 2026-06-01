@@ -78,20 +78,20 @@ function Test-DecomVersionConsistency {
     $epContent = Get-Content $epPath -Raw
 
     # Entry point must declare current version
-    if ($epContent -notmatch "\`$script:ToolVersion\s*=\s*'Rev2\.5'") {
-        $result.Errors += "Entry point does not declare ToolVersion = Rev2.5"
+    if ($epContent -notmatch "\`$script:ToolVersion\s*=\s*'Rev3\.0'") {
+        $result.Errors += "Entry point does not declare ToolVersion = Rev3.0"
         $result.Passed = $false
     }
 
     # Scan new modules for stale current-version labels in header comments / SchemaVersion strings
-    $stalePattern = "SchemaVersion\s*=\s*'2\.[0-4]'"
+    $stalePattern = "SchemaVersion\s*=\s*'2\.[0-9]'"
     $newModules = @('ReleaseValidation','CatalogValidation','SchemaContracts','WriteReadiness','ReleasePackaging')
     foreach ($mod in $newModules) {
         $modPath = Join-Path $projectRoot "src\Modules\$mod.psm1"
         if (Test-Path $modPath) {
             $content = Get-Content $modPath -Raw
             if ($content -match $stalePattern) {
-                $result.Errors += "$mod.psm1 contains stale SchemaVersion (not 2.5)"
+                $result.Errors += "$mod.psm1 contains stale SchemaVersion (should be 3.0 for Rev3.0)"
                 $result.Passed = $false
             }
         }
@@ -164,7 +164,7 @@ function Test-DecomSafetyInvariant {
         }
     }
 
-    # Verify Remediation.psm1 supports only Rev2.0 executable scope (no new action types)
+    # Verify Remediation.psm1 supports only the executable scope for the current ToolVersion
     $remPath = Join-Path $projectRoot 'src\Modules\Remediation.psm1'
     if (Test-Path $remPath) {
         $remContent = Get-Content $remPath -Raw
@@ -178,6 +178,10 @@ function Test-DecomSafetyInvariant {
             'DeleteOrDisableApp',
             'DeleteServicePrincipal'
         )
+        # For Rev3.0, the two new actions are allowed
+        if ($Context.ToolVersion -eq 'Rev3.0') {
+            $forbiddenRemActions = $forbiddenRemActions | Where-Object { $_ -notin @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment') }
+        }
         foreach ($action in $forbiddenRemActions) {
             if ($remContent -match [regex]::Escape($action)) {
                 $result.Errors += "Remediation.psm1 contains unexpected write action: $action"
@@ -235,7 +239,7 @@ function Export-DecomReleaseValidationJson {
     $JsonPath   = Join-Path $Context.OutputPath "release-validation-report-$Timestamp.json"
 
     $jsonObject = [PSCustomObject]@{
-        SchemaVersion           = '2.5'
+        SchemaVersion           = '3.0'
         ToolVersion             = $Context.ToolVersion
         GeneratedUtc            = (Get-Date).ToUniversalTime().ToString('o')
         ClientName              = $Context.ClientName
@@ -278,7 +282,7 @@ function Export-DecomReleaseValidationMarkdown {
     $markdown = @"
 # Release Validation Report
 
-**SchemaVersion:** 2.5
+**SchemaVersion:** 3.0
 **ToolVersion:** $($Context.ToolVersion)
 **GeneratedUtc:** $([DateTime]::UtcNow.ToString('o'))
 **Result:** $passedStr

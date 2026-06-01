@@ -1,5 +1,33 @@
 # Changelog
 
+## Rev3.0 — Controlled AP and PIM Write Expansion
+
+### Added
+- `RemoveAccessPackageAssignment` action type: removes approved access package assignments via `Remove-MgEntitlementManagementAssignment`. Requires `EntitlementManagement.ReadWrite.All`.
+- `RemovePimEligibleAssignment` action type: removes approved PIM eligible role schedules via `Remove-MgRoleManagementDirectoryRoleEligibilitySchedule`. Requires `RoleManagement.ReadWrite.Directory`.
+- 10 new finding IDs in `Remediation.psm1` ExecutionMap: `DEC-AP-001`, `DEC-AP-002`, `DEC-AP-007`, `DEC-AP-008`, `DEC-PIM-001` through `DEC-PIM-006`.
+- Cmdlet availability gate in `Invoke-DecomRemediation`: if `Remove-Mg*` cmdlet is absent, action is logged `Blocked` (`cmdlet unavailable`) without aborting the run.
+- PIM PrincipalId binding check in `Confirm-DecomActionTargetValid`: PrincipalId mismatch sets `Valid=$false` and blocks execution (same guard already applied to directory role assignments).
+- AP/PIM finding ID resolution in `ApprovalManifest.psm1` `Resolve-DecomExecutableTargets`: AP targets use `Get-MgEntitlementManagementAssignment` with `targetId` filter; PIM targets use `Get-MgRoleManagementDirectoryRoleEligibilitySchedule` with `principalId` filter.
+- SchemaVersion gate in `Test-DecomApprovalManifest`: Rev3.0 action types in an approval manifest with SchemaVersion < 3.0 are rejected with a descriptive error.
+- `WriteReadiness.psm1` execution scope registry expanded from 4 to 14 entries (10 new AP/PIM entries, all `Status = Executable`, `IntroducedIn = Rev3.0`).
+- `EntitlementManagement.ReadWrite.All` added to write-scope array in entry point ExecuteRemediation branch.
+- Entry point `$ReleasePackagePath` default updated to `.\release\Rev3.0`.
+
+### Safety
+- All Rev3.0 writes remain exclusively in `Remediation.psm1`.
+- All Rev3.0 writes remain gated by Gate A (WhatIf manifest), Gate B (approval manifest with SchemaVersion ≥ 3.0 and exact TargetObjectIds), and Gate C (ProtectedObject, scope check, target revalidation).
+- AP write: pre-flight `Get-MgEntitlementManagementAssignment` confirms assignment still exists before `Remove-Mg*` is called. Null assignment → no write.
+- PIM write: pre-flight PrincipalId binding check blocks execution if `PrincipalId ≠ ObjectId`.
+- Rev2.x approval manifests (SchemaVersion < 3.0) cannot authorize Rev3.0 action types.
+
+### Tests
+- Added `Remediation.Rev30.Tests.ps1` (12 tests), `ApprovalManifest.Rev30.Tests.ps1` (11 tests), `Rev30.Integration.Tests.ps1` (13 tests).
+- Updated `WriteReadiness.Rev25.Tests.ps1`, `Safety.Tests.ps1`, `SchemaContracts.Rev25.Tests.ps1`, `ReleasePackaging.Rev25.Tests.ps1` to reflect Rev3.0 reality.
+- Baseline: 304 (Rev2.5). Rev3.0: 340 tests, 0 failures.
+
+---
+
 ## Rev2.5 — Consultant Release Candidate and Rev3.0 Write-Readiness Gate
 
 ### Added

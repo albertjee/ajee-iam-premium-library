@@ -12,7 +12,7 @@ function New-DecomReleasePackage {
     Write-DecomInfo "Generating release package at $OutputPath..."
 
     # Create release directory structure
-    $releaseDir = Join-Path $OutputPath "Rev2.5"
+    $releaseDir = Join-Path $OutputPath "Rev3.0"
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $releaseDir "docs") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $releaseDir "runbooks") -Force | Out-Null
@@ -108,7 +108,7 @@ function Write-DecomReleasePackageManifest {
     )
 
     $manifest = [PSCustomObject]@{
-        SchemaVersion = '2.5'
+        SchemaVersion = '3.0'
         ToolVersion   = $Context.ToolVersion
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         ClientName    = $Context.ClientName

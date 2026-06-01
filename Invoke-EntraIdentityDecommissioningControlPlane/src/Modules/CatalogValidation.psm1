@@ -190,7 +190,7 @@ function Export-DecomCatalogValidationJson {
     $JsonPath   = Join-Path $Context.OutputPath "$fileBase-$Timestamp.json"
 
     $jsonObject = [PSCustomObject]@{
-        SchemaVersion          = '2.5'
+        SchemaVersion          = '3.0'
         ToolVersion            = $Context.ToolVersion
         GeneratedUtc           = (Get-Date).ToUniversalTime().ToString('o')
         ClientName             = $Context.ClientName
@@ -226,7 +226,7 @@ function Export-DecomCatalogValidationMarkdown {
     $markdown = @"
 # Catalog Validation Report
 
-**SchemaVersion:** 2.5
+**SchemaVersion:** 3.0
 **ToolVersion:** $($Context.ToolVersion)
 **GeneratedUtc:** $([DateTime]::UtcNow.ToString('o'))
 **ClientName:** $($Context.ClientName)
