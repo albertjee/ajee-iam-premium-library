@@ -126,7 +126,7 @@ Describe 'Remediation.psm1 — Rev3.0 AP Write Safety' {
         $assignId = 'ap-assign-approved-001'
 
         Mock -ModuleName Remediation Get-MgEntitlementManagementAssignment {
-            [PSCustomObject]@{ Id = $assignId }
+            [PSCustomObject]@{ Id = $assignId; TargetId = 'user-ap-live' }
         }
         Mock -ModuleName Remediation Remove-MgEntitlementManagementAssignment { }
 

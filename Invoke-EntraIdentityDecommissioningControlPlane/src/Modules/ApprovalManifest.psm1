@@ -29,9 +29,14 @@ function Convert-DecomActionToCanonical {
         Evidence           = [string]$Action.Evidence
         RiskScore          = [int]$Action.RiskScore
         ProtectedObject    = [bool]$Action.ProtectedObject
-        RoleAssignmentId   = [string]$Action.RoleAssignmentId
-        RoleDefinitionId   = [string]$Action.RoleDefinitionId
-        RoleDisplayName    = [string]$Action.RoleDisplayName
+        RoleAssignmentId          = [string]$Action.RoleAssignmentId
+        RoleDefinitionId          = [string]$Action.RoleDefinitionId
+        RoleDisplayName           = [string]$Action.RoleDisplayName
+        AccessPackageAssignmentId = [string]$Action.AccessPackageAssignmentId
+        AccessPackageId           = [string]$Action.AccessPackageId
+        AccessPackageName         = [string]$Action.AccessPackageName
+        TargetPrincipalId         = [string]$Action.TargetPrincipalId
+        EligibilityScheduleId     = [string]$Action.EligibilityScheduleId
     }
 }
 
@@ -100,6 +105,23 @@ $script:ExecutionMap = @{
     'DEC-PIM-004'  = 'RemovePimEligibleAssignment'
     'DEC-PIM-005'  = 'RemovePimEligibleAssignment'
     'DEC-PIM-006'  = 'RemovePimEligibleAssignment'
+}
+
+function Get-DecomFindingExactTargetIds {
+    param([pscustomobject]$Finding, [string]$FindingType)
+    $ids = [System.Collections.Generic.List[string]]::new()
+    if ($FindingType -eq 'AP') {
+        foreach ($prop in @('AccessPackageAssignmentId','AssignmentId','TargetObjectId')) {
+            $val = $Finding.$prop
+            if ($val -and [string]$val -ne '') { [void]$ids.Add([string]$val); break }
+        }
+    } elseif ($FindingType -eq 'PIM') {
+        foreach ($prop in @('EligibilityScheduleId','RoleEligibilityScheduleId','PimEligibleAssignmentId','TargetObjectId')) {
+            $val = $Finding.$prop
+            if ($val -and [string]$val -ne '') { [void]$ids.Add([string]$val); break }
+        }
+    }
+    return $ids.ToArray()
 }
 
 function Resolve-DecomExecutableTargets {
@@ -205,50 +227,47 @@ function Resolve-DecomExecutableTargets {
             }
 
             { $_ -in 'DEC-AP-001','DEC-AP-002','DEC-AP-007','DEC-AP-008' } {
-                $assignments = @(Get-MgEntitlementManagementAssignment `
-                    -Filter "targetId eq '$($Finding.ObjectId)'" -All -ErrorAction Stop)
-                $targets = @(
-                    foreach ($a in $assignments) {
-                        $displayName = if ($a.AccessPackage -and $a.AccessPackage.DisplayName) {
-                            $a.AccessPackage.DisplayName
-                        } else {
-                            $a.Id
+                $exactIds = Get-DecomFindingExactTargetIds -Finding $Finding -FindingType 'AP'
+                if ($exactIds.Count -eq 0) {
+                    $result.ErrorDetail = 'No exact AccessPackageAssignmentId found in finding — broad principal query not permitted'
+                    $result.Resolved = $false
+                } else {
+                    $targets = @(
+                        foreach ($assignId in $exactIds) {
+                            [PSCustomObject]@{
+                                TargetObjectId    = $assignId
+                                TargetDisplayName = $assignId
+                                RoleAssignmentId  = ''
+                                RoleDefinitionId  = ''
+                                RoleDisplayName   = ''
+                            }
                         }
-                        [PSCustomObject]@{
-                            TargetObjectId    = $a.Id
-                            TargetDisplayName = $displayName
-                            RoleAssignmentId  = ''
-                            RoleDefinitionId  = ''
-                            RoleDisplayName   = ''
-                        }
-                    }
-                )
-                $result.TargetObjects = $targets
-                $result.Resolved = ($targets.Count -gt 0)
+                    )
+                    $result.TargetObjects = $targets
+                    $result.Resolved = ($targets.Count -gt 0)
+                }
             }
 
             { $_ -in 'DEC-PIM-001','DEC-PIM-002','DEC-PIM-003','DEC-PIM-004','DEC-PIM-005','DEC-PIM-006' } {
-                $schedules = @(Get-MgRoleManagementDirectoryRoleEligibilitySchedule `
-                    -Filter "principalId eq '$($Finding.ObjectId)'" -All -ErrorAction Stop)
-                $targets = @(
-                    foreach ($s in $schedules) {
-                        $roleName = $s.RoleDefinitionId
-                        try {
-                            $roleDef = Get-MgRoleManagementDirectoryRoleDefinition `
-                                -UnifiedRoleDefinitionId $s.RoleDefinitionId -ErrorAction Stop
-                            if ($roleDef.DisplayName) { $roleName = $roleDef.DisplayName }
-                        } catch {}
-                        [PSCustomObject]@{
-                            TargetObjectId    = $s.Id
-                            TargetDisplayName = $roleName
-                            RoleAssignmentId  = ''
-                            RoleDefinitionId  = $s.RoleDefinitionId
-                            RoleDisplayName   = $roleName
+                $exactIds = Get-DecomFindingExactTargetIds -Finding $Finding -FindingType 'PIM'
+                if ($exactIds.Count -eq 0) {
+                    $result.ErrorDetail = 'No exact EligibilityScheduleId found in finding — broad principal query not permitted'
+                    $result.Resolved = $false
+                } else {
+                    $targets = @(
+                        foreach ($schedId in $exactIds) {
+                            [PSCustomObject]@{
+                                TargetObjectId    = $schedId
+                                TargetDisplayName = $schedId
+                                RoleAssignmentId  = ''
+                                RoleDefinitionId  = ''
+                                RoleDisplayName   = ''
+                            }
                         }
-                    }
-                )
-                $result.TargetObjects = $targets
-                $result.Resolved = ($targets.Count -gt 0)
+                    )
+                    $result.TargetObjects = $targets
+                    $result.Resolved = ($targets.Count -gt 0)
+                }
             }
 
             default {

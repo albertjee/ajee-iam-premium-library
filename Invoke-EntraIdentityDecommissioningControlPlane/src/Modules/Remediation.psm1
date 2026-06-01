@@ -68,11 +68,36 @@ function Confirm-DecomActionTargetValid {
             }
 
             'RemoveAccessPackageAssignment' {
+                # P1-01: -ErrorAction Stop so Graph errors throw into the catch block.
+                # P1-01: TargetId binding check after null check to prevent cross-principal writes.
                 foreach ($assignmentId in $targetIds) {
                     try {
-                        $assignment = Get-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction SilentlyContinue
+                        $assignment = Get-MgEntitlementManagementAssignment `
+                            -AccessPackageAssignmentId $assignmentId -ErrorAction Stop
                         if ($null -eq $assignment) {
                             $result.InvalidTargets.Add("$assignmentId : assignment not found (already removed or state changed)")
+                        } else {
+                            # Resolve TargetId from multiple possible properties
+                            $targetId = if ($assignment.TargetId) {
+                                [string]$assignment.TargetId
+                            } elseif ($assignment.Target -and $assignment.Target.Id) {
+                                [string]$assignment.Target.Id
+                            } elseif ($assignment.AdditionalProperties -and
+                                      $assignment.AdditionalProperties['targetId']) {
+                                [string]$assignment.AdditionalProperties['targetId']
+                            } else {
+                                ''
+                            }
+                            if (-not $targetId) {
+                                $result.ValidationErrors.Add(
+                                    "$assignmentId : TargetId could not be resolved from assignment object — BLOCKED")
+                                $result.Valid = $false
+                            } elseif ($targetId -ne $objectId) {
+                                $result.ValidationErrors.Add(
+                                    "$assignmentId : TargetId MISMATCH — approved ObjectId=$objectId " +
+                                    "but assignment TargetId=$targetId — BLOCKED")
+                                $result.Valid = $false
+                            }
                         }
                     } catch {
                         $result.ValidationErrors.Add("$assignmentId : assignment check failed — $_")
@@ -82,9 +107,11 @@ function Confirm-DecomActionTargetValid {
             }
 
             'RemovePimEligibleAssignment' {
+                # P1-02: -ErrorAction Stop so Graph errors throw into the catch block.
                 foreach ($scheduleId in $targetIds) {
                     try {
-                        $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction SilentlyContinue
+                        $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule `
+                            -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction Stop
                         if ($null -eq $schedule) {
                             $result.InvalidTargets.Add("$scheduleId : eligible schedule not found (already removed or state changed)")
                         } elseif ($schedule.PrincipalId -ne $objectId) {
@@ -144,9 +171,7 @@ function Invoke-DecomRemediation {
         $actionType  = [string]$action.ActionType
         $targetIds   = @($action.TargetObjectIds)
 
-        $targetsBefore = @()
-        $targetsAfter  = @()
-        $errorDetail   = ''
+        $errorDetail = ''
 
         # Gate C: ProtectedObject — absolute block, no override
         if ($action.ProtectedObject -eq $true) {
@@ -204,7 +229,7 @@ function Invoke-DecomRemediation {
         }
 
         # Query state before execution
-        $targetsBefore = Get-DecomTargetState -Action $action
+        $beforeState = Get-DecomTargetState -Action $action
 
         # Execute per approved TargetObjectId
         $failedTargets = [System.Collections.Generic.List[string]]::new()
@@ -263,15 +288,17 @@ function Invoke-DecomRemediation {
                         -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
                         -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
                         -Outcome 'Blocked' -TargetObjectIds $targetIds `
-                        -TargetsBefore $targetsBefore -TargetsAfter @() `
+                        -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
                         -ErrorDetail 'Access package assignment removal cmdlet unavailable.'
                     continue
                 }
                 foreach ($assignmentId in $targetIds) {
                     try {
-                        $existing = Get-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction SilentlyContinue
+                        $existing = Get-MgEntitlementManagementAssignment `
+                            -AccessPackageAssignmentId $assignmentId -ErrorAction SilentlyContinue
                         if ($null -ne $existing) {
-                            Remove-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction Stop
+                            Remove-MgEntitlementManagementAssignment `
+                                -AccessPackageAssignmentId $assignmentId -ErrorAction Stop
                         }
                     } catch {
                         $failedTargets.Add($assignmentId)
@@ -286,15 +313,17 @@ function Invoke-DecomRemediation {
                         -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
                         -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
                         -Outcome 'Blocked' -TargetObjectIds $targetIds `
-                        -TargetsBefore $targetsBefore -TargetsAfter @() `
+                        -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
                         -ErrorDetail 'PIM eligible assignment removal cmdlet unavailable.'
                     continue
                 }
                 foreach ($scheduleId in $targetIds) {
                     try {
-                        $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction SilentlyContinue
+                        $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule `
+                            -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction SilentlyContinue
                         if ($null -ne $schedule) {
-                            Remove-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction Stop
+                            Remove-MgRoleManagementDirectoryRoleEligibilitySchedule `
+                                -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction Stop
                         }
                     } catch {
                         $failedTargets.Add($scheduleId)
@@ -308,21 +337,27 @@ function Invoke-DecomRemediation {
                     -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
                     -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
                     -Outcome 'Failed' -TargetObjectIds $targetIds `
-                    -TargetsBefore $targetsBefore -TargetsAfter @() `
+                    -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
                     -ErrorDetail "Unsupported ActionType '$actionType'"
                 continue
             }
         }
 
-        # Re-query state after execution (records actual existsAfter)
-        $targetsAfter = Get-DecomTargetState -Action $action
+        # Re-query state after execution.
+        # P1-04: structured result distinguishes query failure from confirmed-removed (empty set).
+        $afterState = Get-DecomTargetState -Action $action
 
-        # Write failures take precedence — a failed write must not be masked by an empty after-state re-query
+        # Write failures take precedence over after-state.
+        # P1-04: AP/PIM after-state query failure → PartialFailed, not Executed.
+        #        A failed re-query cannot serve as evidence that the write succeeded.
         $outcome = if ($failedTargets.Count -gt 0) {
             if ($failedTargets.Count -lt $targetIds.Count) { 'PartialFailed' } else { 'Failed' }
-        } elseif ($targetsAfter.Count -eq 0) {
+        } elseif (-not $afterState.QuerySucceeded) {
+            $errorDetail += "Post-write re-query failed: $($afterState.ErrorDetail)"
+            'PartialFailed'
+        } elseif ($afterState.PresentTargetIds.Count -eq 0) {
             'Executed'
-        } elseif ($targetsAfter.Count -lt $targetIds.Count) {
+        } elseif ($afterState.PresentTargetIds.Count -lt $targetIds.Count) {
             'PartialFailed'
         } else {
             'Failed'
@@ -332,18 +367,21 @@ function Invoke-DecomRemediation {
             -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
             -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
             -Outcome $outcome -TargetObjectIds $targetIds `
-            -TargetsBefore $targetsBefore -TargetsAfter $targetsAfter `
+            -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter $afterState.PresentTargetIds `
             -ErrorDetail $errorDetail
     }
 }
 
 function Get-DecomTargetState {
+    # P1-04: returns structured result so after-state query failures are not silently treated as Executed.
     param([object]$Action)
 
-    $actionType = [string]$Action.ActionType
-    $objectId   = [string]$Action.ObjectId
-    $targetIds  = @($Action.TargetObjectIds)
-    $present    = [System.Collections.Generic.List[string]]::new()
+    $actionType     = [string]$Action.ActionType
+    $objectId       = [string]$Action.ObjectId
+    $targetIds      = @($Action.TargetObjectIds)
+    $present        = [System.Collections.Generic.List[string]]::new()
+    $querySucceeded = $true
+    $queryError     = ''
 
     switch ($actionType) {
 
@@ -384,22 +422,30 @@ function Get-DecomTargetState {
         'RemoveAccessPackageAssignment' {
             foreach ($assignmentId in $targetIds) {
                 try {
-                    $assignment = Get-MgEntitlementManagementAssignment -AccessPackageAssignmentId $assignmentId -ErrorAction SilentlyContinue
+                    $assignment = Get-MgEntitlementManagementAssignment `
+                        -AccessPackageAssignmentId $assignmentId -ErrorAction Stop
                     if ($null -ne $assignment) {
                         $present.Add($assignmentId)
                     }
-                } catch { }
+                } catch {
+                    $querySucceeded = $false
+                    $queryError += "Assignment $assignmentId re-query failed: $_; "
+                }
             }
         }
 
         'RemovePimEligibleAssignment' {
             foreach ($scheduleId in $targetIds) {
                 try {
-                    $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction SilentlyContinue
+                    $schedule = Get-MgRoleManagementDirectoryRoleEligibilitySchedule `
+                        -UnifiedRoleEligibilityScheduleId $scheduleId -ErrorAction Stop
                     if ($null -ne $schedule) {
                         $present.Add($scheduleId)
                     }
-                } catch { }
+                } catch {
+                    $querySucceeded = $false
+                    $queryError += "Schedule $scheduleId re-query failed: $_; "
+                }
             }
         }
 
@@ -408,5 +454,9 @@ function Get-DecomTargetState {
         }
     }
 
-    return $present.ToArray()
+    return [PSCustomObject]@{
+        QuerySucceeded   = $querySucceeded
+        PresentTargetIds = $present.ToArray()
+        ErrorDetail      = $queryError
+    }
 }
