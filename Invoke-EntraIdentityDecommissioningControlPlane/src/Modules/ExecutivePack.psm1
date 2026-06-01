@@ -21,6 +21,7 @@ function New-DecomExecutiveSummaryModel {
     $hasRevCritical      = ($findings | Where-Object { $_.FindingId -like 'DEC-REV-*'  -and $_.Severity -eq 'Critical' }).Count -gt 0
     $hasGrevCritical     = ($findings | Where-Object { $_.FindingId -like 'DEC-GREV-*' -and $_.Severity -eq 'Critical' }).Count -gt 0
     $hasPrivPimCritical  = ($findings | Where-Object { $_.FindingId -like 'DEC-PIM-*'  -and $_.Severity -eq 'Critical' }).Count -gt 0
+    $hasReviewConflict   = ($findings | Where-Object { $_.FindingId -eq "DEC-REV-005" }).Count -gt 0
     $netRiskIncrease     = if ($riskMovement -and $riskMovement.NetRiskDelta -gt 50) { $true } else { $false }
 
     # Coverage gap check
@@ -30,7 +31,7 @@ function New-DecomExecutiveSummaryModel {
 
     # Executive risk posture — deterministic algorithm
     # Critical: >=3 critical findings, critical domain-specific findings, or major net risk increase
-    if ($criticalCount -ge 3 -or $hasRevCritical -or $hasGrevCritical -or $hasPrivPimCritical -or $netRiskIncrease) {
+    if ($criticalCount -ge 3 -or $hasRevCritical -or $hasGrevCritical -or $hasPrivPimCritical -or $netRiskIncrease -or $hasReviewConflict) {
         $posture = 'Critical'
     } elseif ($highCount -ge 5 -or $multiCovGaps) {
         $posture = 'Elevated'

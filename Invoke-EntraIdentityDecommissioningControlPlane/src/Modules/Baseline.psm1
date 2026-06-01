@@ -88,11 +88,20 @@ function Get-DecomFindingStableKey {
         [object]$Finding
     )
 
-    $objectId = if ($Finding.ObjectId) { [string]$Finding.ObjectId } else { '' }
+    $findingId  = if ($Finding.FindingId)  { [string]$Finding.FindingId }  else { '' }
     $objectType = if ($Finding.ObjectType) { [string]$Finding.ObjectType } else { '' }
+    $objectId   = if ($Finding.ObjectId)   { [string]$Finding.ObjectId }   else { '' }
+    $targetId = ''
+    if ($Finding.TargetObjectId) {
+        $targetId = [string]$Finding.TargetObjectId
+    } elseif ($Finding.TargetObjectIds -and @($Finding.TargetObjectIds).Count -eq 1) {
+        $targetId = [string]@($Finding.TargetObjectIds)[0]
+    }
+    if ($objectId) {
+        return "$findingId|$objectType|$objectId|$targetId"
+    }
     $displayName = if ($Finding.DisplayName) { [string]$Finding.DisplayName } else { '' }
-
-    return "$($Finding.FindingId)|$objectType|$objectId|$displayName"
+    return "$findingId|$objectType|$displayName|$targetId"
 }
 
 function Compare-DecomFindingBaseline {
@@ -169,6 +178,7 @@ function Compare-DecomFindingBaseline {
                 CurrentEvidence     = $currentEvidence
                 PriorRunId          = $bf.RunId
                 CurrentRunId        = $cf.RunId
+                IsPersisting        = $true
             }
 
             $results += $resultObj
@@ -193,6 +203,7 @@ function Compare-DecomFindingBaseline {
                 CurrentEvidence     = $cf.Evidence
                 PriorRunId          = $null
                 CurrentRunId        = $cf.RunId
+                IsPersisting        = $false
             }
 
             $results += $resultObj
@@ -219,6 +230,7 @@ function Compare-DecomFindingBaseline {
             CurrentEvidence     = $null
             PriorRunId          = $bf.RunId
             CurrentRunId        = $null
+            IsPersisting        = $false
         }
 
         $results += $resultObj
@@ -261,7 +273,7 @@ function Export-DecomBaselineComparisonJson {
     # Calculate summary statistics
     $summary = @{
         New                   = ($ComparisonResults | Where-Object { $_.Status -eq 'New' }).Count
-        Persisting            = ($ComparisonResults | Where-Object { $_.Status -eq 'Persisting' }).Count
+        Persisting            = ($ComparisonResults | Where-Object { $_.IsPersisting -eq $true }).Count
         Resolved              = ($ComparisonResults | Where-Object { $_.Status -eq 'Resolved' }).Count
         ChangedSeverity       = ($ComparisonResults | Where-Object { $_.Status -eq 'ChangedSeverity' }).Count
         ChangedRiskScore      = ($ComparisonResults | Where-Object { $_.Status -eq 'ChangedRiskScore' }).Count

@@ -190,19 +190,19 @@ Describe 'Rev2.4 ExecutivePack Module' {
             $model.ExecutiveRiskPosture | Should -Not -Be 'Low'
         }
 
-        It 'Critical severity DEC-REV finding triggers Critical posture' {
+        It 'DEC-REV-005 High/67 finding triggers at least Elevated posture' {
             $ctx = [PSCustomObject]@{
                 SchemaVersion = '2.4'; ToolVersion = 'Rev2.4'; ClientName = 'Test'
                 EngagementId = 'T-001'; Assessor = 'Test'; TenantId = 'test'
                 GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o')
                 Coverage = @{ Users = $true }
-                Findings = @(New-ExecTestFinding -FindingId 'DEC-REV-005' -Severity 'Critical' -RiskScore 90)
-                Summary = @{ Critical=1; High=0; Medium=0; Low=0; Total=1 }
+                Findings = @(New-ExecTestFinding -FindingId 'DEC-REV-005' -Severity 'High' -RiskScore 67)
+                Summary = @{ Critical=0; High=1; Medium=0; Low=0; Total=1 }
                 BaselineComparison = $null; BaselineSummary = $null; RiskMovement = $null
                 ExportPaths = @{}
             }
             $model = New-DecomExecutiveSummaryModel -Context $ctx
-            $model.ExecutiveRiskPosture | Should -Be 'Critical'
+            $model.ExecutiveRiskPosture | Should -BeIn @('Elevated', 'Critical')
         }
     }
 

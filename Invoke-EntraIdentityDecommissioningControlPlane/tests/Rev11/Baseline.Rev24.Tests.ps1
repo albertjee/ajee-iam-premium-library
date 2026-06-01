@@ -157,6 +157,23 @@ Describe 'Rev2.4 Baseline Module' {
             $key2 = Get-DecomFindingStableKey -Finding $f2
             $key1 | Should -Not -Be $key2
         }
+
+        It 'Same FindingId/ObjectType/ObjectId but changed DisplayName produces same stable key' {
+            $f1 = New-TestFinding -FindingId 'DEC-USER-001' -ObjectType 'User' -ObjectId 'oid-001' -DisplayName 'Old Name'
+            $f2 = New-TestFinding -FindingId 'DEC-USER-001' -ObjectType 'User' -ObjectId 'oid-001' -DisplayName 'New Name'
+            $key1 = Get-DecomFindingStableKey -Finding $f1
+            $key2 = Get-DecomFindingStableKey -Finding $f2
+            $key1 | Should -Be $key2
+        }
+
+        It 'Fallback to DisplayName when ObjectId missing' {
+            $f1 = New-TestFinding -FindingId 'DEC-USER-001' -ObjectType 'User' -DisplayName 'Test User' -ObjectId ''
+            $f2 = New-TestFinding -FindingId 'DEC-USER-001' -ObjectType 'User' -DisplayName 'Test User' -ObjectId $null
+            $key1 = Get-DecomFindingStableKey -Finding $f1
+            $key2 = Get-DecomFindingStableKey -Finding $f2
+            $key1 | Should -Be $key2
+            $key1 | Should -Be 'DEC-USER-001|User|Test User|'
+        }
     }
 
     Context 'Compare-DecomFindingBaseline — status classification' {
@@ -241,6 +258,36 @@ Describe 'Rev2.4 Baseline Module' {
                 -CurrentFindings @($lowerRisk) `
                 -BaselineFindings @($script:BaselineFinding)
             ($result[0].DeltaRiskScore) | Should -Be -20
+        }
+
+        It 'Unchanged matched finding has IsPersisting=$true' {
+            $result = Compare-DecomFindingBaseline `
+                -CurrentFindings @($script:CurrentFindingSame) `
+                -BaselineFindings @($script:BaselineFinding)
+            $unchanged = $result | Where-Object { $_.Status -eq 'Unchanged' }
+            $unchanged.IsPersisting | Should -Be $true
+        }
+
+        It 'ChangedSeverity matched finding has IsPersisting=$true' {
+            $changedSev = New-TestFinding `
+                -FindingId 'DEC-USER-001' -ObjectType 'User' -ObjectId $script:SharedObjId `
+                -DisplayName 'Disabled Admin' -Severity 'Critical' -RiskScore 70
+            $result = Compare-DecomFindingBaseline `
+                -CurrentFindings @($changedSev) `
+                -BaselineFindings @($script:BaselineFinding)
+            $changed = $result | Where-Object { $_.Status -eq 'ChangedSeverity' }
+            $changed.IsPersisting | Should -Be $true
+        }
+
+        It 'ChangedRiskScore matched finding has IsPersisting=$true' {
+            $changedRisk = New-TestFinding `
+                -FindingId 'DEC-USER-001' -ObjectType 'User' -ObjectId $script:SharedObjId `
+                -DisplayName 'Disabled Admin' -Severity 'High' -RiskScore 85
+            $result = Compare-DecomFindingBaseline `
+                -CurrentFindings @($changedRisk) `
+                -BaselineFindings @($script:BaselineFinding)
+            $changed = $result | Where-Object { $_.Status -eq 'ChangedRiskScore' }
+            $changed.IsPersisting | Should -Be $true
         }
     }
 
