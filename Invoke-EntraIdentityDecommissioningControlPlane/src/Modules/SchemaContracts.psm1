@@ -21,7 +21,7 @@ function Get-DecomSchemaContract {
                     Category = 'string'
                     Severity = 'string'
                     RiskScore = 'int'
-                    Confidence = 'double'
+                    Confidence = 'string'
                     ObjectType = 'string'
                     ObjectId = 'string'
                     DisplayName = 'string'
@@ -36,6 +36,7 @@ function Get-DecomSchemaContract {
                 AllowedValues = @{
                     Severity = @('Critical','High','Medium','Low','Informational')
                     RemediationMode = @('ManualApprovalRequired','AutoRemediable','InformationOnly','ProtectedObject')
+                    Confidence = @('High','Medium','Low')
                 }
                 Description = 'Core finding object emitted during assessment'
             }

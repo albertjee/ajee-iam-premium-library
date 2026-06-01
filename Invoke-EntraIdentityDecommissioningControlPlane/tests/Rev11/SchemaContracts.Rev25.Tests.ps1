@@ -22,13 +22,22 @@ Describe 'SchemaContracts.psm1' {
         $contract.AllowedValues['RemediationMode'] | Should -Contain 'AutoRemediable'
     }
 
+    It 'Finding schema contract defines Confidence as string with allowed values High, Medium, Low' {
+        $contract = Get-DecomSchemaContract -ObjectType 'Finding'
+        $contract.FieldTypes['Confidence'] | Should -Be 'string'
+        $contract.AllowedValues['Confidence'] | Should -Contain 'High'
+        $contract.AllowedValues['Confidence'] | Should -Contain 'Medium'
+        $contract.AllowedValues['Confidence'] | Should -Contain 'Low'
+        $contract.AllowedValues['Confidence'].Count | Should -Be 3
+    }
+
     It 'Test-DecomObjectAgainstSchemaContract should pass valid Finding object' {
         $finding = [PSCustomObject]@{
             FindingId         = 'DEC-USER-001'
             Category          = 'DEC-USER'
             Severity          = 'High'
             RiskScore         = 75
-            Confidence        = 0.95
+            Confidence        = 'High'
             ObjectType        = 'User'
             ObjectId          = 'user123'
             DisplayName       = 'Test User'
@@ -78,7 +87,7 @@ Describe 'SchemaContracts.psm1' {
             Category          = 'DEC-USER'
             Severity          = 'InvalidSeverity'
             RiskScore         = 75
-            Confidence        = 0.95
+            Confidence        = 'High'
             ObjectType        = 'User'
             ObjectId          = 'user123'
             DisplayName       = 'Test User'
@@ -104,7 +113,7 @@ Describe 'SchemaContracts.psm1' {
             Category          = 'DEC-USER'
             Severity          = 'High'
             RiskScore         = 'not-a-number'
-            Confidence        = 0.95
+            Confidence        = 'High'
             ObjectType        = 'User'
             ObjectId          = 'user123'
             DisplayName       = 'Test User'
