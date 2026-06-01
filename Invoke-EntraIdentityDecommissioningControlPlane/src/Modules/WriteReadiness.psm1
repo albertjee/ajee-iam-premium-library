@@ -145,6 +145,102 @@ function Get-DecomExecutionScopeRegistry {
             RequiresPerActionPrompt = $true
             IntroducedIn = 'Rev3.0'
             Status = 'Executable'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GUEST-001'
+            ActionType = 'RemoveGuestGroupMembership'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'Group'
+            TargetObjectIdsRepresent = 'Group IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GUEST-002'
+            ActionType = 'RemoveGuestGroupMembership'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'Group'
+            TargetObjectIdsRepresent = 'Group IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GUEST-002'
+            ActionType = 'RevokeGuestAppRoleAssignment'
+            WriteScope = 'AppRoleAssignment.ReadWrite.All'
+            TargetType = 'AppRoleAssignment'
+            TargetObjectIdsRepresent = 'App role assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GUEST-003'
+            ActionType = 'RemoveGuestGroupMembership'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'Group'
+            TargetObjectIdsRepresent = 'Group IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-001'
+            ActionType = 'RemoveGuestGroupMembership'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'Group'
+            TargetObjectIdsRepresent = 'Group IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-002'
+            ActionType = 'RemoveGuestGroupMembership'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'Group'
+            TargetObjectIdsRepresent = 'Group IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-003'
+            ActionType = 'RemoveGuestGroupMembership'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'Group'
+            TargetObjectIdsRepresent = 'Group IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-003'
+            ActionType = 'RevokeGuestAppRoleAssignment'
+            WriteScope = 'AppRoleAssignment.ReadWrite.All'
+            TargetType = 'AppRoleAssignment'
+            TargetObjectIdsRepresent = 'App role assignment IDs'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.1'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'High'
+            GuestOnly = $true
         }
     )
 }
@@ -242,16 +338,114 @@ function Get-DecomRev3WriteCandidateRegistry {
         [PSCustomObject]@{
             FindingId = 'DEC-GUEST-001'
             CandidateActionType = 'RemoveGuestGroupMembership'
-            CandidateStatus = 'NeedsDesign'
-            ProposedWriteScope = 'Group.ReadWrite.All'
-            RiskLevel = 'Medium'
-            TargetObjectIdsWouldRepresent = 'Guest user IDs in groups'
-            RequiredApprovalEvidence = 'Client signed approval, legal review if applicable'
-            RequiredRollbackDesign = 'Process to re-invite guest if needed'
-            RequiredPreflightChecks = 'Validate guest status, check group policies, notify stakeholders'
-            RequiredPostWriteEvidence = 'Confirmation of removal, audit logs, guest status verification'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'GroupMember.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'Group IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-addition through governance process'
+            RequiredPreflightChecks = 'Validate guest status and exact group membership'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
             RecommendedRev = 'Rev3.1'
-            Notes = 'Guest removal requires special handling due to B2B collaboration implications'
+            Notes = 'Remove guest from group by exact group ID'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GUEST-002'
+            CandidateActionType = 'RemoveGuestGroupMembership'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'GroupMember.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'Group IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-addition through governance process'
+            RequiredPreflightChecks = 'Validate guest status and exact group membership'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
+            RecommendedRev = 'Rev3.1'
+            Notes = 'Remove guest from group by exact group ID'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GUEST-002'
+            CandidateActionType = 'RevokeGuestAppRoleAssignment'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'AppRoleAssignment.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'App role assignment IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-grant through application owner'
+            RequiredPreflightChecks = 'Validate guest status and exact app role assignment'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
+            RecommendedRev = 'Rev3.1'
+            Notes = 'Revoke guest app role assignment by exact assignment ID'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GUEST-003'
+            CandidateActionType = 'RemoveGuestGroupMembership'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'GroupMember.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'Group IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-addition through governance process'
+            RequiredPreflightChecks = 'Validate guest status and exact group membership'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
+            RecommendedRev = 'Rev3.1'
+            Notes = 'Remove guest from group by exact group ID'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-001'
+            CandidateActionType = 'RemoveGuestGroupMembership'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'GroupMember.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'Group IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-addition through governance process'
+            RequiredPreflightChecks = 'Validate guest status and exact group membership'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
+            RecommendedRev = 'Rev3.1'
+            Notes = 'Remove guest from group by exact group ID'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-002'
+            CandidateActionType = 'RemoveGuestGroupMembership'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'GroupMember.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'Group IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-addition through governance process'
+            RequiredPreflightChecks = 'Validate guest status and exact group membership'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
+            RecommendedRev = 'Rev3.1'
+            Notes = 'Remove guest from group by exact group ID'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-003'
+            CandidateActionType = 'RemoveGuestGroupMembership'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'GroupMember.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'Group IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-addition through governance process'
+            RequiredPreflightChecks = 'Validate guest status and exact group membership'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
+            RecommendedRev = 'Rev3.1'
+            Notes = 'Remove guest from group by exact group ID'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-GREV-003'
+            CandidateActionType = 'RevokeGuestAppRoleAssignment'
+            CandidateStatus = 'Candidate'
+            ProposedWriteScope = 'AppRoleAssignment.ReadWrite.All'
+            RiskLevel = 'High'
+            TargetObjectIdsWouldRepresent = 'App role assignment IDs'
+            RequiredApprovalEvidence = 'Client signed approval'
+            RequiredRollbackDesign = 'Manual re-grant through application owner'
+            RequiredPreflightChecks = 'Validate guest status and exact app role assignment'
+            RequiredPostWriteEvidence = 'Post-write re-query confirmation'
+            RecommendedRev = 'Rev3.1'
+            Notes = 'Revoke guest app role assignment by exact assignment ID'
         },
         [PSCustomObject]@{
             FindingId = 'DEC-APP-003'

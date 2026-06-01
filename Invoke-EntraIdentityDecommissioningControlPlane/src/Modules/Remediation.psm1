@@ -124,6 +124,55 @@ function Confirm-DecomActionTargetValid {
                     }
                 }
             }
+
+            'RemoveGuestGroupMembership' {
+                # Validate guest identity first
+                $guestCheck = Confirm-DecomGuestIdentity -ObjectId $objectId
+                if (-not $guestCheck.Valid) {
+                    $result.ValidationErrors.Add("Guest identity check failed: $($guestCheck.ErrorDetail)")
+                    $result.Valid = $false
+                    break
+                }
+                # Validate group membership for each target
+                foreach ($groupId in $targetIds) {
+                    try {
+                        $members = @(Get-MgGroupMember -GroupId $groupId -All -ErrorAction Stop)
+                        $isMember = $null -ne ($members | Where-Object { $_.Id -eq $objectId })
+                        if (-not $isMember) {
+                            $result.InvalidTargets.Add("$groupId : guest no longer member (already removed or state changed)")
+                        }
+                    } catch {
+                        $result.ValidationErrors.Add("$groupId : group membership check failed — $_")
+                        $result.Valid = $false
+                    }
+                }
+            }
+
+            'RevokeGuestAppRoleAssignment' {
+                # Validate guest identity first
+                $guestCheck = Confirm-DecomGuestIdentity -ObjectId $objectId
+                if (-not $guestCheck.Valid) {
+                    $result.ValidationErrors.Add("Guest identity check failed: $($guestCheck.ErrorDetail)")
+                    $result.Valid = $false
+                    break
+                }
+                # Validate each app role assignment belongs to the approved guest
+                try {
+                    $allAssignments = @(Get-MgUserAppRoleAssignment -UserId $objectId -All -ErrorAction Stop)
+                    foreach ($assignmentId in $targetIds) {
+                        $assignment = $allAssignments | Where-Object { $_.Id -eq $assignmentId }
+                        if ($null -eq $assignment) {
+                            $result.InvalidTargets.Add("$assignmentId : assignment not found (already revoked or state changed)")
+                        } elseif ($assignment.PrincipalId -and $assignment.PrincipalId -ne $objectId) {
+                            $result.ValidationErrors.Add("$assignmentId : PrincipalId MISMATCH — approved ObjectId=$objectId but assignment PrincipalId=$($assignment.PrincipalId) — BLOCKED")
+                            $result.Valid = $false
+                        }
+                    }
+                } catch {
+                    $result.ValidationErrors.Add("App role assignment check failed for guest $objectId : $_")
+                    $result.Valid = $false
+                }
+            }
         }
     } catch {
         $result.ErrorDetail = $_.ToString()
@@ -148,13 +197,51 @@ $script:ExecutionMap = @{
     'DEC-PIM-004'  = 'RemovePimEligibleAssignment'
     'DEC-PIM-005'  = 'RemovePimEligibleAssignment'
     'DEC-PIM-006'  = 'RemovePimEligibleAssignment'
+    'DEC-GUEST-001' = 'RemoveGuestGroupMembership'
+    'DEC-GUEST-002' = 'GuestGroupOrAppRole'
+    'DEC-GUEST-003' = 'RemoveGuestGroupMembership'
+    'DEC-GREV-001'  = 'RemoveGuestGroupMembership'
+    'DEC-GREV-002'  = 'RemoveGuestGroupMembership'
+    'DEC-GREV-003'  = 'GuestGroupOrAppRole'
 }
 
 $script:ManualApprovalFindingIds = @(
     'DEC-USER-002','DEC-USER-003','DEC-ROLE-001',
     'DEC-AP-001','DEC-AP-002','DEC-AP-007','DEC-AP-008',
-    'DEC-PIM-001','DEC-PIM-002','DEC-PIM-003','DEC-PIM-004','DEC-PIM-005','DEC-PIM-006'
+    'DEC-PIM-001','DEC-PIM-002','DEC-PIM-003','DEC-PIM-004','DEC-PIM-005','DEC-PIM-006',
+    'DEC-GUEST-001','DEC-GUEST-002','DEC-GUEST-003',
+    'DEC-GREV-001','DEC-GREV-002','DEC-GREV-003'
 )
+
+function Confirm-DecomGuestIdentity {
+    # Validates that the target object exists and UserType is Guest.
+    # Returns: Valid, ErrorDetail
+    param([string]$ObjectId)
+
+    $result = [PSCustomObject]@{
+        Valid       = $false
+        UserType    = ''
+        ErrorDetail = ''
+    }
+
+    try {
+        $user = Get-MgUser -UserId $ObjectId -Property 'Id,UserType' -ErrorAction Stop
+        if ($null -eq $user) {
+            $result.ErrorDetail = "Guest user $ObjectId not found"
+            return $result
+        }
+        $result.UserType = [string]$user.UserType
+        if ($result.UserType -ne 'Guest') {
+            $result.ErrorDetail = "UserType is '$($result.UserType)' not Guest — blocked to prevent non-guest write"
+            return $result
+        }
+        $result.Valid = $true
+    } catch {
+        $result.ErrorDetail = "Guest identity read failed for $ObjectId : $_"
+    }
+
+    return $result
+}
 
 function Invoke-DecomRemediation {
     param(
@@ -332,6 +419,56 @@ function Invoke-DecomRemediation {
                 }
             }
 
+            'RemoveGuestGroupMembership' {
+                $guestValidation = Confirm-DecomGuestIdentity -ObjectId $objectId
+                if (-not $guestValidation.Valid) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore @() -TargetsAfter @() `
+                        -ErrorDetail "Guest identity validation failed: $($guestValidation.ErrorDetail)"
+                    continue
+                }
+                foreach ($groupId in $targetIds) {
+                    try {
+                        $members = @(Get-MgGroupMember -GroupId $groupId -All -ErrorAction Stop)
+                        $isMember = $null -ne ($members | Where-Object { $_.Id -eq $objectId })
+                        if ($isMember) {
+                            Remove-MgGroupMemberByRef -GroupId $groupId -DirectoryObjectId $objectId -ErrorAction Stop
+                        }
+                    } catch {
+                        $failedTargets.Add($groupId)
+                        $errorDetail += "Group $groupId : $_; "
+                    }
+                }
+            }
+
+            'RevokeGuestAppRoleAssignment' {
+                $guestValidation = Confirm-DecomGuestIdentity -ObjectId $objectId
+                if (-not $guestValidation.Valid) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore @() -TargetsAfter @() `
+                        -ErrorDetail "Guest identity validation failed: $($guestValidation.ErrorDetail)"
+                    continue
+                }
+                foreach ($assignmentId in $targetIds) {
+                    try {
+                        $allAssignments = @(Get-MgUserAppRoleAssignment -UserId $objectId -All -ErrorAction Stop)
+                        $exists = $null -ne ($allAssignments | Where-Object { $_.Id -eq $assignmentId })
+                        if ($exists) {
+                            Remove-MgUserAppRoleAssignment -UserId $objectId -AppRoleAssignmentId $assignmentId -ErrorAction Stop
+                        }
+                    } catch {
+                        $failedTargets.Add($assignmentId)
+                        $errorDetail += "Assignment $assignmentId : $_; "
+                    }
+                }
+            }
+
             default {
                 Add-DecomExecutionAction `
                     -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
@@ -446,6 +583,34 @@ function Get-DecomTargetState {
                     $querySucceeded = $false
                     $queryError += "Schedule $scheduleId re-query failed: $_; "
                 }
+            }
+        }
+
+        'RemoveGuestGroupMembership' {
+            foreach ($groupId in $targetIds) {
+                try {
+                    $members = @(Get-MgGroupMember -GroupId $groupId -All -ErrorAction Stop)
+                    if ($null -ne ($members | Where-Object { $_.Id -eq $objectId })) {
+                        $present.Add($groupId)
+                    }
+                } catch {
+                    $querySucceeded = $false
+                    $queryError += "Group $groupId membership re-query failed: $_; "
+                }
+            }
+        }
+
+        'RevokeGuestAppRoleAssignment' {
+            try {
+                $allAssignments = @(Get-MgUserAppRoleAssignment -UserId $objectId -All -ErrorAction Stop)
+                foreach ($assignmentId in $targetIds) {
+                    if ($null -ne ($allAssignments | Where-Object { $_.Id -eq $assignmentId })) {
+                        $present.Add($assignmentId)
+                    }
+                }
+            } catch {
+                $querySucceeded = $false
+                $queryError += "App role assignment re-query failed for guest $objectId : $_; "
             }
         }
 

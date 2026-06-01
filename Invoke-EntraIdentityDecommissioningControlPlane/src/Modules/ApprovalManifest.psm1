@@ -37,6 +37,17 @@ function Convert-DecomActionToCanonical {
         AccessPackageName         = [string]$Action.AccessPackageName
         TargetPrincipalId         = [string]$Action.TargetPrincipalId
         EligibilityScheduleId     = [string]$Action.EligibilityScheduleId
+        UserType                  = [string]$Action.UserType
+        GuestOnly                 = if ($Action.GuestOnly) { [bool]$Action.GuestOnly } else { $false }
+        SponsorEvidenceStatus     = [string]$Action.SponsorEvidenceStatus
+        ReviewEvidenceStatus      = [string]$Action.ReviewEvidenceStatus
+        ReadinessStatus           = [string]$Action.ReadinessStatus
+        ReadinessReason           = [string]$Action.ReadinessReason
+        GroupId                   = [string]$Action.GroupId
+        GroupDisplayName          = [string]$Action.GroupDisplayName
+        AppRoleAssignmentId       = [string]$Action.AppRoleAssignmentId
+        ResourceId                = [string]$Action.ResourceId
+        ResourceDisplayName       = [string]$Action.ResourceDisplayName
     }
 }
 
@@ -105,7 +116,22 @@ $script:ExecutionMap = @{
     'DEC-PIM-004'  = 'RemovePimEligibleAssignment'
     'DEC-PIM-005'  = 'RemovePimEligibleAssignment'
     'DEC-PIM-006'  = 'RemovePimEligibleAssignment'
+    'DEC-GUEST-001' = 'RemoveGuestGroupMembership'
+    'DEC-GUEST-002' = 'GuestMultiAction'
+    'DEC-GUEST-003' = 'RemoveGuestGroupMembership'
+    'DEC-GREV-001' = 'RemoveGuestGroupMembership'
+    'DEC-GREV-002' = 'RemoveGuestGroupMembership'
+    'DEC-GREV-003' = 'GuestMultiAction'
 }
+
+$script:GuestDualFindingIds = [System.Collections.Generic.HashSet[string]] @('DEC-GUEST-002', 'DEC-GREV-003')
+$script:GuestGroupOnlyFindingIds = [System.Collections.Generic.HashSet[string]] @(
+    'DEC-GUEST-001', 'DEC-GUEST-003', 'DEC-GREV-001', 'DEC-GREV-002'
+)
+$script:AllGuestFindingIds = [System.Collections.Generic.HashSet[string]] @(
+    'DEC-GUEST-001', 'DEC-GUEST-002', 'DEC-GUEST-003',
+    'DEC-GREV-001', 'DEC-GREV-002', 'DEC-GREV-003'
+)
 
 function Get-DecomFindingExactTargetIds {
     param([pscustomobject]$Finding, [string]$FindingType)
@@ -120,8 +146,35 @@ function Get-DecomFindingExactTargetIds {
             $val = $Finding.$prop
             if ($val -and [string]$val -ne '') { [void]$ids.Add([string]$val); break }
         }
+    } elseif ($FindingType -eq 'GuestGroupMembership') {
+        foreach ($prop in @('GroupId','GroupIds','TargetGroupId','TargetGroupIds','TargetObjectId','TargetObjectIds','MemberOfGroupId','MemberOfGroupIds')) {
+            $val = $Finding.$prop
+            if ($val) {
+                if ($val -is [string]) {
+                    if ($val -ne '') { [void]$ids.Add($val) }
+                } elseif ($val -is [System.Collections.IEnumerable]) {
+                    foreach ($item in $val) {
+                        if ($item -and [string]$item -ne '') { [void]$ids.Add($item) }
+                    }
+                }
+            }
+        }
+    } elseif ($FindingType -eq 'GuestAppRoleAssignment') {
+        foreach ($prop in @('AppRoleAssignmentId','AppRoleAssignmentIds','AssignmentId','AssignmentIds','TargetObjectId','TargetObjectIds')) {
+            $val = $Finding.$prop
+            if ($val) {
+                if ($val -is [string]) {
+                    if ($val -ne '') { [void]$ids.Add($val) }
+                } elseif ($val -is [System.Collections.IEnumerable]) {
+                    foreach ($item in $val) {
+                        if ($item -and [string]$item -ne '') { [void]$ids.Add($item) }
+                    }
+                }
+            }
+        }
     }
-    return $ids.ToArray()
+    # Remove duplicates and return as array (always [object[]] even for 1 element)
+    return @($ids | Sort-Object -Unique)
 }
 
 function Resolve-DecomExecutableTargets {
@@ -270,6 +323,55 @@ function Resolve-DecomExecutableTargets {
                 }
             }
 
+            { $script:GuestGroupOnlyFindingIds.Contains($_) } {
+                $exactGroupIds = Get-DecomFindingExactTargetIds -Finding $Finding -FindingType 'GuestGroupMembership'
+                if ($exactGroupIds.Count -eq 0) {
+                    $result.ErrorDetail = 'No exact group IDs found in finding — PlanOnly: use manual guidance'
+                    $result.Resolved = $false
+                } else {
+                    $result.TargetObjects = @(foreach ($gId in $exactGroupIds) {
+                        [PSCustomObject]@{
+                            TargetObjectId    = $gId
+                            TargetDisplayName = $gId
+                            TargetActionType  = 'RemoveGuestGroupMembership'
+                            RoleAssignmentId  = ''
+                            RoleDefinitionId  = ''
+                            RoleDisplayName   = ''
+                        }
+                    })
+                    $result.Resolved = ($result.TargetObjects.Count -gt 0)
+                }
+            }
+
+            { $script:GuestDualFindingIds.Contains($_) } {
+                $exactGroupIds   = Get-DecomFindingExactTargetIds -Finding $Finding -FindingType 'GuestGroupMembership'
+                $exactAppRoleIds = Get-DecomFindingExactTargetIds -Finding $Finding -FindingType 'GuestAppRoleAssignment'
+                $allTargets = [System.Collections.Generic.List[object]]::new()
+                foreach ($gId in $exactGroupIds) {
+                    $allTargets.Add([PSCustomObject]@{
+                        TargetObjectId    = $gId
+                        TargetDisplayName = $gId
+                        TargetActionType  = 'RemoveGuestGroupMembership'
+                        RoleAssignmentId  = ''; RoleDefinitionId = ''; RoleDisplayName = ''
+                    })
+                }
+                foreach ($aId in $exactAppRoleIds) {
+                    $allTargets.Add([PSCustomObject]@{
+                        TargetObjectId    = $aId
+                        TargetDisplayName = $aId
+                        TargetActionType  = 'RevokeGuestAppRoleAssignment'
+                        RoleAssignmentId  = ''; RoleDefinitionId = ''; RoleDisplayName = ''
+                    })
+                }
+                if ($allTargets.Count -eq 0) {
+                    $result.ErrorDetail = 'No exact group IDs or app role assignment IDs found — PlanOnly: use manual guidance'
+                    $result.Resolved = $false
+                } else {
+                    $result.TargetObjects = $allTargets.ToArray()
+                    $result.Resolved = $true
+                }
+            }
+
             default {
                 $result.ErrorDetail = "FindingId '$($Finding.FindingId)' is not in execution scope"
             }
@@ -409,6 +511,77 @@ function New-DecomWhatIfActionPlan {
             continue
         }
 
+        # Guest findings: group by TargetActionType; dual-action findings may generate two actions.
+        if ($script:AllGuestFindingIds.Contains($finding.FindingId)) {
+            $typeGroups = @($targets.TargetObjects | Group-Object { $_.TargetActionType })
+            foreach ($typeGroup in $typeGroups) {
+                $groupActionType = $typeGroup.Name
+                if (-not $groupActionType) { continue }
+
+                $effectiveTargets = @()
+                foreach ($tgt in $typeGroup.Group) {
+                    $opKey = "$groupActionType|$($finding.ObjectId)|$($tgt.TargetObjectId)"
+                    if ($claimedOperationKeys.Contains($opKey)) {
+                        $planOnly.Add([ordered]@{
+                            FindingId         = $finding.FindingId
+                            ObjectId          = $finding.ObjectId
+                            DisplayName       = $finding.DisplayName
+                            TargetObjectId    = $tgt.TargetObjectId
+                            TargetDisplayName = $tgt.TargetDisplayName
+                            Reason            = 'Duplicate target operation already included in ApprovedActions'
+                        })
+                        continue
+                    }
+                    [void]$claimedOperationKeys.Add($opKey)
+                    $effectiveTargets += $tgt
+                }
+
+                if ($effectiveTargets.Count -eq 0) { continue }
+
+                $rollback = if ($groupActionType -eq 'RemoveGuestGroupMembership') {
+                    'Rollback requires re-adding the guest to the group after business owner approval. Rev3.1 does not auto-rollback guest group membership changes.'
+                } else {
+                    'Rollback requires re-granting the guest app role assignment through the application owner or identity governance process. Rev3.1 does not auto-rollback app role assignment changes.'
+                }
+                $targetType = if ($groupActionType -eq 'RemoveGuestGroupMembership') { 'Group' } else { 'AppRoleAssignment' }
+                $sponsorStatus = if ($finding.SponsorEvidence -or $finding.Manager -or $finding.Department -or $finding.BusinessOwner) { 'Present' } else { 'Unknown' }
+                $reviewStatus = if ($finding.LastReviewEvidenceUtc) { 'Present' } else { 'Unknown' }
+
+                $action = [ordered]@{
+                    ActionId               = 'ACT-{0:D3}' -f $actionNum
+                    FindingId              = $finding.FindingId
+                    ObjectId               = $finding.ObjectId
+                    ObjectType             = $finding.ObjectType
+                    DisplayName            = $finding.DisplayName
+                    UserPrincipalName      = $finding.UserPrincipalName
+                    UserType               = if ($finding.UserType) { [string]$finding.UserType } else { 'Guest' }
+                    ActionType             = $groupActionType
+                    TargetObjectIds        = @($effectiveTargets | ForEach-Object { $_.TargetObjectId })
+                    TargetDisplayNames     = @($effectiveTargets | ForEach-Object { $_.TargetDisplayName })
+                    TargetType             = $targetType
+                    Evidence               = $finding.Evidence
+                    RiskScore              = $finding.RiskScore
+                    ProtectedObject        = $finding.ProtectedObject
+                    RequiresManualApproval = $true
+                    GuestOnly              = $true
+                    RollbackGuidance       = $rollback
+                    PostWriteEvidenceRequired = $true
+                    SponsorEvidenceStatus  = $sponsorStatus
+                    ReviewEvidenceStatus   = $reviewStatus
+                    ReadinessStatus        = 'ReadyForApproval'
+                    ReadinessReason        = 'Exact target IDs present and guest identity validated'
+                    PreflightChecks        = @('TargetObjectIdsPresent', 'GuestIdentityValidated', 'ProtectedObjectNotSet')
+                    RoleAssignmentId       = ''
+                    RoleDefinitionId       = ''
+                    RoleDisplayName        = ''
+                }
+
+                $actions.Add($action)
+                $actionNum++
+            }
+            continue
+        }
+
         # Non-role action families can group multiple target IDs in one action,
         # but duplicate target operations must still be removed.
         $effectiveTargets = @()
@@ -465,7 +638,7 @@ function New-DecomWhatIfActionPlan {
     $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actionsArray
 
     $manifest = [ordered]@{
-        SchemaVersion = '3.0'
+        SchemaVersion = '3.1'
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o')
         EngagementId = $EngagementId
         ClientName = $ClientName
@@ -681,8 +854,28 @@ function Test-DecomApprovalManifest {
             }
         }
 
+        # Rev3.1 guest action types require SchemaVersion 3.1 or higher
+        $rev31GuestActionTypes = @('RemoveGuestGroupMembership','RevokeGuestAppRoleAssignment')
+        $rev31GuestActions = @($manifest.ApprovedActions | Where-Object { $_.ActionType -in $rev31GuestActionTypes })
+        if ($rev31GuestActions.Count -gt 0) {
+            $svRaw = [string]$manifest.SchemaVersion
+            $svMajor = 0; $svMinor = 0
+            if ($svRaw -match '^(\d+)\.(\d+)') { [int]$svMajor = $Matches[1]; [int]$svMinor = $Matches[2] }
+            if ($svMajor -lt 3 -or ($svMajor -eq 3 -and $svMinor -lt 1)) {
+                $errors += "Rev3.1 guest action types require approval manifest SchemaVersion 3.1 or higher (found: $svRaw)"
+            }
+        }
+
         # Every action ActionType matches FindingId
         foreach ($action in $manifest.ApprovedActions) {
+            # Dual-action guest findings allow either guest action type
+            if ($script:GuestDualFindingIds.Contains($action.FindingId)) {
+                if ($action.ActionType -notin @('RemoveGuestGroupMembership','RevokeGuestAppRoleAssignment')) {
+                    $errors += "Every action ActionType matches FindingId"
+                    break
+                }
+                continue
+            }
             $expectedActionType = $script:ExecutionMap[$action.FindingId]
             if ($action.ActionType -ne $expectedActionType) {
                 $errors += "Every action ActionType matches FindingId"

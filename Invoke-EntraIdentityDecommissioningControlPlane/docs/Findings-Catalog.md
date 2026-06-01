@@ -102,6 +102,19 @@ For privileged role removals, Rev2.0 generates one executable action per exact d
 | DEC-GREV-002 | Guest Lifecycle | Guest sponsor metadata missing and review evidence unavailable | High | 63 |
 | DEC-GREV-003 | Guest Lifecycle | Guest privileged access lacks confirmable review evidence | High | 72 |
 
+## Rev3.1 Executable Write Actions
+
+The following finding IDs have controlled write actions enabled in Rev3.1. All require SchemaVersion ≥ 3.1 in the approval manifest and `UserType = Guest` revalidation before execution.
+
+| FindingId | ActionType | WriteScope |
+|---|---|---|
+| DEC-GUEST-001 | `RemoveGuestGroupMembership` | `GroupMember.ReadWrite.All` |
+| DEC-GUEST-002 | `RemoveGuestGroupMembership` or `RevokeGuestAppRoleAssignment` | `GroupMember.ReadWrite.All` / `AppRoleAssignment.ReadWrite.All` |
+| DEC-GUEST-003 | `RemoveGuestGroupMembership` | `GroupMember.ReadWrite.All` |
+| DEC-GREV-001 | `RemoveGuestGroupMembership` | `GroupMember.ReadWrite.All` |
+| DEC-GREV-002 | `RemoveGuestGroupMembership` | `GroupMember.ReadWrite.All` |
+| DEC-GREV-003 | `RemoveGuestGroupMembership` or `RevokeGuestAppRoleAssignment` | `GroupMember.ReadWrite.All` / `AppRoleAssignment.ReadWrite.All` |
+
 ### PIM Governance Review Findings
 
 | FindingId | Category | Title | Severity | RiskScore |

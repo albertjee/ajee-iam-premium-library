@@ -565,9 +565,9 @@ Describe 'Rev2.4 Safety Tests' {
             $posB    | Should -BeLessThan $posConn
         }
 
-        It 'ToolVersion is Rev3.0 in entry point' {
+        It 'ToolVersion is Rev3.1 in entry point' {
             $content = Get-Content $script:epPath24 -Raw
-            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.0'"
+            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.1'"
         }
     }
 
@@ -655,11 +655,11 @@ Describe 'Rev2.5 Safety Tests' {
             $content | Should -Not -Match 'ReleaseValidation'
         }
 
-        It 'Remediation.psm1 contains authorized Rev3.0 action types and excludes unauthorized ones' {
+        It 'Remediation.psm1 contains authorized Rev3.1 action types and excludes unauthorized ones' {
             $content = Get-Content $script:remPath25 -Raw
             $content | Should -Match 'RemoveAccessPackageAssignment'
             $content | Should -Match 'RemovePimEligibleAssignment'
-            $content | Should -Not -Match 'RemoveGuestGroupMembership'
+            $content | Should -Match 'RemoveGuestGroupMembership'
             $content | Should -Not -Match 'AddApplicationOwner'
             $content | Should -Not -Match 'RemoveExpiredCredential'
             $content | Should -Not -Match 'RemoveCAExclusionGroupMember'

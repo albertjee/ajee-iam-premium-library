@@ -77,6 +77,25 @@ If these permissions, APIs, modules, or tenant licenses are unavailable, Rev2.2 
 
 If these permissions, Graph APIs, cmdlets, or tenant licenses are unavailable, Rev2.3 reports partial governance evidence coverage instead of failing the full assessment.
 
+## Rev3.1 — New Write Permissions Required for Guest Governance Actions
+
+Rev3.1 introduces two new controlled guest remediation action types. Both require write permissions requested only after Gate A (WhatIf manifest) and Gate B (approval manifest with SchemaVersion ≥ 3.1) pass. All actions include a `UserType = Guest` revalidation check before execution.
+
+| Permission | Type | Action Types | Finding IDs |
+|---|---|---|---|
+| `GroupMember.ReadWrite.All` | Delegated | `RemoveGuestGroupMembership` | DEC-GUEST-001, DEC-GUEST-002, DEC-GUEST-003, DEC-GREV-001, DEC-GREV-002, DEC-GREV-003 |
+| `AppRoleAssignment.ReadWrite.All` | Delegated | `RevokeGuestAppRoleAssignment` | DEC-GUEST-002, DEC-GREV-003 |
+
+`GroupMember.ReadWrite.All` was already required by Rev2.0 for `RemoveGroupMembership`. Rev3.1 extends its use to guest group membership removal.
+
+`AppRoleAssignment.ReadWrite.All` was already required by Rev2.0 for `RevokeAppRoleAssignment`. Rev3.1 extends its use to guest app role revocation.
+
+Both permissions are already present in the write-scope `Connect-MgGraph` call in the entry point.
+
+If `Remove-MgGroupMemberByRef` or `Remove-MgUserAppRoleAssignment` fail, the action is logged `Failed` or `PartialFailed`. The run continues for all other actions.
+
+---
+
 ## Rev3.0 — New Write Permissions Required for AP and PIM Actions
 
 Rev3.0 introduces two new controlled remediation action types. Both require write permissions requested only after Gate A (WhatIf manifest) and Gate B (approval manifest with SchemaVersion ≥ 3.0) pass.

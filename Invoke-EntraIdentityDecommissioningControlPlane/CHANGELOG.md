@@ -1,5 +1,34 @@
 # Changelog
 
+## Rev3.1 — Controlled Guest Governance Write Expansion
+
+### Added
+- `RemoveGuestGroupMembership` action type: removes a guest user from an approved group via `Remove-MgGroupMemberByRef`. Requires `GroupMember.ReadWrite.All`.
+- `RevokeGuestAppRoleAssignment` action type: revokes an approved app role assignment from a guest user via `Remove-MgUserAppRoleAssignment`. Requires `AppRoleAssignment.ReadWrite.All`.
+- 6 new guest finding IDs in `Remediation.psm1` ExecutionMap: `DEC-GUEST-001`, `DEC-GUEST-002`, `DEC-GUEST-003`, `DEC-GREV-001`, `DEC-GREV-002`, `DEC-GREV-003`.
+- `Confirm-DecomGuestIdentity` helper in `Remediation.psm1`: re-reads `UserType` from Graph before any guest write; blocks if not `Guest`.
+- Guest identity revalidation in `Confirm-DecomActionTargetValid`: validates `UserType = Guest` before write for all 6 guest finding IDs.
+- Guest write cases in `Get-DecomTargetState`: re-queries group membership and app role assignments post-write for evidence capture; query failure → `PartialFailed` (not silently `Executed`).
+- `GuestGovernance.psm1`: read-only governance pack module with 11 functions: model, readiness export (JSON/CSV), dashboard HTML, owner approval packet (MD/HTML), access exception register CSV, evidence appendix MD, rollback guide MD, access summary JSON.
+- `GuestMultiAction` ExecutionMap sentinel for `DEC-GUEST-002` and `DEC-GREV-003` (dual-action findings that can produce either or both guest action types).
+- `SchemaVersion 3.1` gate in `Test-DecomApprovalManifest`: guest action types in an approval manifest with SchemaVersion < 3.1 are rejected.
+- `WriteReadiness.psm1` execution scope registry expanded from 14 to 22 entries (8 new guest entries, all `Status = ExecutableWhenExactTargetPresent`, `IntroducedIn = Rev3.1`, `GuestOnly = $true`).
+- `GroupMember.ReadWrite.All` and `AppRoleAssignment.ReadWrite.All` added to write-scope array in entry point ExecuteRemediation branch.
+
+### Safety
+- All Rev3.1 guest writes remain exclusively in `Remediation.psm1`.
+- `GuestGovernance.psm1` is read-only: contains zero Remove-Mg, Update-Mg, Set-Mg, New-Mg, or Connect-MgGraph calls.
+- `Remove-MgUser` (guest deletion) is not present in any Rev3.1 module.
+- Guest writes are gated by Gate A (WhatIf manifest), Gate B (approval manifest with SchemaVersion ≥ 3.1 and exact TargetObjectIds), and Gate C (ProtectedObject, scope check, UserType=Guest revalidation, target revalidation).
+- Rev3.0 and older approval manifests cannot authorize Rev3.1 guest action types.
+
+### Tests
+- Added `GuestGovernance.Rev31.Tests.ps1` (19 tests), `ApprovalManifest.Rev31.Tests.ps1` (22 tests), `Remediation.Rev31.Tests.ps1` (17 tests), `RemediationPlan.Rev31.Tests.ps1` (9 tests), `ReleaseValidation.Rev31.Tests.ps1` (14 tests).
+- Updated `Safety.Tests.ps1`, `WriteReadiness.Rev25.Tests.ps1`, `SchemaContracts.Rev25.Tests.ps1`, `ReleaseValidation.Rev25.Tests.ps1`, `Rev30.Integration.Tests.ps1` to reflect Rev3.1 reality.
+- Baseline: 340 (Rev3.0). Rev3.1: 434 tests, 0 failures.
+
+---
+
 ## Rev3.0 — Controlled AP and PIM Write Expansion
 
 ### Added

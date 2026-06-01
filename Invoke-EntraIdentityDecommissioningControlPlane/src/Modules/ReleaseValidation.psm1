@@ -3,11 +3,30 @@
 function Invoke-DecomReleaseValidation {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [PSObject]$Context
+        [Parameter(Mandatory = $false)]
+        [PSObject]$Context,
+        [Parameter(Mandatory = $false)]
+        [string]$ToolVersion = 'Rev3.1',
+        [Parameter(Mandatory = $false)]
+        [string]$EntryPointPath,
+        [Parameter(Mandatory = $false)]
+        [string]$ModulesPath
     )
 
+    if ($null -eq $Context) {
+        $Context = [PSCustomObject]@{
+            ToolVersion  = $ToolVersion
+            OutputPath   = $null
+            ClientName   = 'Validation'
+            EngagementId = 'validation'
+            Assessor     = 'Validation'
+        }
+        if ($EntryPointPath) { $Context | Add-Member -NotePropertyName EntryPointPath -NotePropertyValue $EntryPointPath -Force }
+        if ($ModulesPath)    { $Context | Add-Member -NotePropertyName ModulesPath    -NotePropertyValue $ModulesPath    -Force }
+    }
+
     $results = [PSCustomObject]@{
+        Valid                   = $true
         Passed                  = $true
         Errors                  = @()
         Warnings                = @()
@@ -22,6 +41,7 @@ function Invoke-DecomReleaseValidation {
         $results.VersionConsistent = $versionResult.Passed
         if (-not $versionResult.Passed) {
             $results.Passed = $false
+            $results.Valid  = $false
             foreach ($e in $versionResult.Errors) { $results.Errors += $e }
         }
 
@@ -31,6 +51,7 @@ function Invoke-DecomReleaseValidation {
         $results.NoUnexpectedWriteCmdlet = $safetyResult.NoUnexpectedWriteCmdlet
         if (-not $safetyResult.Passed) {
             $results.Passed = $false
+            $results.Valid  = $false
             foreach ($e in $safetyResult.Errors) { $results.Errors += $e }
         }
 
@@ -39,6 +60,7 @@ function Invoke-DecomReleaseValidation {
 
     } catch {
         $results.Passed = $false
+        $results.Valid  = $false
         $results.Errors += "Unexpected error during release validation: $_"
     }
 
@@ -57,18 +79,23 @@ function Test-DecomVersionConsistency {
         Errors = @()
     }
 
-    $myInvPath = (Get-Variable MyInvocation -Scope 1 -ErrorAction SilentlyContinue).Value.MyCommand.Path
-    $scriptRoot = if ($myInvPath) { Split-Path -Parent $myInvPath } else { (Get-Location).Path }
-
-    # Locate project root (up two levels from src/Modules)
-    $projectRoot = $scriptRoot
-    for ($i = 0; $i -lt 3; $i++) {
-        $ep = Join-Path $projectRoot 'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
-        if (Test-Path $ep) { break }
-        $projectRoot = Split-Path $projectRoot -Parent
+    # Use explicit path if provided; otherwise auto-detect by walking up from module location
+    $epPath = if ($Context.PSObject.Properties['EntryPointPath'] -and $Context.EntryPointPath) {
+        $Context.EntryPointPath
+    } else {
+        $myInvPath = (Get-Variable MyInvocation -Scope 1 -ErrorAction SilentlyContinue).Value.MyCommand.Path
+        $scriptRoot = if ($myInvPath) { Split-Path -Parent $myInvPath } else { (Get-Location).Path }
+        $projectRoot = $scriptRoot
+        for ($i = 0; $i -lt 3; $i++) {
+            $ep = Join-Path $projectRoot 'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+            if (Test-Path $ep) { break }
+            $projectRoot = Split-Path $projectRoot -Parent
+        }
+        Join-Path $projectRoot 'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
     }
 
-    $epPath = Join-Path $projectRoot 'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+    $projectRoot = Split-Path $epPath -Parent
+
     if (-not (Test-Path $epPath)) {
         $result.Errors += "Cannot locate entry point for version check"
         $result.Passed = $false
@@ -77,9 +104,16 @@ function Test-DecomVersionConsistency {
 
     $epContent = Get-Content $epPath -Raw
 
-    # Entry point must declare current version
-    if ($epContent -notmatch "\`$script:ToolVersion\s*=\s*'Rev3\.0'") {
-        $result.Errors += "Entry point does not declare ToolVersion = Rev3.0"
+    # Entry point must declare Rev3.1
+    if ($epContent -notmatch "\`$script:ToolVersion\s*=\s*'Rev3\.1'") {
+        $result.Errors += "Entry point does not declare ToolVersion = Rev3.1"
+        $result.Passed = $false
+    }
+
+    # Provided ToolVersion must match the current release standard Rev3.1
+    $providedVersion = if ($Context.PSObject.Properties['ToolVersion']) { [string]$Context.ToolVersion } else { 'Rev3.1' }
+    if ($providedVersion -ne 'Rev3.1') {
+        $result.Errors += "Provided ToolVersion '$providedVersion' does not match expected Rev3.1"
         $result.Passed = $false
     }
 
@@ -168,20 +202,24 @@ function Test-DecomSafetyInvariant {
     $remPath = Join-Path $projectRoot 'src\Modules\Remediation.psm1'
     if (Test-Path $remPath) {
         $remContent = Get-Content $remPath -Raw
-        $forbiddenRemActions = @(
+        $allRemActions = @(
             'RemoveAccessPackageAssignment',
             'RemovePimEligibleAssignment',
             'RemoveGuestGroupMembership',
+            'RevokeGuestAppRoleAssignment',
             'AddApplicationOwner',
             'RemoveExpiredCredential',
             'RemoveCAExclusionGroupMember',
             'DeleteOrDisableApp',
             'DeleteServicePrincipal'
         )
-        # For Rev3.0, the two new actions are allowed
+        $allowedRemActions = @()
         if ($Context.ToolVersion -eq 'Rev3.0') {
-            $forbiddenRemActions = $forbiddenRemActions | Where-Object { $_ -notin @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment') }
+            $allowedRemActions = @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment')
+        } elseif ($Context.ToolVersion -eq 'Rev3.1') {
+            $allowedRemActions = @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment','RemoveGuestGroupMembership','RevokeGuestAppRoleAssignment')
         }
+        $forbiddenRemActions = $allRemActions | Where-Object { $_ -notin $allowedRemActions }
         foreach ($action in $forbiddenRemActions) {
             if ($remContent -match [regex]::Escape($action)) {
                 $result.Errors += "Remediation.psm1 contains unexpected write action: $action"

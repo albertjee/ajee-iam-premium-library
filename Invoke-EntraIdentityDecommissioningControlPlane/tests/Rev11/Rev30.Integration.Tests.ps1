@@ -156,7 +156,7 @@ Describe 'Rev3.0 Integration — WriteReadiness Scope Consistency' {
 
             Test-Path $planPath | Should -Be $true
             $plan = Get-Content $planPath -Raw | ConvertFrom-Json
-            $plan.SchemaVersion | Should -Be '3.0'
+            $plan.SchemaVersion | Should -Be '3.1'
         } finally {
             if (Test-Path $testDir) { Remove-Item $testDir -Recurse -Force }
             foreach ($m in @('ApprovalManifest','Utilities')) {

@@ -25,11 +25,11 @@ param(
     [switch]$GenerateExecutivePack,
     [switch]$SelfTest,
     [switch]$GenerateReleasePackage,
-    [string]$ReleasePackagePath = '.\release\Rev3.0'
+    [string]$ReleasePackagePath = '.\release\Rev3.1'
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev3.0'
+$script:ToolVersion = 'Rev3.1'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -69,6 +69,7 @@ $modulesToLoad = @(
     'SchemaContracts'
     'WriteReadiness'
     'ReleasePackaging'
+    'GuestGovernance'
 )
 
 foreach ($mod in $modulesToLoad) {

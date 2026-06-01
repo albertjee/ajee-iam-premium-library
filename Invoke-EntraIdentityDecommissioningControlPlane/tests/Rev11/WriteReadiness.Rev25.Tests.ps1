@@ -13,8 +13,8 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         Remove-Module WriteReadiness -Force -ErrorAction SilentlyContinue
     }
 
-    It 'Registry contains exactly fourteen executable finding IDs' {
-        $script:registry.Count | Should -Be 14
+    It 'Registry contains exactly twenty-two entries (14 original + 8 Rev3.1 guest)' {
+        $script:registry.Count | Should -Be 22
     }
 
     It 'Registry includes DEC-USER-001' {
@@ -49,13 +49,14 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         $script:registry.FindingId | Should -Not -Contain 'DEC-GOV-001'
     }
 
-    It 'All registry entries have Status Executable' {
-        $nonExecutable = @($script:registry | Where-Object { $_.Status -ne 'Executable' })
-        $nonExecutable.Count | Should -Be 0
+    It 'All registry entries have Status Executable or ExecutableWhenExactTargetPresent' {
+        $validStatuses = @('Executable', 'ExecutableWhenExactTargetPresent')
+        $invalid = @($script:registry | Where-Object { $_.Status -notin $validStatuses })
+        $invalid.Count | Should -Be 0
     }
 
     It 'Registry entries have valid IntroducedIn version labels' {
-        $validVersions = @('Rev2.0', 'Rev3.0')
+        $validVersions = @('Rev2.0', 'Rev3.0', 'Rev3.1')
         $invalid = @($script:registry | Where-Object { $_.IntroducedIn -notin $validVersions })
         $invalid.Count | Should -Be 0
     }
