@@ -317,6 +317,15 @@ Describe 'Rev2.4 Baseline Module' {
             $movement = Get-DecomRiskMovementSummary -ComparisonResults $comparison
             $movement.NewCritical | Should -Be 2
         }
+
+        It 'Baseline summary Persisting count matches IsPersisting flag not Status field' {
+            $oid = [guid]::NewGuid().Guid
+            $baseline = @(New-TestFinding -FindingId 'DEC-USER-001' -ObjectId $oid -Severity 'Critical' -RiskScore 90)
+            $current  = @(New-TestFinding -FindingId 'DEC-USER-001' -ObjectId $oid -Severity 'Critical' -RiskScore 90)
+            $comparison = Compare-DecomFindingBaseline -CurrentFindings $current -BaselineFindings $baseline
+            $movement = Get-DecomRiskMovementSummary -ComparisonResults $comparison
+            $movement.PersistingCritical | Should -Be 1
+        }
     }
 
     Context 'Baseline exports' {

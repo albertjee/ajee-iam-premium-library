@@ -351,8 +351,8 @@ function Get-DecomRiskMovementSummary {
     $newHigh = ($ComparisonResults | Where-Object { $_.Status -eq 'New' -and $_.CurrentSeverity -eq 'High' }).Count
     $resolvedCritical = ($ComparisonResults | Where-Object { $_.Status -eq 'Resolved' -and $_.PriorSeverity -eq 'Critical' }).Count
     $resolvedHigh = ($ComparisonResults | Where-Object { $_.Status -eq 'Resolved' -and $_.PriorSeverity -eq 'High' }).Count
-    $persistingCritical = ($ComparisonResults | Where-Object { $_.Status -eq 'Persisting' -and $_.CurrentSeverity -eq 'Critical' }).Count
-    $persistingHigh = ($ComparisonResults | Where-Object { $_.Status -eq 'Persisting' -and $_.CurrentSeverity -eq 'High' }).Count
+    $persistingCritical = ($ComparisonResults | Where-Object { $_.IsPersisting -eq $true -and $_.CurrentSeverity -eq 'Critical' }).Count
+    $persistingHigh = ($ComparisonResults | Where-Object { $_.IsPersisting -eq $true -and $_.CurrentSeverity -eq 'High' }).Count
     $riskScoreIncreased = ($ComparisonResults | Where-Object { $_.DeltaRiskScore -gt 0 }).Count
     $riskScoreDecreased = ($ComparisonResults | Where-Object { $_.DeltaRiskScore -lt 0 }).Count
     $netRiskDelta = ($ComparisonResults | Measure-Object -Property DeltaRiskScore -Sum).Sum

@@ -337,7 +337,7 @@ if ($BaselinePath) {
         $BaselineComparison = Compare-DecomFindingBaseline -CurrentFindings $Findings -BaselineFindings $BaselineResult.Findings
         $BaselineSummary    = @{
             New                   = ($BaselineComparison | Where-Object { $_.Status -eq 'New' }).Count
-            Persisting            = ($BaselineComparison | Where-Object { $_.Status -eq 'Persisting' }).Count
+            Persisting            = ($BaselineComparison | Where-Object { $_.IsPersisting -eq $true }).Count
             Resolved              = ($BaselineComparison | Where-Object { $_.Status -eq 'Resolved' }).Count
             ChangedSeverity       = ($BaselineComparison | Where-Object { $_.Status -eq 'ChangedSeverity' }).Count
             ChangedRiskScore      = ($BaselineComparison | Where-Object { $_.Status -eq 'ChangedRiskScore' }).Count
