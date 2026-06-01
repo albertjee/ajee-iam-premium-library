@@ -250,6 +250,16 @@ function Invoke-DecomRemediation {
         [bool]$AllowNonInteractive
     )
 
+    $results = [PSCustomObject]@{
+        Executed       = 0
+        Failed         = 0
+        PartialFailed  = 0
+        Blocked        = 0
+        OperatorDeclined = 0
+        OutOfScope     = 0
+        Skipped        = 0
+    }
+
     foreach ($action in @($ApprovedActions)) {
         $actionId    = [string]$action.ActionId
         $findingId   = [string]$action.FindingId
@@ -312,6 +322,19 @@ function Invoke-DecomRemediation {
         }
 
         if ($revalidation.InvalidTargets.Count -gt 0) {
+            # For the two guest actions, check if all targets are stale
+            if ($actionType -in @('RemoveGuestGroupMembership', 'RevokeGuestAppRoleAssignment')) {
+                if ($revalidation.InvalidTargets.Count -eq $targetIds.Count) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Skipped' -TargetObjectIds $targetIds `
+                        -TargetsBefore @() -TargetsAfter @() `
+                        -ErrorDetail ("All targets already in expected state: " + ($revalidation.InvalidTargets -join '; '))
+                    $results.Skipped++
+                    continue
+                }
+            }
             Write-DecomWarn "Some targets for $actionId are already in expected state: $($revalidation.InvalidTargets -join '; ')"
         }
 

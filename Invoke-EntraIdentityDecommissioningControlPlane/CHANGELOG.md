@@ -9,7 +9,7 @@
 - `Confirm-DecomGuestIdentity` helper in `Remediation.psm1`: re-reads `UserType` from Graph before any guest write; blocks if not `Guest`.
 - Guest identity revalidation in `Confirm-DecomActionTargetValid`: validates `UserType = Guest` before write for all 6 guest finding IDs.
 - Guest write cases in `Get-DecomTargetState`: re-queries group membership and app role assignments post-write for evidence capture; query failure → `PartialFailed` (not silently `Executed`).
-- `GuestGovernance.psm1`: read-only governance pack module with 11 functions: model, readiness export (JSON/CSV), dashboard HTML, owner approval packet (MD/HTML), access exception register CSV, evidence appendix MD, rollback guide MD, access summary JSON.
+- `GuestGovernance.psm1` added as experimental skeleton — read-only, zero write cmdlets. Full guest governance pack planned for future release. Not included in consultant deliverables for Rev3.1.
 - `GuestMultiAction` ExecutionMap sentinel for `DEC-GUEST-002` and `DEC-GREV-003` (dual-action findings that can produce either or both guest action types).
 - `SchemaVersion 3.1` gate in `Test-DecomApprovalManifest`: guest action types in an approval manifest with SchemaVersion < 3.1 are rejected.
 - `WriteReadiness.psm1` execution scope registry expanded from 14 to 22 entries (8 new guest entries, all `Status = ExecutableWhenExactTargetPresent`, `IntroducedIn = Rev3.1`, `GuestOnly = $true`).

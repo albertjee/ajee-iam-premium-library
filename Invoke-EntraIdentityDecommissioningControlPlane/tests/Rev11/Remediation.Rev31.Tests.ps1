@@ -132,7 +132,7 @@ Describe 'Remediation.psm1 — Rev3.1 Guest Identity Revalidation' {
         Should -Invoke -CommandName Remove-MgGroupMemberByRef -ModuleName Remediation -Exactly 0
     }
 
-    It 'Guest no longer a member of group becomes stale no-op (Executed without Remove call)' {
+    It 'RemoveGuestGroupMembership stale target logs Skipped and does not attempt write' {
         Mock -ModuleName Remediation Get-MgUser {
             [PSCustomObject]@{ Id = 'guest-stale-001'; UserType = 'Guest' }
         }
@@ -152,8 +152,32 @@ Describe 'Remediation.psm1 — Rev3.1 Guest Identity Revalidation' {
         Invoke-DecomRemediation -ApprovedActions @($action) -ExecutionLog $log -AllowNonInteractive $true
 
         $log.Log.Actions.Count | Should -Be 1
-        # Not member before = already stale = Execute completes without Remove call
+        $log.Log.Actions[0].Outcome | Should -Be 'Skipped'
         Should -Invoke -CommandName Remove-MgGroupMemberByRef -ModuleName Remediation -Exactly 0
+    }
+
+    It 'RevokeGuestAppRoleAssignment stale target logs Skipped and does not attempt write' {
+        Mock -ModuleName Remediation Get-MgUser {
+            [PSCustomObject]@{ Id = 'guest-stale-approle-001'; UserType = 'Guest' }
+        }
+        Mock -ModuleName Remediation Get-MgUserAppRoleAssignment { @() }
+        Mock -ModuleName Remediation Remove-MgUserAppRoleAssignment { }
+
+        $action = [PSCustomObject]@{
+            ActionId        = 'ACT-001'
+            FindingId       = 'DEC-GUEST-002'
+            ObjectId        = 'guest-stale-approle-001'
+            DisplayName     = 'Guest AppRole Stale'
+            ActionType      = 'RevokeGuestAppRoleAssignment'
+            TargetObjectIds = @('approle-stale-001')
+            ProtectedObject = $false
+        }
+        $log = New-GuestTestLog
+        Invoke-DecomRemediation -ApprovedActions @($action) -ExecutionLog $log -AllowNonInteractive $true
+
+        $log.Log.Actions.Count | Should -Be 1
+        $log.Log.Actions[0].Outcome | Should -Be 'Skipped'
+        Should -Invoke -CommandName Remove-MgUserAppRoleAssignment -ModuleName Remediation -Exactly 0
     }
 
     It 'Guest app role assignment read failure blocks RevokeGuestAppRoleAssignment action' {
