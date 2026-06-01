@@ -22,6 +22,12 @@ run with partial coverage and report which areas could not be assessed. Coverage
 are surfaced as Informational findings and noted in the Coverage Summary section of the
 HTML report.
 
+## Rev2.4 — No New Permissions Required
+
+Rev2.4 adds baseline comparison (`-BaselinePath`) and executive evidence pack (`-GenerateExecutivePack`)
+capabilities. Both features operate entirely on local data already collected during the assessment run.
+No additional Microsoft Graph scopes are required.
+
 ## Requesting Permissions
 
 The tool uses interactive delegated authentication (Connect-MgGraph). The authenticating

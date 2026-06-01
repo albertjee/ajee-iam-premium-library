@@ -274,11 +274,11 @@ Describe 'Rev1.1 Reporting Tests' {
     }
 
     Context 'Rev2.2 reporting coverage' {
-        It 'JSON export SchemaVersion is 2.3' {
-            $path = Join-Path $TestDrive 'rev23-schema.json'
+        It 'JSON export SchemaVersion is 2.4' {
+            $path = Join-Path $TestDrive 'rev24-schema.json'
             Export-DecomAssessmentJson -Findings $script:TestFindings -Path $path -Context $script:TestContext
             $json = Get-Content $path -Raw | ConvertFrom-Json
-            $json.SchemaVersion | Should -Be '2.3'
+            $json.SchemaVersion | Should -Be '2.4'
         }
 
         It 'HTML renders without null crash for Rev2.2 PIM finding' {
@@ -317,17 +317,17 @@ Describe 'Rev1.1 Reporting Tests' {
         }
     }
 
-    Context 'Rev2.3 reporting coverage' {
-        It 'Run manifest SchemaVersion is 2.3' {
-            $path = Join-Path $TestDrive 'rev23-manifest-schema.json'
+    Context 'Rev2.4 reporting coverage' {
+        It 'Run manifest SchemaVersion is 2.4' {
+            $path = Join-Path $TestDrive 'rev24-manifest-schema.json'
             $ctx = [PSCustomObject]@{
                 TenantId='contoso.onmicrosoft.com'; Mode='Assessment'; DemoMode=$false
-                EngagementId='TEST-023'; ClientName='Contoso'; Assessor='Albert Jee'
+                EngagementId='TEST-024'; ClientName='Contoso'; Assessor='Albert Jee'
                 Coverage=[ordered]@{ Users=$true; AccessReviews=$false }
             }
             Write-DecomRunManifest -Path $path -Context $ctx -Summary @{} -ExportPaths @{}
             $manifest = Get-Content $path -Raw | ConvertFrom-Json
-            $manifest.SchemaVersion | Should -Be '2.3'
+            $manifest.SchemaVersion | Should -Be '2.4'
         }
 
         It 'Run manifest includes Coverage' {

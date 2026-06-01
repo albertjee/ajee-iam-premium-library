@@ -478,3 +478,106 @@ Describe 'Rev2.2 Safety Tests' {
         }
     }
 }
+
+Describe 'Rev2.4 Safety Tests' {
+
+    BeforeAll {
+        $script:epPath24       = Join-Path $PSScriptRoot '..\..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        $script:baselinePath24 = Join-Path $PSScriptRoot '..\..\src\Modules\Baseline.psm1'
+        $script:execPackPath24 = Join-Path $PSScriptRoot '..\..\src\Modules\ExecutivePack.psm1'
+        $script:remPath24      = Join-Path $PSScriptRoot '..\..\src\Modules\Remediation.psm1'
+    }
+
+    Context 'Rev2.4 write scope safety' {
+
+        It 'Entry point contains no new ReadWrite scope additions' {
+            $content = Get-Content $script:epPath24 -Raw
+            $content | Should -Not -Match 'AccessReview\.ReadWrite'
+            $content | Should -Not -Match 'EntitlementManagement\.ReadWrite'
+            $content | Should -Not -Match 'PrivilegedAccess\.ReadWrite'
+            $content | Should -Not -Match 'Directory\.ReadWrite'
+            $content | Should -Not -Match 'User\.ReadWrite'
+            $content | Should -Not -Match 'Group\.ReadWrite'
+        }
+
+        It 'Baseline.psm1 contains no Graph write cmdlets' {
+            $content = Get-Content $script:baselinePath24 -Raw
+            $content | Should -Not -Match '\bRemove-Mg'
+            $content | Should -Not -Match '\bUpdate-Mg'
+            $content | Should -Not -Match '\bSet-Mg'
+            $content | Should -Not -Match '\bNew-Mg'
+            $content | Should -Not -Match '\bInvoke-Mg'
+        }
+
+        It 'ExecutivePack.psm1 contains no Graph write cmdlets' {
+            $content = Get-Content $script:execPackPath24 -Raw
+            $content | Should -Not -Match '\bRemove-Mg'
+            $content | Should -Not -Match '\bUpdate-Mg'
+            $content | Should -Not -Match '\bSet-Mg'
+            $content | Should -Not -Match '\bNew-Mg'
+            $content | Should -Not -Match '\bInvoke-Mg'
+        }
+
+        It 'ExecutivePack.psm1 contains no ReadWrite scope references' {
+            $content = Get-Content $script:execPackPath24 -Raw
+            $content | Should -Not -Match 'ReadWrite'
+        }
+
+        It 'Baseline.psm1 contains no ReadWrite scope references' {
+            $content = Get-Content $script:baselinePath24 -Raw
+            $content | Should -Not -Match 'ReadWrite'
+        }
+    }
+
+    Context 'Rev2.4 Remediation.psm1 unchanged' {
+
+        It 'Remediation.psm1 exists and is loadable' {
+            Test-Path $script:remPath24 | Should -Be $true
+        }
+
+        It 'Remediation.psm1 does not reference Baseline or ExecutivePack functions' {
+            $content = Get-Content $script:remPath24 -Raw
+            $content | Should -Not -Match 'Import-DecomBaselineFindings'
+            $content | Should -Not -Match 'New-DecomExecutiveSummaryModel'
+            $content | Should -Not -Match 'Export-DecomExecutiveSummary'
+        }
+    }
+
+    Context 'Rev2.4 ExecuteRemediation branch unchanged' {
+
+        It 'ExecuteRemediation guard still present in entry point' {
+            $content = Get-Content $script:epPath24 -Raw
+            $content | Should -Match 'ExecuteRemediation cannot run in DemoMode'
+        }
+
+        It 'Gate ordering unchanged — WhatIf and Approval gates before Connect-MgGraph' {
+            $content = Get-Content $script:epPath24 -Raw
+            $posA    = $content.IndexOf('Test-DecomWhatIfManifest')
+            $posB    = $content.IndexOf('Test-DecomApprovalManifest')
+            $posConn = $content.IndexOf('Connect-MgGraph')
+            $posA    | Should -BeGreaterThan 0
+            $posB    | Should -BeGreaterThan 0
+            $posConn | Should -BeGreaterThan 0
+            $posA    | Should -BeLessThan $posConn
+            $posB    | Should -BeLessThan $posConn
+        }
+
+        It 'ToolVersion is Rev2.4 in entry point' {
+            $content = Get-Content $script:epPath24 -Raw
+            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev2\.4'"
+        }
+    }
+
+    Context 'Rev2.4 catalog conformance — no new unapproved finding IDs in Baseline or ExecutivePack' {
+
+        It 'Baseline.psm1 does not define new DEC- finding IDs' {
+            $content = Get-Content $script:baselinePath24 -Raw
+            $content | Should -Not -Match "'DEC-[A-Z]+-\d{3}'"
+        }
+
+        It 'ExecutivePack.psm1 does not define new DEC- finding IDs' {
+            $content = Get-Content $script:execPackPath24 -Raw
+            $content | Should -Not -Match "'DEC-[A-Z]+-\d{3}'"
+        }
+    }
+}

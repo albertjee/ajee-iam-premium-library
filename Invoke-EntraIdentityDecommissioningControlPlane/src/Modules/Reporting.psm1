@@ -11,7 +11,7 @@ function Export-DecomAssessmentCsv {
 function Export-DecomAssessmentJson {
     param([object[]]$Findings, [string]$Path, [pscustomobject]$Context)
     $payload = [ordered]@{
-        SchemaVersion = '2.3'
+        SchemaVersion = '2.4'
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Tenant        = $Context.TenantId
         Mode          = $Context.Mode
@@ -25,7 +25,7 @@ function Export-DecomAssessmentJson {
 function Write-DecomRunManifest {
     param([string]$Path, [pscustomobject]$Context, [hashtable]$Summary, [hashtable]$ExportPaths)
     $manifest = [ordered]@{
-        SchemaVersion  = '2.3'
+        SchemaVersion  = '2.4'
         RunId          = [guid]::NewGuid().Guid
         GeneratedUtc   = (Get-Date).ToUniversalTime().ToString('o')
         TenantId       = $Context.TenantId

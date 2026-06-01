@@ -20,11 +20,13 @@ param(
     [switch]$RequirePreflightConfirm,
 
     [switch]$DemoMode,
-    [switch]$NoLogo
+    [switch]$NoLogo,
+    [string]$BaselinePath,
+    [switch]$GenerateExecutivePack
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev2.3'
+$script:ToolVersion = 'Rev2.4'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -38,7 +40,7 @@ $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ModulesPath = Join-Path $ScriptRoot 'src\Modules'
 
 foreach ($mod in @('Utilities','Discovery','Analysis','Reporting','RemediationPlan',
-                    'ApprovalManifest','ExecutionLog','Remediation')) {
+                    'ApprovalManifest','ExecutionLog','Remediation','Baseline','ExecutivePack')) {
     $modPath = Join-Path $ModulesPath "$mod.psm1"
     Remove-Module $mod -Force -ErrorAction SilentlyContinue
     Import-Module $modPath -Force -DisableNameChecking
@@ -319,6 +321,40 @@ $Findings = Invoke-DecomAnalysis -Findings $Findings
 $Summary  = Get-DecomFindingSummary -Findings $Findings
 Write-DecomOk "Analysis complete"
 
+# Baseline comparison if -BaselinePath provided
+$BaselineComparison = $null
+$BaselineSummary    = $null
+$RiskMovement       = $null
+$BaselineResult     = $null
+$baselineJsonPath   = $null
+$baselineCsvPath    = $null
+if ($BaselinePath) {
+    Write-DecomInfo "Loading baseline from '$BaselinePath'..."
+    $BaselineResult = Import-DecomBaselineFindings -BaselinePath $BaselinePath
+    if ($BaselineResult.BaselineAvailable) {
+        Write-DecomOk "Baseline loaded: $($BaselineResult.Findings.Count) findings"
+        Write-DecomInfo "Comparing against baseline..."
+        $BaselineComparison = Compare-DecomFindingBaseline -CurrentFindings $Findings -BaselineFindings $BaselineResult.Findings
+        $BaselineSummary    = @{
+            New                   = ($BaselineComparison | Where-Object { $_.Status -eq 'New' }).Count
+            Persisting            = ($BaselineComparison | Where-Object { $_.Status -eq 'Persisting' }).Count
+            Resolved              = ($BaselineComparison | Where-Object { $_.Status -eq 'Resolved' }).Count
+            ChangedSeverity       = ($BaselineComparison | Where-Object { $_.Status -eq 'ChangedSeverity' }).Count
+            ChangedRiskScore      = ($BaselineComparison | Where-Object { $_.Status -eq 'ChangedRiskScore' }).Count
+            ChangedEvidence       = ($BaselineComparison | Where-Object { $_.Status -eq 'ChangedEvidence' }).Count
+            Unchanged             = ($BaselineComparison | Where-Object { $_.Status -eq 'Unchanged' }).Count
+            NetRiskDelta          = ($BaselineComparison | Measure-Object -Property DeltaRiskScore -Sum).Sum
+        }
+        $RiskMovement       = Get-DecomRiskMovementSummary -ComparisonResults $BaselineComparison
+        Write-DecomOk "Baseline comparison complete"
+    } else {
+        Write-DecomWarn "Baseline unavailable: $($BaselineResult.ErrorDetail)"
+        Write-DecomWarn "Continuing without baseline comparison."
+    }
+} else {
+    Write-DecomInfo "No baseline path provided - skipping baseline comparison."
+}
+
 Write-Host ''
 Write-Host "  Finding counts:" -ForegroundColor DarkCyan
 Write-Host "    CRITICAL findings : $($Summary.Critical)" -ForegroundColor Red
@@ -369,6 +405,107 @@ $exportPaths = @{
 }
 Write-DecomRunManifest -Path $ManifestPath -Context $Context -Summary $summaryHt -ExportPaths $exportPaths
 Write-DecomOk "Run manifest written"
+
+# Baseline comparison exports
+if ($BaselineComparison) {
+    Write-DecomInfo "Exporting baseline comparison..."
+    $baselineJsonPath = Join-Path $RunFolder "$fileBase-baseline-comparison-$Timestamp.json"
+    $baselineCsvPath  = Join-Path $RunFolder "$fileBase-baseline-comparison-$Timestamp.csv"
+    Export-DecomBaselineComparisonJson -ComparisonResults $BaselineComparison -Context $Context -BaselineResult $BaselineResult -Path $baselineJsonPath
+    Export-DecomBaselineComparisonCsv  -ComparisonResults $BaselineComparison -Path $baselineCsvPath
+    Write-DecomOk "Baseline comparison JSON: $baselineJsonPath"
+    Write-DecomOk "Baseline comparison CSV: $baselineCsvPath"
+    $exportPaths.BaselineComparisonJson = $baselineJsonPath
+    $exportPaths.BaselineComparisonCsv  = $baselineCsvPath
+    Write-DecomRunManifest -Path $ManifestPath -Context $Context -Summary $summaryHt -ExportPaths $exportPaths
+    Write-DecomOk "Run manifest updated with baseline comparison paths"
+}
+
+# Executive pack generation if -GenerateExecutivePack specified
+if ($GenerateExecutivePack) {
+    Write-DecomInfo "Generating executive evidence pack..."
+
+    # Prepare executive pack context
+    $execContext = [pscustomobject]@{
+        SchemaVersion = '2.4'
+        ToolVersion   = $Context.ToolVersion
+        ClientName    = $Context.ClientName
+        EngagementId  = $Context.EngagementId
+        Assessor      = $Context.Assessor
+        TenantId      = $Context.TenantId
+        GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
+        Coverage      = $Context.Coverage
+        Findings      = $Findings
+        Summary       = $Summary
+        BaselineComparison = $BaselineComparison
+        BaselineSummary    = $BaselineSummary
+        RiskMovement       = $RiskMovement
+        ExportPaths        = @{
+            Csv                   = $CsvPath
+            Json                  = $JsonPath
+            Html                  = $HtmlPath
+            RemediationPlan       = $PlanPath
+            Manifest              = $ManifestPath
+            BaselineComparisonJson = $baselineJsonPath
+            BaselineComparisonCsv  = $baselineCsvPath
+        }
+    }
+
+    # Generate executive summary model
+    $execModel = New-DecomExecutiveSummaryModel -Context $execContext
+
+    # Generate exports
+    $execTimestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+    $baseName      = "entra-decommissioning-control-plane"
+
+    # Executive summary markdown
+    $execMdPath = Join-Path $RunFolder "$baseName-executive-summary-$execTimestamp.md"
+    Export-DecomExecutiveSummaryMarkdown -Model $execModel -Path $execMdPath
+    Write-DecomOk "Executive summary markdown: $execMdPath"
+
+    # Executive summary HTML
+    $execHtmlPath = Join-Path $RunFolder "$baseName-executive-summary-$execTimestamp.html"
+    Export-DecomExecutiveSummaryHtml -Model $execModel -Path $execHtmlPath
+    Write-DecomOk "Executive summary HTML: $execHtmlPath"
+
+    # Governance KPI dashboard
+    $kpiDashboardPath = Join-Path $RunFolder "$baseName-governance-kpi-dashboard-$execTimestamp.html"
+    Export-DecomGovernanceKpiDashboardHtml -Model $execModel -Path $kpiDashboardPath
+    Write-DecomOk "Governance KPI dashboard: $kpiDashboardPath"
+
+    # Consultant evidence appendix
+    $appendixPath = Join-Path $RunFolder "$baseName-consultant-evidence-appendix-$execTimestamp.md"
+    Export-DecomConsultantEvidenceAppendixMarkdown -Model $execModel -Path $appendixPath
+    Write-DecomOk "Consultant evidence appendix: $appendixPath"
+
+    # Client readout pack manifest
+    $clientReadoutPath = Join-Path $RunFolder "$baseName-client-readout-pack-manifest-$execTimestamp.json"
+    Write-DecomClientReadoutPackManifest -Model $execModel -Path $clientReadoutPath
+    Write-DecomOk "Client readout pack manifest: $clientReadoutPath"
+
+    # Optional: Residual risk register
+    try {
+        $riskRegisterPath = Join-Path $RunFolder "$baseName-residual-risk-register-$execTimestamp.csv"
+        Export-DecomResidualRiskRegisterCsv -Findings $Findings -Path $riskRegisterPath
+        Write-DecomOk "Residual risk register: $riskRegisterPath"
+    } catch {
+        Write-DecomWarn "Residual risk register skipped: $_"
+    }
+
+    # Add executive pack exports to final export paths for manifest update
+    $exportPaths.ExecutiveSummaryMarkdown = $execMdPath
+    $exportPaths.ExecutiveSummaryHtml     = $execHtmlPath
+    $exportPaths.GovernanceDashboardHtml  = $kpiDashboardPath
+    $exportPaths.ConsultantEvidenceAppendix = $appendixPath
+    $exportPaths.ClientReadoutPackManifest  = $clientReadoutPath
+    if (Test-Path $riskRegisterPath) {
+        $exportPaths.ResidualRiskRegister = $riskRegisterPath
+    }
+
+    # Update run manifest with new export paths
+    Write-DecomRunManifest -Path $ManifestPath -Context $Context -Summary $summaryHt -ExportPaths $exportPaths
+    Write-DecomOk "Run manifest updated with executive pack exports"
+}
 
 # Handle GenerateApprovalTemplate flag for WhatIfRemediation mode
 if ($Mode -eq 'WhatIfRemediation' -and $GenerateApprovalTemplate) {

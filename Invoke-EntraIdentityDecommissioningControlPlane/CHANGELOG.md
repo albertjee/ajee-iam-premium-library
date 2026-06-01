@@ -1,5 +1,32 @@
 # Changelog
 
+## Rev2.4 — Baseline Comparison, Trend Analysis, and Executive Evidence Pack
+
+### Added
+- `-BaselinePath` parameter: load a prior findings JSON (or run folder) for delta comparison.
+- `-GenerateExecutivePack` switch: generate a complete client-ready evidence package.
+- `Baseline.psm1`: Import-DecomBaselineFindings, Get-DecomFindingStableKey, Compare-DecomFindingBaseline, Export-DecomBaselineComparisonJson, Export-DecomBaselineComparisonCsv, Get-DecomRiskMovementSummary.
+- `ExecutivePack.psm1`: New-DecomExecutiveSummaryModel, Export-DecomExecutiveSummaryMarkdown, Export-DecomExecutiveSummaryHtml, Export-DecomGovernanceKpiDashboardHtml, Export-DecomConsultantEvidenceAppendixMarkdown, Write-DecomClientReadoutPackManifest, Export-DecomResidualRiskRegisterCsv.
+- Baseline comparison exports: `*-baseline-comparison-*.json` and `*-baseline-comparison-*.csv` per run.
+- Executive pack outputs: executive summary MD, executive summary HTML, governance KPI dashboard HTML, consultant evidence appendix MD, client readout pack manifest JSON, residual risk register CSV.
+- Deterministic executive risk posture algorithm (Critical / Elevated / Moderate / Low) with no random state.
+- Top-10 risks table weighted by domain diversity then RiskScore.
+- SchemaVersion bumped to `2.4` in all output artifacts.
+
+### Safety
+- Rev2.4 is read-only.
+- No new write scopes.
+- No new remediation action types.
+- No changes to ExecuteRemediation behavior.
+- Rev2.x three-gate controlled remediation safety model unchanged.
+
+### Tests
+- Added Baseline.Rev24.Tests.ps1 (26 tests) and ExecutivePack.Rev24.Tests.ps1 (40 tests).
+- Added 12 Rev2.4 safety and catalog conformance tests to Safety.Tests.ps1.
+- Baseline: 146 (Rev2.3). Rev2.4: 224 tests, 0 failures.
+
+---
+
 ## Rev2.3 — Access Review Correlation and Governance Proof Expansion
 
 ### Added
