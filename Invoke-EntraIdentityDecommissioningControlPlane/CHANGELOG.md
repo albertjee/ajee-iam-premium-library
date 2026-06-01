@@ -1,5 +1,32 @@
 # Changelog
 
+## Rev2.5 — Consultant Release Candidate and Rev3.0 Write-Readiness Gate
+
+### Added
+- `-SelfTest` switch: runs `Invoke-DecomReleaseValidation` and exits. No Graph connection, no discovery, no remediation. Exit code 0 on pass, 1 on failure.
+- `-GenerateReleasePackage` switch: bundles documentation, runbooks, validation reports, and manifest into a release directory. Requires `-SelfTest` or post-assessment context.
+- `-ReleasePackagePath` parameter: destination path for release package (default `.\release\Rev2.5`).
+- `SchemaContracts.psm1`: `Get-DecomSchemaContract`, `Test-DecomObjectAgainstSchemaContract`, `Export-DecomSchemaContractsMarkdown`, `Export-DecomSchemaValidationJson`. Contracts for: Finding, RunManifest, ApprovalManifest, ExecutionLog, ExecutionEvidence, BaselineComparison, ExecutiveSummary, ClientReadoutPackManifest, CatalogValidationReport, WriteReadinessReport.
+- `CatalogValidation.psm1`: `Import-DecomFindingsCatalog`, `Get-DecomFindingCatalogMap`, `Test-DecomFindingCatalogAlignment`, `Export-DecomCatalogValidationJson`, `Export-DecomCatalogValidationMarkdown`. Validates findings against documented catalog severity, RiskScore band, RemediationMode, and required fields.
+- `WriteReadiness.psm1`: `Get-DecomExecutionScopeRegistry`, `Get-DecomRev3WriteCandidateRegistry`, `New-DecomRev3WriteReadinessReport`, `Export-DecomRev3WriteReadinessJson`, `Export-DecomRev3WriteReadinessMarkdown`, `Export-DecomExecutionScopeRegistryJson`. Recommendation: `ReadyForRev3Design` (design gate only, not implementation approval).
+- `ReleaseValidation.psm1`: `Invoke-DecomReleaseValidation`, `Test-DecomVersionConsistency`, `Test-DecomSafetyInvariant`, export functions. Scans source for write verb/scope safety invariants and version consistency.
+- `ReleasePackaging.psm1`: `New-DecomReleasePackage`, `Copy-DecomReleaseAsset`, `Write-DecomReleasePackageManifest`. Bundles docs, runbooks, and validation output.
+- Six runbooks under `runbooks\`: Assessment-Runbook.md, WhatIf-Approval-Runbook.md, ExecuteRemediation-Runbook.md, Executive-Pack-Runbook.md, Troubleshooting.md, Rev3-Write-Readiness-Runbook.md.
+- Two new docs: `docs\Schema-Contracts.md`, `docs\Rev3-Write-Readiness.md`.
+- SchemaVersion bumped to `2.5` in all new output artifacts.
+
+### Safety
+- Rev2.5 is read-only. No new write scopes. No new remediation action types.
+- No changes to ExecuteRemediation behavior or the Rev2.0 three-gate controlled remediation model.
+- `Test-DecomSafetyInvariant` enforces no write verbs or write scopes in read-only modules at every SelfTest run.
+
+### Tests
+- Added SchemaContracts.Rev25.Tests.ps1 (14 tests), CatalogValidation.Rev25.Tests.ps1 (10 tests), WriteReadiness.Rev25.Tests.ps1 (26 tests), ReleaseValidation.Rev25.Tests.ps1 (10 tests).
+- Updated Safety.Tests.ps1 to verify ToolVersion is Rev2.5.
+- Baseline: 230 (Rev2.4). Rev2.5: 282 tests, 0 failures.
+
+---
+
 ## Rev2.4 — Baseline Comparison, Trend Analysis, and Executive Evidence Pack
 
 ### Added

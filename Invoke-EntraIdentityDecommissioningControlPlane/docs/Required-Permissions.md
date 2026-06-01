@@ -75,3 +75,7 @@ If these permissions, APIs, modules, or tenant licenses are unavailable, Rev2.2 
 | `Group.Read.All` | Delegated | Correlate CA exclusion groups and access package resource groups |
 
 If these permissions, Graph APIs, cmdlets, or tenant licenses are unavailable, Rev2.3 reports partial governance evidence coverage instead of failing the full assessment.
+
+## Rev2.5 — No New Permissions Required
+
+Rev2.5 adds SelfTest (`-SelfTest`), release packaging (`-GenerateReleasePackage`), schema contracts, catalog validation, and write-readiness assessment capabilities. All new features operate on local source files and prior output artifacts only. No additional Microsoft Graph scopes are required.

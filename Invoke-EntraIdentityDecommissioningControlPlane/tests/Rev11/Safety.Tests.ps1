@@ -562,9 +562,9 @@ Describe 'Rev2.4 Safety Tests' {
             $posB    | Should -BeLessThan $posConn
         }
 
-        It 'ToolVersion is Rev2.4 in entry point' {
+        It 'ToolVersion is Rev2.5 in entry point' {
             $content = Get-Content $script:epPath24 -Raw
-            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev2\.4'"
+            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev2\.5'"
         }
     }
 
@@ -578,6 +578,132 @@ Describe 'Rev2.4 Safety Tests' {
         It 'ExecutivePack.psm1 does not define new DEC- finding IDs' {
             $content = Get-Content $script:execPackPath24 -Raw
             $content | Should -Not -Match "'DEC-[A-Z]+-\d{3}'"
+        }
+    }
+}
+
+Describe 'Rev2.5 Safety Tests' {
+
+    BeforeAll {
+        $script:epPath25             = Join-Path $PSScriptRoot '..\..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        $script:remPath25            = Join-Path $PSScriptRoot '..\..\src\Modules\Remediation.psm1'
+        $script:catalogValPath25     = Join-Path $PSScriptRoot '..\..\src\Modules\CatalogValidation.psm1'
+        $script:schemaContractsPath25= Join-Path $PSScriptRoot '..\..\src\Modules\SchemaContracts.psm1'
+        $script:writeReadinessPath25 = Join-Path $PSScriptRoot '..\..\src\Modules\WriteReadiness.psm1'
+        $script:releaseValPath25     = Join-Path $PSScriptRoot '..\..\src\Modules\ReleaseValidation.psm1'
+        $script:releasePkgPath25     = Join-Path $PSScriptRoot '..\..\src\Modules\ReleasePackaging.psm1'
+    }
+
+    Context 'Rev2.5 new modules contain no write verbs' {
+
+        It 'CatalogValidation.psm1 contains no Graph write cmdlets' {
+            $content = Get-Content $script:catalogValPath25 -Raw
+            $content | Should -Not -Match '\bRemove-Mg'
+            $content | Should -Not -Match '\bUpdate-Mg'
+            $content | Should -Not -Match '\bSet-Mg'
+            $content | Should -Not -Match '\bNew-Mg'
+            $content | Should -Not -Match '\bInvoke-MgGraphRequest'
+        }
+
+        It 'SchemaContracts.psm1 contains no Graph write cmdlets' {
+            $content = Get-Content $script:schemaContractsPath25 -Raw
+            $content | Should -Not -Match '\bRemove-Mg'
+            $content | Should -Not -Match '\bUpdate-Mg'
+            $content | Should -Not -Match '\bSet-Mg'
+            $content | Should -Not -Match '\bNew-Mg'
+            $content | Should -Not -Match '\bInvoke-MgGraphRequest'
+        }
+
+        It 'ReleasePackaging.psm1 contains no Graph write cmdlets' {
+            $content = Get-Content $script:releasePkgPath25 -Raw
+            $content | Should -Not -Match '\bRemove-Mg'
+            $content | Should -Not -Match '\bUpdate-Mg'
+            $content | Should -Not -Match '\bSet-Mg'
+            $content | Should -Not -Match '\bNew-Mg'
+            $content | Should -Not -Match '\bInvoke-MgGraphRequest'
+        }
+    }
+
+    Context 'Rev2.5 new modules contain no unexpected write scopes' {
+
+        It 'CatalogValidation.psm1 contains no ReadWrite scope references' {
+            $content = Get-Content $script:catalogValPath25 -Raw
+            $content | Should -Not -Match 'ReadWrite'
+        }
+
+        It 'SchemaContracts.psm1 contains no ReadWrite scope references' {
+            $content = Get-Content $script:schemaContractsPath25 -Raw
+            $content | Should -Not -Match 'ReadWrite'
+        }
+
+        It 'ReleasePackaging.psm1 contains no ReadWrite scope references' {
+            $content = Get-Content $script:releasePkgPath25 -Raw
+            $content | Should -Not -Match 'ReadWrite'
+        }
+    }
+
+    Context 'Rev2.5 Remediation.psm1 executable scope unchanged' {
+
+        It 'Remediation.psm1 does not reference Rev2.5 validation modules' {
+            $content = Get-Content $script:remPath25 -Raw
+            $content | Should -Not -Match 'CatalogValidation'
+            $content | Should -Not -Match 'SchemaContracts'
+            $content | Should -Not -Match 'WriteReadiness'
+            $content | Should -Not -Match 'ReleaseValidation'
+        }
+
+        It 'Remediation.psm1 does not contain new Rev3 action types' {
+            $content = Get-Content $script:remPath25 -Raw
+            $content | Should -Not -Match 'RemoveAccessPackageAssignment'
+            $content | Should -Not -Match 'RemovePimEligibleAssignment'
+            $content | Should -Not -Match 'RemoveGuestGroupMembership'
+            $content | Should -Not -Match 'AddApplicationOwner'
+            $content | Should -Not -Match 'RemoveExpiredCredential'
+            $content | Should -Not -Match 'RemoveCAExclusionGroupMember'
+            $content | Should -Not -Match 'DeleteOrDisableApp'
+            $content | Should -Not -Match 'DeleteServicePrincipal'
+        }
+    }
+
+    Context 'Rev2.5 ApprovalManifest execution map unchanged' {
+
+        It 'Entry point ApprovalManifest processing still guards on ApprovedActions' {
+            $content = Get-Content $script:epPath25 -Raw
+            $content | Should -Match 'ApprovedActions'
+        }
+
+        It 'Entry point does not add new ExecuteRemediation action types' {
+            $content = Get-Content $script:epPath25 -Raw
+            $content | Should -Not -Match 'RemoveAccessPackageAssignment'
+            $content | Should -Not -Match 'RemovePimEligibleAssignment'
+            $content | Should -Not -Match 'DeleteOrDisableApp'
+            $content | Should -Not -Match 'DeleteServicePrincipal'
+        }
+    }
+
+    Context 'Rev2.5 ExecuteRemediation branch ordering unchanged' {
+
+        It 'SelfTest exits before Connect-MgGraph in entry point' {
+            $content = Get-Content $script:epPath25 -Raw
+            $posSelfTest = $content.IndexOf('if ($SelfTest)')
+            $posConnect  = $content.IndexOf('Connect-MgGraph')
+            $posSelfTest | Should -BeGreaterThan 0
+            $posConnect  | Should -BeGreaterThan 0
+            $posSelfTest | Should -BeLessThan $posConnect
+        }
+
+        It 'ExecuteRemediation guard still present in Rev2.5 entry point' {
+            $content = Get-Content $script:epPath25 -Raw
+            $content | Should -Match 'ExecuteRemediation cannot run in DemoMode'
+        }
+
+        It 'Entry point contains no new write scope additions' {
+            $content = Get-Content $script:epPath25 -Raw
+            $content | Should -Not -Match 'AccessReview\.ReadWrite'
+            $content | Should -Not -Match 'EntitlementManagement\.ReadWrite'
+            $content | Should -Not -Match 'PrivilegedAccess\.ReadWrite'
+            $content | Should -Not -Match 'Directory\.ReadWrite'
+            $content | Should -Not -Match 'User\.ReadWrite'
         }
     }
 }

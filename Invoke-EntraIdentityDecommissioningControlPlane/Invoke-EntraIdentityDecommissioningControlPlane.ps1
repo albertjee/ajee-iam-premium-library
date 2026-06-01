@@ -22,11 +22,14 @@ param(
     [switch]$DemoMode,
     [switch]$NoLogo,
     [string]$BaselinePath,
-    [switch]$GenerateExecutivePack
+    [switch]$GenerateExecutivePack,
+    [switch]$SelfTest,
+    [switch]$GenerateReleasePackage,
+    [string]$ReleasePackagePath = '.\release\Rev2.5'
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev2.4'
+$script:ToolVersion = 'Rev2.5'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -36,11 +39,39 @@ if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Block unsafe parameter combinations
+if ($SelfTest -and $Mode -eq 'ExecuteRemediation') {
+    Write-Host "[ERROR] -SelfTest cannot be used with -Mode ExecuteRemediation." -ForegroundColor Red
+    exit 1
+}
+
+if ($GenerateReleasePackage -and $Mode -eq 'ExecuteRemediation') {
+    Write-Host "[ERROR] -GenerateReleasePackage should not be used with -Mode ExecuteRemediation for Rev2.5." -ForegroundColor Red
+    exit 1
+}
+
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ModulesPath = Join-Path $ScriptRoot 'src\Modules'
 
-foreach ($mod in @('Utilities','Discovery','Analysis','Reporting','RemediationPlan',
-                    'ApprovalManifest','ExecutionLog','Remediation','Baseline','ExecutivePack')) {
+$modulesToLoad = @(
+    'Utilities'
+    'Discovery'
+    'Analysis'
+    'Reporting'
+    'RemediationPlan'
+    'ApprovalManifest'
+    'ExecutionLog'
+    'Remediation'
+    'Baseline'
+    'ExecutivePack'
+    'ReleaseValidation'
+    'CatalogValidation'
+    'SchemaContracts'
+    'WriteReadiness'
+    'ReleasePackaging'
+)
+
+foreach ($mod in $modulesToLoad) {
     $modPath = Join-Path $ModulesPath "$mod.psm1"
     Remove-Module $mod -Force -ErrorAction SilentlyContinue
     Import-Module $modPath -Force -DisableNameChecking
@@ -82,6 +113,26 @@ $Context = [PSCustomObject]@{
     Assessor     = $Assessor
     Coverage     = $null
     ToolVersion  = $script:ToolVersion
+    OutputPath   = $RunFolder
+}
+
+# SelfTest early exit — no Graph connection, no discovery, no remediation
+if ($SelfTest) {
+    Write-DecomInfo "Running SelfTest / ReleaseValidation mode..."
+    $selfTestResult = Invoke-DecomReleaseValidation -Context $Context
+    if ($selfTestResult.Passed) {
+        Write-DecomOk "SelfTest PASSED"
+        if ($GenerateReleasePackage) {
+            Write-DecomInfo "Generating release package..."
+            New-DecomReleasePackage -Context $Context -OutputPath $ReleasePackagePath
+            Write-DecomOk "Release package generated at $ReleasePackagePath"
+        }
+        exit 0
+    } else {
+        Write-DecomError "SelfTest FAILED:"
+        $selfTestResult.Errors | ForEach-Object { Write-DecomError "  $_" }
+        exit 1
+    }
 }
 
 # ExecuteRemediation branch - runs BEFORE discovery, analysis, and export

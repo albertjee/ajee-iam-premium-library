@@ -100,8 +100,61 @@ Each run creates a timestamped folder under `.\out\` containing:
 
 ```powershell
 Invoke-Pester -Path .\tests\Rev11\ -Output Detailed
-# 42/42 tests passing, 0 failures
+# 282/282 tests passing, 0 failures
 ```
+
+---
+
+## Rev2.5 — SelfTest and Release Package
+
+### SelfTest Mode
+
+Run the built-in release validation without connecting to Graph:
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -SelfTest
+```
+
+Validates:
+- Tool version consistency (`ToolVersion = Rev2.5` in entry point)
+- No write verbs or write scopes in read-only modules
+- Remediation.psm1 contains only Rev2.0 executable actions
+
+Exit code 0 on pass, 1 on failure. Produces `release-validation-report-*.json` and `release-validation-report-*.md` in the output directory.
+
+### Generate Release Package
+
+Bundle documentation, runbooks, and validation reports for client delivery:
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+    -SelfTest `
+    -GenerateReleasePackage `
+    -ReleasePackagePath '.\release\Rev2.5'
+```
+
+Package structure:
+```
+release\Rev2.5\
+  docs\               Required-Permissions.md, Findings-Catalog.md
+  runbooks\           Six operational runbooks
+  validation\         Release validation, catalog validation, schema validation reports
+  sample-outputs\     Demo outputs (generated separately by DemoMode)
+  release-package-manifest.json
+```
+
+### Rev3.0 Write-Readiness
+
+Rev2.5 includes a formal Rev3.0 write-readiness gate:
+
+```powershell
+Import-Module .\src\Modules\WriteReadiness.psm1 -Force
+$report = New-DecomRev3WriteReadinessReport -Context $ctx
+```
+
+Current recommendation: **ReadyForRev3Design** — the safety architecture is mature enough to begin designing write expansion. This is a design gate only, not implementation approval.
+
+See `runbooks\Rev3-Write-Readiness-Runbook.md` for interpretation guidance.
 
 ---
 
