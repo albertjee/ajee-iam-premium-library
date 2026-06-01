@@ -329,7 +329,7 @@ $($roadmapHtml.ToString())
       <li>$([System.Web.HttpUtility]::HtmlEncode($modeSafetyText))</li>
       <li>Sign-in log analysis requires the <code>AuditLog.Read.All</code> delegated permission. If this scope was unavailable, stale identity analysis may be incomplete.</li>
       <li>IGA coverage assessment requires the <code>EntitlementManagement.Read.All</code> delegated permission.</li>
-      <li>Rev1.1 does not support hybrid or on-premises AD DS environments. Only cloud-only and hybrid cloud-synced objects are assessed.</li>
+      <li>$($Context.ToolVersion) does not support hybrid or on-premises AD DS environments. Only cloud-only and hybrid cloud-synced objects are assessed.</li>
       <li>Protected object classification is based on display name pattern matching. False positives are possible and should be reviewed with the client.</li>
       <li>Findings reflect point-in-time assessment. Access state may have changed between assessment and report delivery.</li>
       <li>This tool is a consultant advisory tool — it is not a continuous monitoring platform.</li>
