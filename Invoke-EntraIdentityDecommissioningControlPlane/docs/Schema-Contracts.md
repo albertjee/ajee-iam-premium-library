@@ -1,7 +1,7 @@
 # Schema Contracts
 
-**SchemaVersion:** 2.5  
-**Rev:** 2.5
+**SchemaVersion:** 3.2  
+**Rev:** 3.2
 
 ---
 
@@ -86,6 +86,30 @@ All output objects produced by the Entra Identity Decommissioning Control Plane 
 ## WriteReadinessReport Schema
 
 **Required fields:** SchemaVersion, ToolVersion, GeneratedUtc, EngagementId, ClientName, Assessor, ExecutionScopeRegistry, Rev3Candidates, Recommendation
+
+---
+
+## Rev3.2 Governance Pack Schemas
+
+### ApplicationGovernanceModel
+
+**Required fields:** SchemaVersion, ToolVersion, EngagementId, ClientName, TotalFindings, UnownedApplicationCount, DisabledOwnerApplicationCount, SingleOwnerApplicationCount, SpnNoOwnerCount, ProtectedObjectCount, Applications, Exclusions
+
+### CaExclusionGovernanceModel
+
+**Required fields:** SchemaVersion, ToolVersion, EngagementId, ClientName, TenantId, ExclusionCount, HighRiskExclusionCount, ExclusionsLackingReviewEvidenceCount, ConflictingEvidenceCount, ManualRemediationCount, Rev33WriteCandidateCount, CaPolicies, Exclusions, ExceptionRegister, RemediationDesign
+
+### CredentialHygieneGovernanceModel
+
+**Required fields:** SchemaVersion, ToolVersion, EngagementId, ClientName, TotalFindings, ExpiredCredentialCount, ExpiringCredentialCount, PasswordCredentialCount, KeyCredentialCount, ProtectedObjectCount, Applications
+
+### EmergencyAccessGovernanceModel
+
+**Required fields:** SchemaVersion, ToolVersion, EngagementId, ClientName, ProtectedObjectCount, EmergencyAccessAccountCount, WhatIfActionsBlocked, ApprovalActionsBlocked, HygieneGapsPresent, ProtectedObjects, EmergencyAccounts, HygieneGaps
+
+### WhatIfActionPlan (Rev3.2 extension)
+
+`RemoveExpiredApplicationCredential` action fields: ActionType, FindingId, ObjectId, ObjectType, CredentialKeyId, CredentialType, CredentialEndDateTime, CredentialExpired, TargetObjectIds, RequiresManualApproval, RollbackGuidance, ReadinessStatus
 
 ---
 

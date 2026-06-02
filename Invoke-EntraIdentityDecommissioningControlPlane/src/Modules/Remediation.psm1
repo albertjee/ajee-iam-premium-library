@@ -173,6 +173,67 @@ function Confirm-DecomActionTargetValid {
                     $result.Valid = $false
                 }
             }
+
+            'RemoveExpiredApplicationCredential' {
+                # Read application by exact ObjectId
+                $app = $null
+                try {
+                    $app = Get-MgApplication -ApplicationId $objectId -ErrorAction Stop
+                } catch {
+                    $result.ValidationErrors.Add("Application read failed for $objectId : $_")
+                    $result.Valid = $false
+                    break
+                }
+                if ($null -eq $app) {
+                    $result.InvalidTargets.Add("$objectId : application not found — stale target")
+                    break
+                }
+
+                $approvedObjectType = [string]$Action.ObjectType
+                if ($approvedObjectType -and $approvedObjectType -ne '' -and $approvedObjectType -ne 'Application') {
+                    $result.ValidationErrors.Add("ObjectType MISMATCH — approved=$approvedObjectType but RemoveExpiredApplicationCredential requires Application — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+
+                $approvedCredType = [string]$Action.CredentialType
+                $now = [datetime]::UtcNow
+
+                foreach ($keyId in $targetIds) {
+                    $pwdCred = @($app.PasswordCredentials | Where-Object { $_.KeyId -and [string]$_.KeyId -eq $keyId })
+                    $keyCred = @($app.KeyCredentials  | Where-Object { $_.KeyId -and [string]$_.KeyId -eq $keyId })
+                    if ($pwdCred.Count -eq 0 -and $keyCred.Count -eq 0) {
+                        $result.InvalidTargets.Add("$keyId : credential not found (already removed or never existed)")
+                        continue
+                    }
+                    $cred       = if ($pwdCred.Count -gt 0) { $pwdCred[0] } else { $keyCred[0] }
+                    $credSource = if ($pwdCred.Count -gt 0) { 'PasswordCredential' } else { 'KeyCredential' }
+
+                    if ($approvedCredType -and $approvedCredType -ne '' -and $approvedCredType -ne $credSource) {
+                        $result.ValidationErrors.Add("$keyId : CredentialType MISMATCH — approved=$approvedCredType but actual=$credSource — BLOCKED")
+                        $result.Valid = $false
+                        break
+                    }
+                    if ($null -eq $cred.EndDateTime) {
+                        $result.ValidationErrors.Add("$keyId : EndDateTime is null — cannot confirm expired — BLOCKED")
+                        $result.Valid = $false
+                        break
+                    }
+                    $endDt = $cred.EndDateTime
+                    if ($endDt -isnot [datetime]) {
+                        try { $endDt = [datetime]::Parse([string]$endDt) } catch {
+                            $result.ValidationErrors.Add("$keyId : EndDateTime cannot be parsed — BLOCKED")
+                            $result.Valid = $false
+                            break
+                        }
+                    }
+                    if ($endDt.ToUniversalTime() -ge $now) {
+                        $result.ValidationErrors.Add("$keyId : credential is NOT expired (EndDateTime=$($endDt.ToUniversalTime().ToString('o'))) — BLOCKED")
+                        $result.Valid = $false
+                        break
+                    }
+                }
+            }
         }
     } catch {
         $result.ErrorDetail = $_.ToString()
@@ -203,6 +264,7 @@ $script:ExecutionMap = @{
     'DEC-GREV-001'  = 'RemoveGuestGroupMembership'
     'DEC-GREV-002'  = 'RemoveGuestGroupMembership'
     'DEC-GREV-003'  = 'GuestGroupOrAppRole'
+    'DEC-APP-005'   = 'RemoveExpiredApplicationCredential'
 }
 
 $script:ManualApprovalFindingIds = @(
@@ -210,7 +272,8 @@ $script:ManualApprovalFindingIds = @(
     'DEC-AP-001','DEC-AP-002','DEC-AP-007','DEC-AP-008',
     'DEC-PIM-001','DEC-PIM-002','DEC-PIM-003','DEC-PIM-004','DEC-PIM-005','DEC-PIM-006',
     'DEC-GUEST-001','DEC-GUEST-002','DEC-GUEST-003',
-    'DEC-GREV-001','DEC-GREV-002','DEC-GREV-003'
+    'DEC-GREV-001','DEC-GREV-002','DEC-GREV-003',
+    'DEC-APP-005'
 )
 
 function Confirm-DecomGuestIdentity {
@@ -492,6 +555,65 @@ function Invoke-DecomRemediation {
                 }
             }
 
+            'RemoveExpiredApplicationCredential' {
+                # Read application — block if read fails
+                $app = $null
+                try {
+                    $app = Get-MgApplication -ApplicationId $objectId -ErrorAction Stop
+                } catch {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
+                        -ErrorDetail "Application read failed: $_"
+                    continue
+                }
+                if ($null -eq $app) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
+                        -ErrorDetail "Application $objectId not found — stale target"
+                    continue
+                }
+
+                $now = [datetime]::UtcNow
+                foreach ($keyId in $targetIds) {
+                    $pwdCred = @($app.PasswordCredentials | Where-Object { $_.KeyId -and [string]$_.KeyId -eq $keyId })
+                    $keyCred = @($app.KeyCredentials  | Where-Object { $_.KeyId -and [string]$_.KeyId -eq $keyId })
+
+                    if ($pwdCred.Count -eq 0 -and $keyCred.Count -eq 0) {
+                        # Credential already removed — Skipped, not Failed
+                        continue
+                    }
+
+                    $credSource = if ($pwdCred.Count -gt 0) { 'PasswordCredential' } else { 'KeyCredential' }
+
+                    try {
+                        if ($credSource -eq 'PasswordCredential') {
+                            if (-not (Get-Command 'Remove-MgApplicationPassword' -ErrorAction SilentlyContinue)) {
+                                $failedTargets.Add($keyId)
+                                $errorDetail += "KeyId $keyId : Remove-MgApplicationPassword cmdlet unavailable; "
+                            } else {
+                                Remove-MgApplicationPassword -ApplicationId $objectId -KeyId $keyId -ErrorAction Stop
+                            }
+                        } else {
+                            if (-not (Get-Command 'Remove-MgApplicationKey' -ErrorAction SilentlyContinue)) {
+                                $failedTargets.Add($keyId)
+                                $errorDetail += "KeyId $keyId : Remove-MgApplicationKey cmdlet unavailable; "
+                            } else {
+                                Remove-MgApplicationKey -ApplicationId $objectId -KeyId $keyId -ErrorAction Stop
+                            }
+                        }
+                    } catch {
+                        $failedTargets.Add($keyId)
+                        $errorDetail += "KeyId $keyId : $_; "
+                    }
+                }
+            }
+
             default {
                 Add-DecomExecutionAction `
                     -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
@@ -634,6 +756,27 @@ function Get-DecomTargetState {
             } catch {
                 $querySucceeded = $false
                 $queryError += "App role assignment re-query failed for guest $objectId : $_; "
+            }
+        }
+
+        'RemoveExpiredApplicationCredential' {
+            try {
+                $app = Get-MgApplication -ApplicationId $objectId -ErrorAction Stop
+                if ($null -eq $app) {
+                    $querySucceeded = $false
+                    $queryError += "Application $objectId not found during post-write re-query; "
+                } else {
+                    foreach ($keyId in $targetIds) {
+                        $pwdCred = @($app.PasswordCredentials | Where-Object { $_.KeyId -and [string]$_.KeyId -eq $keyId })
+                        $keyCred = @($app.KeyCredentials  | Where-Object { $_.KeyId -and [string]$_.KeyId -eq $keyId })
+                        if ($pwdCred.Count -gt 0 -or $keyCred.Count -gt 0) {
+                            $present.Add($keyId)
+                        }
+                    }
+                }
+            } catch {
+                $querySucceeded = $false
+                $queryError += "Application $objectId re-query failed: $_; "
             }
         }
 

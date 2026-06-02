@@ -1,5 +1,54 @@
 # Changelog
 
+## Rev3.2 — Controlled Application Credential Write Expansion and Governance Packs
+
+### Added
+- `RemoveExpiredApplicationCredential` action type: removes an expired application password or key credential via `Remove-MgApplicationPassword` / `Remove-MgApplicationKey`. Requires `Application.ReadWrite.All`.
+- `DEC-APP-005` added to `Remediation.psm1` ExecutionMap and `ManualApprovalFindingIds`.
+- Cmdlet availability gate for `Remove-MgApplicationPassword` and `Remove-MgApplicationKey` in credential removal flow.
+- Pre-flight credential revalidation in `Confirm-DecomActionTargetValid` for `RemoveExpiredApplicationCredential`: checks ProtectedObject, application read success, credential presence, expiry confirmation, CredentialType match, and non-null EndDateTime.
+- Post-write re-query in `Get-DecomTargetState` for credential actions; query failure → `PartialFailed` (not silently `Executed`).
+- Already-removed credential detection: logs `Skipped` before any write is attempted.
+- `SchemaVersion 3.2` gate in `Test-DecomApprovalManifest`: credential action types in a manifest with SchemaVersion < 3.2 are rejected.
+- `DEC-APP-005` in `ApprovalManifest.psm1` `CredentialFindingIds` and ExecutionMap; `CredentialType` and `CredentialEndDateTime` included in canonical approval hash.
+- Duplicate credential removal detection in `Test-DecomApprovalManifest`: same ObjectId + CredentialKeyId pair in two actions is rejected.
+- `ExecutableWhenExactExpiredCredentialKeyIdPresent` status in `WriteReadiness.psm1` execution scope registry for DEC-APP-005.
+- `Application.ReadWrite.All` added to write-scope array in entry point ExecuteRemediation branch.
+- **Governance Pack Modules (read-only):**
+  - `ApplicationGovernance.psm1`: application ownership governance model, 7 export functions
+  - `CredentialHygiene.psm1`: credential hygiene governance model, 9 export functions, rollback guidance
+  - `ConditionalAccessGovernance.psm1`: CA exclusion governance model, readiness logic, 7 export functions
+  - `EmergencyAccessGovernance.psm1`: protected object validation, emergency access account hygiene, 4 export functions
+- All four governance modules added to `Test-DecomSafetyInvariant` read-only module scan.
+- `$script:ToolVersion` updated to `Rev3.2`; WhatIf plan and approval manifest `SchemaVersion` bumped to `3.2`.
+
+### Documentation
+- `docs/Required-Permissions.md`: Rev3.2 write permission section (`Application.ReadWrite.All`)
+- `docs/Findings-Catalog.md`: Rev3.2 executable action table, governance pack module summary
+- `docs/Rev3-Write-Readiness.md`: updated to reflect Rev3.2 implementation status
+- `docs/Schema-Contracts.md`: Rev3.2 governance pack schemas
+- `runbooks/Credential-Hygiene-Runbook.md`: end-to-end credential removal runbook
+- `runbooks/Application-Ownership-Governance-Runbook.md`: application governance module runbook
+- `runbooks/CA-Exclusion-Governance-Runbook.md`: CA exclusion governance runbook
+- `runbooks/Emergency-Access-Governance-Runbook.md`: protected object and emergency access runbook
+
+### Safety
+- All Rev3.2 credential writes remain exclusively in `Remediation.psm1`.
+- `Remove-MgApplication` (object deletion) is not present in any Rev3.2 module.
+- `Remove-MgServicePrincipal` is not present in any module.
+- No CA policy write cmdlets (`New-MgIdentityConditionalAccessPolicy`, `Update-MgIdentityConditionalAccessPolicy`, `Remove-MgIdentityConditionalAccessPolicy`) appear in any module.
+- No `Remove-MgUser` (user deletion) appears in any module.
+- All four governance pack modules contain zero write cmdlets and zero ReadWrite scopes; all pass `Test-DecomSafetyInvariant` read-only scan.
+- Non-expired credentials, credentials without exact KeyId, and ProtectedObject applications are blocked before any write is attempted.
+- Rev3.1 and older approval manifests cannot authorize Rev3.2 credential action types.
+
+### Tests
+- Added `ReleaseValidation.Rev32.Tests.ps1` (18 tests), `RemediationPlan.Rev32.Tests.ps1` (11 tests), `ApprovalManifest.Rev32.Tests.ps1` (11 tests), `Remediation.Rev32.Tests.ps1` (20 tests), `CredentialHygiene.Rev32.Tests.ps1` (14 tests), `ApplicationGovernance.Rev32.Tests.ps1` (19 tests), `ConditionalAccessGovernance.Rev32.Tests.ps1` (19 tests), `EmergencyAccessGovernance.Rev32.Tests.ps1` (14 tests).
+- Updated `WriteReadiness.Rev25.Tests.ps1`, `Rev30.Integration.Tests.ps1` to reflect Rev3.2 reality.
+- Baseline: 435 (Rev3.1). Rev3.2: 560 tests, 0 failures.
+
+---
+
 ## Rev3.1 — Controlled Guest Governance Write Expansion
 
 ### Added

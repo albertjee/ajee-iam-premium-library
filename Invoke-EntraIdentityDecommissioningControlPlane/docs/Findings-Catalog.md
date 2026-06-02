@@ -138,6 +138,37 @@ The following finding IDs have controlled write actions enabled in Rev3.1. All r
 | DEC-CA-003 | Conditional Access | CA exclusion group lacks confirmable access review evidence | High | 68 |
 | DEC-CA-004 | Conditional Access | CA exclusion review evidence stale or unavailable | High | 70 |
 
+## Rev3.2 Executable Write Actions
+
+The following finding ID has a controlled write action enabled in Rev3.2. Requires SchemaVersion ≥ 3.2 in the approval manifest and credential expiry revalidation before execution. An exact `CredentialKeyId` must be present; the application object is never deleted.
+
+| FindingId | ActionType | WriteScope | CredentialTypes |
+|---|---|---|---|
+| DEC-APP-005 | `RemoveExpiredApplicationCredential` | `Application.ReadWrite.All` | PasswordCredential, KeyCredential |
+
+### Safety Constraints
+
+- Credential must be confirmed expired at execution time (`EndDateTime < UtcNow`)
+- Exact `CredentialKeyId` must match a credential still present on the application
+- `ProtectedObject = true` blocks execution unconditionally
+- `CredentialType` mismatch between approval manifest and live application blocks execution
+- `null EndDateTime` blocks execution
+- Application read failure blocks execution
+- Already-removed credentials are logged `Skipped` (no write attempted)
+- `Remove-MgApplication` (object deletion) is never called
+- `Remove-MgServicePrincipal` is never called
+
+### Governance Pack Modules (Rev3.2 — Read-Only)
+
+Rev3.2 adds four read-only governance pack modules for consultant deliverable generation. None contain write cmdlets or write scopes.
+
+| Module | FindingIds Covered | Purpose |
+|---|---|---|
+| `ApplicationGovernance.psm1` | DEC-APP-001, DEC-APP-002, DEC-APP-003, DEC-SPN-001 | Application ownership governance model, owner approval packets, exception register |
+| `CredentialHygiene.psm1` | DEC-APP-004, DEC-APP-005 | Credential hygiene governance model, expiry dashboard, rollback guidance |
+| `ConditionalAccessGovernance.psm1` | DEC-CA-001, DEC-CA-002, DEC-CA-003, DEC-CA-004 | CA exclusion governance model, owner review packets, remediation design |
+| `EmergencyAccessGovernance.psm1` | (ProtectedObject findings) | Protected object validation, emergency access hygiene, blocked action audit |
+
 ### Tenant-Level Governance Evidence Findings
 
 | FindingId | Category | Title | Severity | RiskScore |

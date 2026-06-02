@@ -3,14 +3,14 @@
 function Get-DecomSchemaContract {
     [CmdletBinding()]
     param(
-        [ValidateSet('Finding','RunManifest','ApprovalManifest','ExecutionLog','ExecutionEvidence','BaselineComparison','ExecutiveSummary','ClientReadoutPackManifest','CatalogValidationReport','WriteReadinessReport')]
+        [ValidateSet('Finding','RunManifest','ApprovalManifest','ExecutionLog','ExecutionEvidence','BaselineComparison','ExecutiveSummary','ClientReadoutPackManifest','CatalogValidationReport','WriteReadinessReport','CredentialHygienePack','ApplicationGovernancePack','ConditionalAccessGovernancePack','EmergencyAccessGovernancePack','ReleaseValidationReport')]
         [string]$ObjectType
     )
 
     switch ($ObjectType) {
         'Finding' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'FindingId', 'Category', 'Severity', 'RiskScore', 'Confidence', 'ObjectType', 'ObjectId',
                     'DisplayName', 'UserPrincipalName', 'Evidence', 'EvidenceSource', 'GraphEndpoint',
@@ -43,7 +43,7 @@ function Get-DecomSchemaContract {
         }
         'RunManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'RunId', 'Mode', 'DemoMode', 'Summary', 'ExportPaths'
@@ -53,7 +53,7 @@ function Get-DecomSchemaContract {
         }
         'ApprovalManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName',
                     'RunId', 'ApprovedBy', 'ExpiresUtc', 'ApprovedActions'
@@ -63,7 +63,7 @@ function Get-DecomSchemaContract {
         }
         'ExecutionLog' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'RunId',
                     'Log'
@@ -73,7 +73,7 @@ function Get-DecomSchemaContract {
         }
         'ExecutionEvidence' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId',
                     'Actions', 'Summary'
@@ -83,7 +83,7 @@ function Get-DecomSchemaContract {
         }
         'BaselineComparison' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId',
                     'ComparisonResults', 'BaselineInfo'
@@ -93,7 +93,7 @@ function Get-DecomSchemaContract {
         }
         'ExecutiveSummary' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'Coverage', 'Findings', 'Summary', 'BaselineComparison', 'RiskMovement'
@@ -103,7 +103,7 @@ function Get-DecomSchemaContract {
         }
         'ClientReadoutPackManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'Items'
@@ -113,7 +113,7 @@ function Get-DecomSchemaContract {
         }
         'CatalogValidationReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'Passed', 'UnknownFindingIds', 'SeverityMismatches', 'RiskScoreMismatches',
@@ -124,12 +124,160 @@ function Get-DecomSchemaContract {
         }
         'WriteReadinessReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.1'
+                SchemaVersion = '3.2'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'ExecutionScopeRegistry', 'Rev3Candidates', 'Recommendation'
                 )
                 Description = 'Readiness assessment for Rev3.1 write expansion'
+            }
+        }
+        'CredentialHygienePack' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.2'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
+                    'CredentialCount', 'ExpiredCredentialCount', 'ExpiringSoonCredentialCount', 'OwnerlessCredentialCount', 'SingleOwnerCredentialCount', 'DisabledOwnerCredentialCount',
+                    'ReadyForApprovalCount', 'PlanOnlyExpiringNotExpiredCount', 'BlockedMissingCredentialKeyIdCount', 'BlockedCredentialNotExpiredCount', 'BlockedApplicationReadFailureCount', 'BlockedNoApplicationOwnerCount', 'BlockedProtectedApplicationCount', 'BlockedCredentialTypeUnsupportedCount',
+                    'SkippedAlreadyRemovedCount', 'ExecutedCount', 'FailedCount', 'PartialFailedCount', 'DeferredCount',
+                    'CredentialDetails'
+                )
+                FieldTypes = @{
+                    SchemaVersion = 'string'
+                    ToolVersion = 'string'
+                    GeneratedUtc = 'string'
+                    EngagementId = 'string'
+                    ClientName = 'string'
+                    Assessor = 'string'
+                    CredentialCount = 'int'
+                    ExpiredCredentialCount = 'int'
+                    ExpiringSoonCredentialCount = 'int'
+                    OwnerlessCredentialCount = 'int'
+                    SingleOwnerCredentialCount = 'int'
+                    DisabledOwnerCredentialCount = 'int'
+                    ReadyForApprovalCount = 'int'
+                    PlanOnlyExpiringNotExpiredCount = 'int'
+                    BlockedMissingCredentialKeyIdCount = 'int'
+                    BlockedCredentialNotExpiredCount = 'int'
+                    BlockedApplicationReadFailureCount = 'int'
+                    BlockedNoApplicationOwnerCount = 'int'
+                    BlockedProtectedApplicationCount = 'int'
+                    BlockedCredentialTypeUnsupportedCount = 'int'
+                    SkippedAlreadyRemovedCount = 'int'
+                    ExecutedCount = 'int'
+                    FailedCount = 'int'
+                    PartialFailedCount = 'int'
+                    DeferredCount = 'int'
+                    CredentialDetails = 'object'
+                }
+                Description = 'Credential hygiene pack containing summary and details of credential findings'
+            }
+        }
+        'ApplicationGovernancePack' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.2'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
+                    'ApplicationCount', 'UnownedApplicationCount', 'SingleOwnerApplicationCount', 'DisabledOwnerApplicationCount', 'DisabledOnlyOwnerApplicationCount',
+                    'ServicePrincipalNoOwnerCount', 'CredentialBearingNoOwnerCount',
+                    'ReadyForOwnerApprovalCount', 'PlanOnlyOwnerActionCount', 'ExceptionCount',
+                    'Applications', 'OwnerReadiness', 'Exceptions', 'RecommendedNextActions'
+                )
+                FieldTypes = @{
+                    SchemaVersion = 'string'
+                    ToolVersion = 'string'
+                    GeneratedUtc = 'string'
+                    EngagementId = 'string'
+                    ClientName = 'string'
+                    Assessor = 'string'
+                    ApplicationCount = 'int'
+                    UnownedApplicationCount = 'int'
+                    SingleOwnerApplicationCount = 'int'
+                    DisabledOwnerApplicationCount = 'int'
+                    DisabledOnlyOwnerApplicationCount = 'int'
+                    ServicePrincipalNoOwnerCount = 'int'
+                    CredentialBearingNoOwnerCount = 'int'
+                    ReadyForOwnerApprovalCount = 'int'
+                    PlanOnlyOwnerActionCount = 'int'
+                    ExceptionCount = 'int'
+                    Applications = 'object'
+                    OwnerReadiness = 'object'
+                    Exceptions = 'object'
+                    RecommendedNextActions = 'object'
+                }
+                Description = 'Application ownership governance pack containing summary and details of application ownership findings'
+            }
+        }
+        'ConditionalAccessGovernancePack' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.2'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
+                    'CAPolicyCount', 'ExclusionGroupCount', 'ExclusionCount', 'ExclusionsLackingReviewEvidenceCount', 'ConflictingReviewEvidenceCount',
+                    'HighRiskExclusionCount', 'RecommendedManualRemediationCount', 'Rev3WriteReadinessCandidatesCount',
+                    'CAPolicies', 'ExclusionGroups', 'Exclusions', 'ExceptionRegister', 'RemediationDesign'
+                )
+                FieldTypes = @{
+                    SchemaVersion = 'string'
+                    ToolVersion = 'string'
+                    GeneratedUtc = 'string'
+                    EngagementId = 'string'
+                    ClientName = 'string'
+                    Assessor = 'string'
+                    CAPolicyCount = 'int'
+                    ExclusionGroupCount = 'int'
+                    ExclusionCount = 'int'
+                    ExclusionsLackingReviewEvidenceCount = 'int'
+                    ConflictingReviewEvidenceCount = 'int'
+                    HighRiskExclusionCount = 'int'
+                    RecommendedManualRemediationCount = 'int'
+                    Rev3WriteReadinessCandidatesCount = 'int'
+                    CAPolicies = 'object'
+                    ExclusionGroups = 'object'
+                    Exclusions = 'object'
+                    ExceptionRegister = 'object'
+                    RemediationDesign = 'object'
+                }
+                Description = 'Conditional Access exclusion governance pack containing summary and details of CA exclusions'
+            }
+        }
+        'EmergencyAccessGovernancePack' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.2'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
+                    'ProtectedObjectCount', 'EmergencyAccessAccountCount', 'ProtectedObjectBreakdown', 'WhatIfActionsBlockedCount', 'ApprovalActionsBlockedCount',
+                    'ProtectedObjects', 'EmergencyAccessAccounts', 'WhatIfActionsBlocked', 'ApprovalActionsBlocked', 'PotentialHygieneGaps'
+                )
+                FieldTypes = @{
+                    SchemaVersion = 'string'
+                    ToolVersion = 'string'
+                    GeneratedUtc = 'string'
+                    EngagementId = 'string'
+                    ClientName = 'string'
+                    Assessor = 'string'
+                    ProtectedObjectCount = 'int'
+                    EmergencyAccessAccountCount = 'int'
+                    ProtectedObjectBreakdown = 'object'
+                    WhatIfActionsBlockedCount = 'int'
+                    ApprovalActionsBlockedCount = 'int'
+                    ProtectedObjects = 'object'
+                    EmergencyAccessAccounts = 'object'
+                    WhatIfActionsBlocked = 'object'
+                    ApprovalActionsBlocked = 'object'
+                    PotentialHygieneGaps = 'object'
+                }
+                Description = 'Emergency access governance pack containing ProtectedObject validation and emergency access account inventory'
+            }
+        }
+        'ReleaseValidationReport' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.2'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
+                    'Passed', 'FailedChecks', 'Details'
+                )
+                Description = 'Release validation report assessing safety and quality gates'
             }
         }
     }

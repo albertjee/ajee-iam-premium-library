@@ -48,6 +48,14 @@ function Convert-DecomActionToCanonical {
         AppRoleAssignmentId       = [string]$Action.AppRoleAssignmentId
         ResourceId                = [string]$Action.ResourceId
         ResourceDisplayName       = [string]$Action.ResourceDisplayName
+        CredentialType            = [string]$Action.CredentialType
+        CredentialKeyId           = [string]$Action.CredentialKeyId
+        CredentialEndDateTime     = [string]$Action.CredentialEndDateTime
+        CredentialExpired         = if ($null -ne $Action.CredentialExpired) { [bool]$Action.CredentialExpired } else { $false }
+        ApplicationId             = [string]$Action.ApplicationId
+        AppId                     = [string]$Action.AppId
+        OwnerCount                = if ($null -ne $Action.OwnerCount) { [int]$Action.OwnerCount } else { 0 }
+        HasOwner                  = if ($null -ne $Action.HasOwner) { [bool]$Action.HasOwner } else { $false }
     }
 }
 
@@ -122,6 +130,7 @@ $script:ExecutionMap = @{
     'DEC-GREV-001' = 'RemoveGuestGroupMembership'
     'DEC-GREV-002' = 'RemoveGuestGroupMembership'
     'DEC-GREV-003' = 'GuestMultiAction'
+    'DEC-APP-005'  = 'RemoveExpiredApplicationCredential'
 }
 
 $script:GuestDualFindingIds = [System.Collections.Generic.HashSet[string]] @('DEC-GUEST-002', 'DEC-GREV-003')
@@ -132,6 +141,7 @@ $script:AllGuestFindingIds = [System.Collections.Generic.HashSet[string]] @(
     'DEC-GUEST-001', 'DEC-GUEST-002', 'DEC-GUEST-003',
     'DEC-GREV-001', 'DEC-GREV-002', 'DEC-GREV-003'
 )
+$script:CredentialFindingIds = [System.Collections.Generic.HashSet[string]] @('DEC-APP-005')
 
 function Get-DecomFindingExactTargetIds {
     param([pscustomobject]$Finding, [string]$FindingType)
@@ -169,6 +179,20 @@ function Get-DecomFindingExactTargetIds {
                     foreach ($item in $val) {
                         if ($item -and [string]$item -ne '') { [void]$ids.Add($item) }
                     }
+                }
+            }
+        }
+    } elseif ($FindingType -eq 'CredentialKeyId') {
+        foreach ($prop in @('CredentialKeyId','CredentialKeyIds','KeyId','KeyIds','TargetObjectId','TargetObjectIds')) {
+            $val = $Finding.$prop
+            if ($val) {
+                if ($val -is [string]) {
+                    if ($val -ne '') { [void]$ids.Add($val); break }
+                } elseif ($val -is [System.Collections.IEnumerable]) {
+                    foreach ($item in $val) {
+                        if ($item -and [string]$item -ne '') { [void]$ids.Add([string]$item) }
+                    }
+                    if ($ids.Count -gt 0) { break }
                 }
             }
         }
@@ -369,6 +393,38 @@ function Resolve-DecomExecutableTargets {
                 } else {
                     $result.TargetObjects = $allTargets.ToArray()
                     $result.Resolved = $true
+                }
+            }
+
+            'DEC-APP-005' {
+                $exactKeyIds = Get-DecomFindingExactTargetIds -Finding $Finding -FindingType 'CredentialKeyId'
+                if ($exactKeyIds.Count -eq 0) {
+                    $result.ErrorDetail = 'No exact credential KeyId found in finding — cannot generate executable credential action'
+                    $result.Resolved = $false
+                } else {
+                    $endDateRaw = [string]$Finding.CredentialEndDateTime
+                    $expired = $false
+                    if ($endDateRaw) {
+                        try {
+                            $endDt = [datetime]::Parse($endDateRaw, [System.Globalization.CultureInfo]::InvariantCulture,
+                                [System.Globalization.DateTimeStyles]::RoundtripKind)
+                            $expired = ($endDt.ToUniversalTime() -lt [datetime]::UtcNow)
+                        } catch { }
+                    }
+                    if (-not $expired) {
+                        $result.ErrorDetail = 'Credential is not expired at WhatIf generation time — only expired credentials may generate executable actions'
+                        $result.Resolved = $false
+                    } else {
+                        $result.TargetObjects = @(foreach ($kid in $exactKeyIds) {
+                            [PSCustomObject]@{
+                                TargetObjectId    = $kid
+                                TargetDisplayName = $kid
+                                TargetActionType  = 'RemoveExpiredApplicationCredential'
+                                RoleAssignmentId  = ''; RoleDefinitionId = ''; RoleDisplayName = ''
+                            }
+                        })
+                        $result.Resolved = ($result.TargetObjects.Count -gt 0)
+                    }
                 }
             }
 
@@ -582,6 +638,66 @@ function New-DecomWhatIfActionPlan {
             continue
         }
 
+        # Credential findings: one action per expired credential KeyId.
+        if ($script:CredentialFindingIds.Contains($finding.FindingId)) {
+            foreach ($tgt in @($targets.TargetObjects)) {
+                $opKey = "RemoveExpiredApplicationCredential|$($finding.ObjectId)|$($tgt.TargetObjectId)"
+                if ($claimedOperationKeys.Contains($opKey)) {
+                    $planOnly.Add([ordered]@{
+                        FindingId         = $finding.FindingId
+                        ObjectId          = $finding.ObjectId
+                        DisplayName       = $finding.DisplayName
+                        TargetObjectId    = $tgt.TargetObjectId
+                        TargetDisplayName = $tgt.TargetDisplayName
+                        Reason            = 'Duplicate credential key removal already included in ApprovedActions'
+                    })
+                    continue
+                }
+                [void]$claimedOperationKeys.Add($opKey)
+
+                $credType    = [string]$finding.CredentialType
+                $credKeyId   = [string]$tgt.TargetObjectId
+                $credEndDate = [string]$finding.CredentialEndDateTime
+
+                $action = [ordered]@{
+                    ActionId               = 'ACT-{0:D3}' -f $actionNum
+                    FindingId              = $finding.FindingId
+                    ObjectId               = $finding.ObjectId
+                    ObjectType             = if ($finding.ObjectType) { [string]$finding.ObjectType } else { 'Application' }
+                    DisplayName            = $finding.DisplayName
+                    UserPrincipalName      = [string]$finding.UserPrincipalName
+                    ActionType             = 'RemoveExpiredApplicationCredential'
+                    TargetObjectIds        = @($credKeyId)
+                    TargetDisplayNames     = @($credKeyId)
+                    TargetType             = 'ApplicationCredential'
+                    Evidence               = [string]$finding.Evidence
+                    RiskScore              = $finding.RiskScore
+                    ProtectedObject        = $finding.ProtectedObject
+                    RequiresManualApproval = $true
+                    CredentialType         = $credType
+                    CredentialKeyId        = $credKeyId
+                    CredentialEndDateTime  = $credEndDate
+                    CredentialExpired      = $true
+                    ApplicationId          = [string]$finding.ApplicationId
+                    AppId                  = [string]$finding.AppId
+                    OwnerCount             = if ($null -ne $finding.OwnerCount) { [int]$finding.OwnerCount } else { 0 }
+                    HasOwner               = if ($null -ne $finding.HasOwner) { [bool]$finding.HasOwner } else { $false }
+                    ReadinessStatus        = 'ReadyForApproval'
+                    ReadinessReason        = 'Exact expired credential KeyId present and credential expired at WhatIf time'
+                    RollbackGuidance       = 'Rollback requires creating a new application credential through the application owner or platform engineering process. Rev3.2 does not auto-rollback credential removal because secret material cannot be recovered after deletion.'
+                    PostWriteEvidenceRequired = $true
+                    PreflightChecks        = @('ExactCredentialKeyIdPresent','CredentialExpiredAtExecutionTime','ProtectedObjectNotSet','ApplicationReadSucceeds')
+                    RoleAssignmentId       = ''
+                    RoleDefinitionId       = ''
+                    RoleDisplayName        = ''
+                }
+
+                $actions.Add($action)
+                $actionNum++
+            }
+            continue
+        }
+
         # Non-role action families can group multiple target IDs in one action,
         # but duplicate target operations must still be removed.
         $effectiveTargets = @()
@@ -638,7 +754,7 @@ function New-DecomWhatIfActionPlan {
     $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actionsArray
 
     $manifest = [ordered]@{
-        SchemaVersion = '3.1'
+        SchemaVersion = '3.2'
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o')
         EngagementId = $EngagementId
         ClientName = $ClientName
@@ -863,6 +979,47 @@ function Test-DecomApprovalManifest {
             if ($svRaw -match '^(\d+)\.(\d+)') { [int]$svMajor = $Matches[1]; [int]$svMinor = $Matches[2] }
             if ($svMajor -lt 3 -or ($svMajor -eq 3 -and $svMinor -lt 1)) {
                 $errors += "Rev3.1 guest action types require approval manifest SchemaVersion 3.1 or higher (found: $svRaw)"
+            }
+        }
+
+        # Rev3.2 credential action types require SchemaVersion 3.2 or higher
+        $rev32CredActionTypes = @('RemoveExpiredApplicationCredential')
+        $rev32CredActions = @($manifest.ApprovedActions | Where-Object { $_.ActionType -in $rev32CredActionTypes })
+        if ($rev32CredActions.Count -gt 0) {
+            $svRaw = [string]$manifest.SchemaVersion
+            $svMajor = 0; $svMinor = 0
+            if ($svRaw -match '^(\d+)\.(\d+)') { [int]$svMajor = $Matches[1]; [int]$svMinor = $Matches[2] }
+            if ($svMajor -lt 3 -or ($svMajor -eq 3 -and $svMinor -lt 2)) {
+                $errors += "Rev3.2 credential action types require approval manifest SchemaVersion 3.2 or higher (found: $svRaw)"
+            }
+            # FindingId must be DEC-APP-005
+            foreach ($ca in $rev32CredActions) {
+                if ($ca.FindingId -ne 'DEC-APP-005') {
+                    $errors += "RemoveExpiredApplicationCredential FindingId must be DEC-APP-005 (found: $($ca.FindingId))"
+                }
+                # TargetObjectIds must be non-empty
+                foreach ($tid in @($ca.TargetObjectIds)) {
+                    if (-not $tid -or [string]$tid -eq '') {
+                        $errors += "RemoveExpiredApplicationCredential TargetObjectIds must not be empty strings"
+                        break
+                    }
+                }
+                # ProtectedObject must not be true
+                if ($ca.ProtectedObject -eq $true) {
+                    $errors += "ProtectedObject action cannot be approved for credential removal"
+                }
+            }
+            # No duplicate credential removal operations (same ObjectId + same KeyId)
+            $credOpKeys = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($ca in $rev32CredActions) {
+                foreach ($tid in @($ca.TargetObjectIds)) {
+                    $credKey = "RemoveExpiredApplicationCredential|$($ca.ObjectId)|$tid"
+                    if ($credOpKeys.Contains($credKey)) {
+                        $errors += "Duplicate credential removal operation: $credKey"
+                        break
+                    }
+                    [void]$credOpKeys.Add($credKey)
+                }
             }
         }
 

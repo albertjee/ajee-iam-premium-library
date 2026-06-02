@@ -1,23 +1,28 @@
-# Rev3.0 Write-Readiness
+# Rev3.x Write-Readiness
 
-**SchemaVersion:** 2.5  
-**Rev:** 2.5
+**SchemaVersion:** 3.2  
+**Rev:** 3.2
 
 ---
 
-## Current Status: ReadyForRev3Design
+## Current Status: Rev3.2 Implemented and QA-Certified
 
-Rev2.5 establishes the formal write-readiness assessment. Current recommendation: **ReadyForRev3Design**.
+Rev3.2 adds `RemoveExpiredApplicationCredential` as a controlled write action for DEC-APP-005. The write-readiness arc from Rev2.5 → Rev3.0 → Rev3.1 → Rev3.2 is now complete.
 
-This means:
-- The Rev2.x safety architecture is sufficiently mature to begin designing write expansion
-- The four Rev2.0 executable actions are stable and tested
-- The three-gate controlled remediation model is proven over multiple engagement revisions
+### Rev3.2 Write Expansion
 
-This does NOT mean:
-- Any new write actions are approved for implementation
-- Any new Graph write scopes are authorized for use
-- Implementation may begin without a separate Rev3.0 design review
+| FindingId | ActionType | Write Scope | Status |
+|---|---|---|---|
+| DEC-APP-005 | `RemoveExpiredApplicationCredential` | `Application.ReadWrite.All` | **Implemented — Rev3.2** |
+
+Safety constraints: exact KeyId required, credential must be expired, ProtectedObject blocks unconditionally, CredentialType mismatch blocks, null EndDateTime blocks, application read failure blocks.
+
+### Prior Rev Status: ReadyForRev3Design (Rev2.5)
+
+Rev2.5 established the formal write-readiness assessment. At that point, recommendation was **ReadyForRev3Design**:
+- Rev2.x safety architecture sufficiently mature
+- Four Rev2.0 executable actions stable
+- Three-gate controlled remediation model proven
 
 ---
 

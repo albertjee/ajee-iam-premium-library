@@ -13,8 +13,8 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         Remove-Module WriteReadiness -Force -ErrorAction SilentlyContinue
     }
 
-    It 'Registry contains exactly twenty-two entries (14 original + 8 Rev3.1 guest)' {
-        $script:registry.Count | Should -Be 22
+    It 'Registry contains exactly twenty-three entries (14 original + 8 Rev3.1 guest + 1 Rev3.2 credential)' {
+        $script:registry.Count | Should -Be 23
     }
 
     It 'Registry includes DEC-USER-001' {
@@ -50,19 +50,19 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
     }
 
     It 'All registry entries have Status Executable or ExecutableWhenExactTargetPresent' {
-        $validStatuses = @('Executable', 'ExecutableWhenExactTargetPresent')
+        $validStatuses = @('Executable', 'ExecutableWhenExactTargetPresent', 'ExecutableWhenExactExpiredCredentialKeyIdPresent')
         $invalid = @($script:registry | Where-Object { $_.Status -notin $validStatuses })
         $invalid.Count | Should -Be 0
     }
 
     It 'Registry entries have valid IntroducedIn version labels' {
-        $validVersions = @('Rev2.0', 'Rev3.0', 'Rev3.1')
+        $validVersions = @('Rev2.0', 'Rev3.0', 'Rev3.1', 'Rev3.2')
         $invalid = @($script:registry | Where-Object { $_.IntroducedIn -notin $validVersions })
         $invalid.Count | Should -Be 0
     }
 
     It 'All registry write scopes are in the approved scope list' {
-        $allowed = @('GroupMember.ReadWrite.All','AppRoleAssignment.ReadWrite.All','RoleManagement.ReadWrite.Directory','EntitlementManagement.ReadWrite.All')
+        $allowed = @('GroupMember.ReadWrite.All','AppRoleAssignment.ReadWrite.All','RoleManagement.ReadWrite.Directory','EntitlementManagement.ReadWrite.All','Application.ReadWrite.All')
         foreach ($entry in $script:registry) {
             $allowed | Should -Contain $entry.WriteScope
         }

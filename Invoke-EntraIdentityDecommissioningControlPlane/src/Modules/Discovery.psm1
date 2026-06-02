@@ -216,23 +216,32 @@ function Get-DecomSyntheticFindings {
             -RemediationMode   'ManualApprovalRequired' `
             -ConsultantNote    'Expiring secrets cause integration failures and may trigger emergency access patterns'),
 
-        # DEC-APP-005 — Expired credential (High)
-        (New-DecomFinding `
-            -FindingId         'DEC-APP-005' `
-            -Category          'Application' `
-            -Severity          'High' `
-            -RiskScore         68 `
-            -Confidence        'High' `
-            -ObjectType        'Application' `
-            -ObjectId          'a1b2c3d4-0012-0012-0012-000000000012' `
-            -DisplayName       'Legacy SSO Connector' `
-            -UserPrincipalName '' `
-            -Evidence          'Client secret expired 47 days ago (2026-04-13) — credential still attached to application' `
-            -EvidenceSource    'applications/{id}/passwordCredentials' `
-            -GraphEndpoint     '/v1.0/applications/{id}?$select=passwordCredentials,keyCredentials' `
-            -RecommendedAction 'Remove expired credential from Legacy SSO Connector and rotate if integration still active' `
-            -RemediationMode   'ManualApprovalRequired' `
-            -ConsultantNote    'Expired credentials are a hygiene issue; confirm whether integration is still in use'),
+        # DEC-APP-005 — Expired credential (High) — demo KeyId enables WhatIf credential action generation
+        (& {
+            $f = New-DecomFinding `
+                -FindingId         'DEC-APP-005' `
+                -Category          'Application' `
+                -Severity          'High' `
+                -RiskScore         68 `
+                -Confidence        'High' `
+                -ObjectType        'Application' `
+                -ObjectId          'a1b2c3d4-0012-0012-0012-000000000012' `
+                -DisplayName       'Legacy SSO Connector' `
+                -UserPrincipalName '' `
+                -Evidence          'Client secret expired 47 days ago (2026-04-13) — credential still attached to application' `
+                -EvidenceSource    'applications/{id}/passwordCredentials' `
+                -GraphEndpoint     '/v1.0/applications/{id}?$select=passwordCredentials,keyCredentials' `
+                -RecommendedAction 'Remove expired credential from Legacy SSO Connector and rotate if integration still active' `
+                -RemediationMode   'ManualApprovalRequired' `
+                -ConsultantNote    'Expired credentials are a hygiene issue; confirm whether integration is still in use'
+            $f | Add-Member -NotePropertyName 'CredentialKeyId'       -NotePropertyValue 'dddddddd-0012-0012-0012-000000000012' -Force
+            $f | Add-Member -NotePropertyName 'CredentialType'        -NotePropertyValue 'PasswordCredential'                  -Force
+            $f | Add-Member -NotePropertyName 'CredentialEndDateTime' -NotePropertyValue '2026-04-13T00:00:00Z'                -Force
+            $f | Add-Member -NotePropertyName 'AppId'                 -NotePropertyValue 'a1b2c3d4-0012-0012-0012-000000000099' -Force
+            $f | Add-Member -NotePropertyName 'OwnerCount'            -NotePropertyValue 1                                     -Force
+            $f | Add-Member -NotePropertyName 'HasOwner'              -NotePropertyValue $true                                 -Force
+            $f
+        }),
 
         # DEC-SPN-001 — Ownerless service principal (Medium)
         (New-DecomFinding `
@@ -978,7 +987,8 @@ function Invoke-DecomAssessmentDiscovery {
                 $credHint  = if ($cred.DisplayName) { $cred.DisplayName } else { $cred.KeyId }
 
                 if ($daysToExp -lt 0) {
-                    $findings.Add((New-DecomFinding `
+                    $credTypeName = if ($cred.PSObject.Properties.Name -contains 'SecretText') { 'PasswordCredential' } else { 'KeyCredential' }
+                    $f005 = New-DecomFinding `
                         -FindingId         'DEC-APP-005' `
                         -Category          'Application' `
                         -Severity          'High' `
@@ -993,7 +1003,15 @@ function Invoke-DecomAssessmentDiscovery {
                         -GraphEndpoint     '/v1.0/applications/{id}?$select=passwordCredentials,keyCredentials' `
                         -RecommendedAction "Remove expired $credType from '$($app.DisplayName)' and rotate if integration still active" `
                         -RemediationMode   'ManualApprovalRequired' `
-                        -ConsultantNote    'Expired credentials are a hygiene issue; confirm whether integration is still in use'))
+                        -ConsultantNote    'Expired credentials are a hygiene issue; confirm whether integration is still in use'
+                    $safeOwnerCount = if ($null -ne $owners) { [int]$owners.Count } else { 0 }
+                    $f005 | Add-Member -NotePropertyName 'CredentialKeyId'       -NotePropertyValue ($cred.KeyId)                                   -Force
+                    $f005 | Add-Member -NotePropertyName 'CredentialType'        -NotePropertyValue $credTypeName                                    -Force
+                    $f005 | Add-Member -NotePropertyName 'CredentialEndDateTime' -NotePropertyValue ($cred.EndDateTime.ToUniversalTime().ToString('o')) -Force
+                    $f005 | Add-Member -NotePropertyName 'AppId'                 -NotePropertyValue ($app.AppId)                                     -Force
+                    $f005 | Add-Member -NotePropertyName 'OwnerCount'            -NotePropertyValue $safeOwnerCount                                  -Force
+                    $f005 | Add-Member -NotePropertyName 'HasOwner'              -NotePropertyValue ($safeOwnerCount -gt 0)                          -Force
+                    $findings.Add($f005)
 
                 } elseif ($daysToExp -le $warningDays) {
                     $findings.Add((New-DecomFinding `

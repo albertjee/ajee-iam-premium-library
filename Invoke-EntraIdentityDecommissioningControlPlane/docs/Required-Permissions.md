@@ -111,6 +111,20 @@ Rev3.0 introduces two new controlled remediation action types. Both require writ
 
 If `Remove-MgEntitlementManagementAssignment` or `Remove-MgRoleManagementDirectoryRoleEligibilitySchedule` is unavailable in the session (module not loaded), the action is logged `Blocked` with `cmdlet unavailable` error detail. The run continues for all other actions.
 
+## Rev3.2 — New Write Permission Required for Application Credential Removal
+
+Rev3.2 introduces one new controlled write action. It requires a write permission requested only after Gate A (WhatIf manifest) and Gate B (approval manifest with SchemaVersion ≥ 3.2) pass.
+
+| Permission | Type | Action Type | Finding IDs |
+|---|---|---|---|
+| `Application.ReadWrite.All` | Delegated | `RemoveExpiredApplicationCredential` | DEC-APP-005 |
+
+`Application.ReadWrite.All` is new in Rev3.2. It is added to the write-scope `Connect-MgGraph` call in the entry point only when ExecuteRemediation mode is active.
+
+The action removes only the specific password or key credential identified by an exact `CredentialKeyId`. The application object itself is never deleted. Non-expired credentials, credentials without an exact KeyId, and ProtectedObject applications are blocked before any write is attempted.
+
+`Remove-MgApplicationPassword` is used for `PasswordCredential` type; `Remove-MgApplicationKey` is used for `KeyCredential` type. Both are checked for cmdlet availability before use.
+
 ## Rev2.5 — No New Permissions Required
 
 Rev2.5 adds SelfTest (`-SelfTest`), release packaging (`-GenerateReleasePackage`), schema contracts, catalog validation, and write-readiness assessment capabilities. All new features operate on local source files and prior output artifacts only. No additional Microsoft Graph scopes are required.
