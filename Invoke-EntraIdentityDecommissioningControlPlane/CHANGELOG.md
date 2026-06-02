@@ -1,5 +1,23 @@
 # Changelog
 
+## Rev3.4 P1 — Entry Point Wiring Fixes and Test Harness Correctness (2026-06-02)
+
+### Fixed
+- Entry point P1-02: `Compare-DecomWhatIfToApproval` was called with empty `@()` arrays; now loads real WhatIf and Approval actions from `$WhatIfManifestPath` / `$ApprovalManifestPath` before calling.
+- `Traceability.psm1`: TraceGap condition was `$null -ne $ex` — never fired when execution record was absent. Fixed to `($null -eq $ex -or $executionOutcome -eq 'NotExecuted')` so Approved-but-unexecuted actions correctly produce TraceGap.
+- `EvidenceBundle.psm1`: `Add-DecomEvidenceBundleFile` stored full absolute path in `RelativePath` when file was outside `SourceOutputPath`. Fixed to store `$fileInfo.Name`.
+- `Redaction.Rev34.Tests.ps1`: broken string concatenation `'...'$var'...'` at line 357 caused parse failure — entire file (32 tests) silently excluded. Fixed to `('...' + $var + '...')`.
+- `Redaction.Rev34.Tests.ps1`: `Get-ChildItem -Include '*.json'` without `-Recurse` or wildcard path returned no files (known PS quirk). Fixed to `-Filter '*.json'` (single-extension) and `-Recurse -Include` (multi-extension).
+- `OutputManifest.Rev34.Tests.ps1`: nested-file test used relative `.\out\nested\` paths that failed in Pester working context. Rewritten with absolute temp paths.
+- `Traceability.Rev34.Tests.ps1`: old test expected `'Approved'` for approved-but-unexecuted scenario; updated to expect `'TraceGap'` consistent with P1-03 spec.
+
+### Tests
+- Added 3 P1-02 ApprovalDiff tests: `'Approval diff detects ApprovedUnchanged with real matching action'`, `'Approval diff detects RejectedOrOmitted'`, `'Approval diff detects ApprovalOnlyNotInWhatIf'`.
+- Added 1 EvidenceBundle regression test: `'Evidence bundle file outside source path uses filename as RelativePath'`.
+- Total: 890 tests, 0 failures (prior: 876 committed, 854 runnable due to Redaction parse failure).
+
+---
+
 ## Rev3.4 — Production Hardening, Evidence Packaging, and Client Deployment Foundation
 
 ### Added
