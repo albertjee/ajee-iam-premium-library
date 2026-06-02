@@ -104,7 +104,7 @@ function Add-DecomEvidenceBundleFile {
                 $resolvedFile.StartsWith($resolvedBase + '/', [StringComparison]::OrdinalIgnoreCase)) {
                 $relativePath = '.' + $resolvedFile.Substring($resolvedBase.Length)
             } else {
-                $relativePath = $resolvedFile
+                $relativePath = $fileInfo.Name
             }
         } catch {
             $relativePath = $FilePath

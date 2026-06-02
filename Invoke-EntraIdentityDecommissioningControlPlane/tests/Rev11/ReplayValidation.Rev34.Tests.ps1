@@ -431,10 +431,10 @@ Describe 'ReplayValidation' {
         $result.ToolVersion | Should -Be 'Rev3.4'
     }
 
-    It 'Invoke-DecomReplayValidation with no inputs returns Passed=true with zero checks and three warnings' {
+    It 'Replay validation with no artifacts returns Passed=false' {
         $result = Invoke-DecomReplayValidation -RunId 'run-empty'
         $result.CheckCount | Should -Be 0
-        $result.Passed     | Should -Be $true
+        $result.Passed     | Should -Be $false
         $result.Warnings.Count | Should -Be 3
     }
 

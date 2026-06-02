@@ -87,7 +87,7 @@ function Invoke-DecomReplayValidation {
     $allFindings   = $findings.ToArray()
     $passedChecks  = @($allFindings | Where-Object { $_.Passed -eq $true  }).Count
     $failedChecks  = @($allFindings | Where-Object { $_.Passed -eq $false }).Count
-    $overallPassed = ($failedChecks -eq 0)
+    $overallPassed = ($failedChecks -eq 0) -and ($allFindings.Count -gt 0)
 
     return [pscustomobject]@{
         SchemaVersion = '3.4'

@@ -104,4 +104,42 @@ Describe 'EvidenceBundle' {
             if (Test-Path $tempMd) { Remove-Item $tempMd -Force }
         }
     }
+
+    It 'Evidence bundle file outside source path uses filename as RelativePath' {
+        $ctx = [pscustomobject]@{ ToolVersion='Rev3.4'; EngagementId='eng-123'; ClientName='Client A' }
+        $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-ext-001' `
+            -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Set-Content -Path $tempFile -Value 'external content'
+        try {
+            $bundle = Add-DecomEvidenceBundleFile -Bundle $bundle -FilePath $tempFile -Category 'Assessment'
+            $bundle.Files[0].RelativePath | Should -Be ([System.IO.Path]::GetFileName($tempFile))
+        } finally {
+            Remove-Item $tempFile -Force
+        }
+    }
+
+    It 'Evidence hash manifest includes evidence-bundle manifest' {
+        $ctx = [pscustomobject]@{ ToolVersion='Rev3.4'; EngagementId='eng-123'; ClientName='Client A' }
+        $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-006' `
+            -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Set-Content -Path $tempFile -Value 'test content'
+        try {
+            $bundle = Add-DecomEvidenceBundleFile -Bundle $bundle -FilePath $tempFile -Category 'Assessment'
+
+            $tempJson = [System.IO.Path]::GetTempFileName() + '.json'
+            $tempCsv  = [System.IO.Path]::GetTempFileName() + '.csv'
+            Export-DecomEvidenceHashManifest -Bundle $bundle -JsonPath $tempJson -CsvPath $tempCsv
+
+            $hashJson = Get-Content $tempJson -Raw | ConvertFrom-Json
+            $hashJson.Hashes.Count | Should -Be 1
+            $hashJson.Hashes[0].FileName | Should -Be ([System.IO.Path]::GetFileName($tempFile))
+            $hashJson.Hashes[0].RelativePath | Should -Be ([System.IO.Path]::GetFileName($tempFile))
+        } finally {
+            Remove-Item $tempFile -Force
+            if (Test-Path $tempJson) { Remove-Item $tempJson -Force }
+            if (Test-Path $tempCsv)  { Remove-Item $tempCsv  -Force }
+        }
+    }
 }

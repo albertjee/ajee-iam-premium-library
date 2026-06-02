@@ -168,4 +168,36 @@ Describe 'OutputManifest' {
             Remove-Item $tempFile -Force
         }
     }
+
+    It 'Output manifest includes nested evidence-bundle files' {
+        $ctx      = [pscustomobject]@{ ToolVersion='Rev3.4'; EngagementId='eng-123'; ClientName='Client A' }
+        $tmpBase  = [System.IO.Path]::GetTempPath()
+        $outRoot  = Join-Path $tmpBase ('omR_' + [guid]::NewGuid().ToString('N').Substring(0, 6))
+        $nested   = Join-Path $outRoot 'nested'
+        $null     = New-Item -ItemType Directory -Path $nested -Force
+        $file     = Join-Path $nested 'nested-file.json'
+        [System.IO.File]::WriteAllText($file, '{"test":1}')
+        $manifest = New-DecomOutputManifest -Context $ctx -RunId 'run-n1' -OutputRoot $outRoot
+        try {
+            $manifest = Add-DecomOutputManifestItem -Manifest $manifest -FilePath $file -Category 'Assessment' -Sensitivity 'Confidential'
+            $manifest.Summary.TotalFiles | Should -Be 1
+            $manifest.Files[0].FileName | Should -Be 'nested-file.json'
+        } finally {
+            if (Test-Path $outRoot) { Remove-Item $outRoot -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+    }
+
+    It 'Output manifest includes redacted files' {
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.4'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $tempFile = Join-Path '.\out' 'redacted-report.json'
+        Set-Content -Path $tempFile -Value '{"redacted": "data"}'
+        try {
+            $result = Add-DecomOutputManifestItem -Manifest $manifest -FilePath $tempFile -Category 'Report' -Sensitivity 'ClientSafe'
+            $result.Files.Count | Should -Be 1
+            $result.Files[0].Sensitivity | Should -Be 'ClientSafe'
+            $result.Files[0].FileName | Should -Be 'redacted-report.json'
+        } finally {
+            Remove-Item $tempFile -Force
+        }
+    }
 }

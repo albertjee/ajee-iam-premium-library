@@ -171,6 +171,25 @@ Describe 'ApprovalDiff' {
         }
     }
 
+    It 'Approval diff detects ApprovedUnchanged with real matching action' {
+        $wa = [pscustomobject]@{ ActionId='ap1'; ActionType='RemoveGroupMember'; TargetObjectId='obj-ap1'; Hash='hash-ap1'; RiskScore=50; ProtectedObject=$false }
+        $aa = [pscustomobject]@{ ActionId='ap1'; ActionType='RemoveGroupMember'; TargetObjectId='obj-ap1'; Hash='hash-ap1'; RiskScore=50 }
+        $diff = Compare-DecomWhatIfToApproval -WhatIfActions @($wa) -ApprovalActions @($aa) -RunId 'run-p102-a'
+        ($diff.DiffItems | Where-Object { $_.ActionId -eq 'ap1' }).DiffCategory | Should -Be 'ApprovedUnchanged'
+    }
+
+    It 'Approval diff detects RejectedOrOmitted' {
+        $wa = [pscustomobject]@{ ActionId='ap2'; ActionType='DisableAccount'; TargetObjectId='obj-ap2'; Hash='hash-ap2'; RiskScore=60; ProtectedObject=$false }
+        $diff = Compare-DecomWhatIfToApproval -WhatIfActions @($wa) -ApprovalActions @() -RunId 'run-p102-b'
+        ($diff.DiffItems | Where-Object { $_.ActionId -eq 'ap2' }).DiffCategory | Should -Be 'RejectedOrOmitted'
+    }
+
+    It 'Approval diff detects ApprovalOnlyNotInWhatIf' {
+        $aa = [pscustomobject]@{ ActionId='ap3'; ActionType='RevokeAccessPackage'; TargetObjectId='obj-ap3'; Hash='hash-ap3'; RiskScore=70 }
+        $diff = Compare-DecomWhatIfToApproval -WhatIfActions @() -ApprovalActions @($aa) -RunId 'run-p102-c'
+        ($diff.DiffItems | Where-Object { $_.ActionId -eq 'ap3' }).DiffCategory | Should -Be 'ApprovalOnlyNotInWhatIf'
+    }
+
     It 'Approval diff HTML exported contains HTML tags' {
         $wa = [pscustomobject]@{
             ActionId       = 'html-01'

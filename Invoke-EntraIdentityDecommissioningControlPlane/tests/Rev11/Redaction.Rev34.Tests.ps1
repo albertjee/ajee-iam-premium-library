@@ -291,4 +291,174 @@ F001,Identity,High,alice@contoso.com,aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb
         $result = Test-DecomRedactedOutput -RedactedString "residual: $guid" -Profile $p
         $result.Passed | Should -Be $false
     }
+
+    # ── GenerateRedactedPackage Integration Tests ──────────────────────────────────────
+    # These tests validate the redaction file generation functionality in the entry point
+    # Note: These tests require mocking parts of the entry point and are simplified for unit testing
+
+    It 'GenerateRedactedPackage creates redacted files in redacted\ subfolder' {
+        $testDir = [System.IO.Path]::GetTempPath()
+        $runFolder = Join-Path $testDir "TestRun_$(Get-Random)"
+        New-Item -ItemType Directory -Path $runFolder | Out-Null
+        try {
+            # Create test files
+            $testJson = Join-Path $runFolder "test.json"
+            $testCsv  = Join-Path $runFolder "test.csv"
+            $testMd   = Join-Path $runFolder "test.md"
+            $testHtml = Join-Path $runFolder "test.html"
+
+            '{"TenantId":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","User":"admin@contoso.com"}' | Set-Content $testJson
+            'Id,Email,Name\n1,admin@contoso.com,Admin' | Set-Content $testCsv
+            '# Test\nEmail: admin@contoso.com' | Set-Content $testMd
+            '<p>Contact: admin@contoso.com</p>' | Set-Content $testHtml
+
+            # Mock the redaction logic from entry point
+            Import-Module (Join-Path $script:ModulesPath 'Redaction.psm1') -Force -DisableNameChecking -ErrorAction Stop
+            $redactionProfileObj = New-DecomRedactionProfile -ProfileName ClientSafe
+            $redactedDir = Join-Path $runFolder 'redacted'
+            New-Item -ItemType Directory -Path $redactedDir -Force | Out-Null
+            $redactedCount = 0
+
+            Get-ChildItem -Path $runFolder -Recurse -File -Include '*.json','*.csv','*.md','*.html' |
+                ForEach-Object {
+                    try {
+                        $raw = Get-Content $_.FullName -Raw -ErrorAction Stop
+                        $redacted = Invoke-DecomRedaction -InputString $raw -Profile $redactionProfileObj
+                        $target = Join-Path $redactedDir $_.Name
+                        Set-Content -Path $target -Value $redacted -Encoding UTF8
+                        $redactedCount++
+                    } catch { }
+                }
+
+            # Assertions
+            Test-Path (Join-Path $redactedDir 'test.json') | Should -Be $true
+            Test-Path (Join-Path $redactedDir 'test.csv')  | Should -Be $true
+            Test-Path (Join-Path $redactedDir 'test.md')   | Should -Be $true
+            Test-Path (Join-Path $redactedDir 'test.html') | Should -Be $true
+            $redactedCount | Should -Be 4
+
+            # Verify redaction worked
+            (Get-Content (Join-Path $redactedDir 'test.json') -Raw) | Should -Not -Match 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+            (Get-Content (Join-Path $redactedDir 'test.json') -Raw) | Should -Match '\[REDACTED_TENANT_ID\]'
+            (Get-Content (Join-Path $redactedDir 'test.csv') -Raw) | Should -Not -Match 'admin@contoso.com'
+            (Get-Content (Join-Path $redactedDir 'test.csv') -Raw) | Should -Match '\[REDACTED_UPN_1\]'
+        } finally {
+            Remove-Item $runFolder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'Redacted output contains no raw TenantId' {
+        $testDir = [System.IO.Path]::GetTempPath()
+        $runFolder = Join-Path $testDir "TestRunTenant_$(Get-Random)"
+        New-Item -ItemType Directory -Path $runFolder | Out-Null
+        try {
+            $tenantId = '11111111-2222-3333-4444-555555555555'
+            $testFile = Join-Path $runFolder "settings.json"
+            ('{"TenantId":"' + $tenantId + '","Name":"Test"}') | Set-Content $testFile
+
+            Import-Module (Join-Path $script:ModulesPath 'Redaction.psm1') -Force -DisableNameChecking -ErrorAction Stop
+            $redactionProfileObj = New-DecomRedactionProfile -ProfileName ClientSafe
+            $redactedDir = Join-Path $runFolder 'redacted'
+            New-Item -ItemType Directory -Path $redactedDir -Force | Out-Null
+
+            Get-ChildItem -Path $runFolder -Filter '*.json' -File |
+                ForEach-Object {
+                    $raw = Get-Content $_.FullName -Raw
+                    $redacted = Invoke-DecomRedaction -InputString $raw -Profile $redactionProfileObj
+                    $target = Join-Path $redactedDir $_.Name
+                    Set-Content -Path $target -Value $redacted -Encoding UTF8
+                }
+
+            $redactedContent = Get-Content (Join-Path $redactedDir 'settings.json') -Raw
+            $redactedContent | Should -Not -Match $tenantId
+            $redactedContent | Should -Match '\[REDACTED_TENANT_ID\]'
+        } finally {
+            Remove-Item $runFolder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'RedactedFileCount > 0 when files were redacted' {
+        $testDir = [System.IO.Path]::GetTempPath()
+        $runFolder = Join-Path $testDir "TestRunCount_$(Get-Random)"
+        New-Item -ItemType Directory -Path $runFolder | Out-Null
+        try {
+            $testFile = Join-Path $runFolder "data.json"
+            '{"TenantId":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}' | Set-Content $testFile
+
+            Import-Module (Join-Path $script:ModulesPath 'Redaction.psm1') -Force -DisableNameChecking -ErrorAction Stop
+            $redactionProfileObj = New-DecomRedactionProfile -ProfileName ClientSafe
+            $redactedDir = Join-Path $runFolder 'redacted'
+            New-Item -ItemType Directory -Path $redactedDir -Force | Out-Null
+            $redactedCount = 0
+
+            Get-ChildItem -Path $runFolder -Filter '*.json' -File |
+                ForEach-Object {
+                    $raw = Get-Content $_.FullName -Raw
+                    $redacted = Invoke-DecomRedaction -InputString $raw -Profile $redactionProfileObj
+                    $target = Join-Path $redactedDir $_.Name
+                    Set-Content -Path $target -Value $redacted -Encoding UTF8
+                    $redactedCount++
+                }
+
+            $redactedCount | Should -BeGreaterThan 0
+            $redactedCount | Should -Be 1
+        } finally {
+            Remove-Item $runFolder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'JSON remains parseable after redaction' {
+        $testDir = [System.IO.Path]::GetTempPath()
+        $runFolder = Join-Path $testDir "TestRunJson_$(Get-Random)"
+        New-Item -ItemType Directory -Path $runFolder | Out-Null
+        try {
+            $testFile = Join-Path $runFolder "complex.json"
+            $json = @'
+{
+  "TenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "Users": [
+    {"id": "11111111-1111-1111-1111-111111111111", "email": "user1@contoso.com"},
+    {"id": "22222222-2222-2222-2222-222222222222", "email": "user2@fabrikam.com"}
+  ],
+  "Settings": {
+    "AppId": "33333333-3333-3333-3333-333333333333",
+    "Secret": "not-a-guid-but-should-stay"
+  }
+}
+'@
+            $json | Set-Content $testFile
+
+            Import-Module (Join-Path $script:ModulesPath 'Redaction.psm1') -Force -DisableNameChecking -ErrorAction Stop
+            $redactionProfileObj = New-DecomRedactionProfile -ProfileName ClientSafe
+            $redactedDir = Join-Path $runFolder 'redacted'
+            New-Item -ItemType Directory -Path $redactedDir -Force | Out-Null
+
+            Get-ChildItem -Path $runFolder -Filter '*.json' -File |
+                ForEach-Object {
+                    $raw = Get-Content $_.FullName -Raw
+                    $redacted = Invoke-DecomRedaction -InputString $raw -Profile $redactionProfileObj
+                    $target = Join-Path $redactedDir $_.Name
+                    Set-Content -Path $target -Value $redacted -Encoding UTF8
+                }
+
+            $redactedPath = Join-Path $redactedDir 'complex.json'
+            $redactedContent = Get-Content $redactedPath -Raw
+
+            # Should be parseable JSON
+            { $redactedContent | ConvertFrom-Json } | Should -Not -Throw
+
+            # Verify redactions occurred
+            $redactedContent | Should -Not -Match 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+            $redactedContent | Should -Not -Match '11111111-1111-1111-1111-111111111111'
+            $redactedContent | Should -Not -Match '22222222-2222-2222-2222-222222222222'
+            $redactedContent | Should -Not -Match '33333333-3333-3333-3333-333333333333'
+            $redactedContent | Should -Not -Match 'user1@contoso.com'
+            $redactedContent | Should -Not -Match 'user2@fabrikam.com'
+
+            # Verify non-GUID/email values remain
+            $redactedContent | Should -Match 'not-a-guid-but-should-stay'
+        } finally {
+            Remove-Item $runFolder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }

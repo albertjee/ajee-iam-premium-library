@@ -167,7 +167,7 @@ function New-DecomTraceabilityModel {
                 }
 
                 # Consistency check: Approved but no execution record and outcome not expected
-                if ($traceStatus -eq 'Approved' -and $null -ne $ex -and $executionOutcome -eq 'NotExecuted') {
+                if ($traceStatus -eq 'Approved' -and ($null -eq $ex -or $executionOutcome -eq 'NotExecuted')) {
                     $traceStatus    = 'TraceGap'
                     $traceGapReason = 'Approval record present but execution outcome is NotExecuted.'
                 }

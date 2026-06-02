@@ -79,8 +79,8 @@ Describe 'Traceability' {
 
         $row = $model.Rows | Where-Object { $_.FindingId -eq 'f-003' }
         $row | Should -Not -BeNullOrEmpty
-        $row.TraceStatus | Should -Be 'Approved'
-        $model.Summary.Approved | Should -Be 1
+        $row.TraceStatus | Should -Be 'TraceGap'
+        $model.Summary.TraceGap | Should -Be 1
     }
 
     It 'Executed trace status generated when execution outcome is Executed with EvidenceFile' {
@@ -301,5 +301,115 @@ Describe 'Traceability' {
         } finally {
             if (Test-Path $tempPath) { Remove-Item $tempPath -Force }
         }
+    }
+
+    It 'Traceability links Finding to WhatIf by FindingId' {
+        $finding = [pscustomobject]@{
+            FindingId         = 'f-link-001'
+            FindingInstanceId = 'fi-link-001'
+            Severity          = 'Medium'
+            RiskScore         = '50'
+            ObjectId          = 'user-link-001'
+            DisplayName       = 'Link Test User'
+        }
+        $wa = [pscustomobject]@{
+            ActionId    = 'act-link-001'
+            FindingId   = 'f-link-001'
+            ActionType  = 'RemoveGroupMember'
+            WhatIfRunId = 'wi-run-link-001'
+        }
+        $wa2 = [pscustomobject]@{
+            ActionId    = 'act-link-002'
+            FindingId   = 'f-link-001'  # Same FindingId - should link to same finding
+            ActionType  = 'RevokeAppRoleAssignment'
+            WhatIfRunId = 'wi-run-link-002'
+        }
+
+        $model = New-DecomTraceabilityModel -Findings @($finding) -WhatIfActions @($wa, $wa2) -ApprovalActions @() -ExecutionResults @() -RunId 'run-link'
+
+        # Should have 2 rows (one for each WhatIf action)
+        ($model.Rows.Count) | Should -Be 2
+
+        # Both rows should have the same FindingId
+        foreach ($row in $model.Rows) {
+            $row.FindingId | Should -Be 'f-link-001'
+        }
+
+        # Should have 2 WhatIfGenerated trace status
+        $model.Summary.WhatIfGenerated | Should -Be 2
+    }
+
+    It 'Executed action without evidence becomes EvidenceMissing' {
+        $finding = [pscustomobject]@{
+            FindingId         = 'f-evidence-001'
+            FindingInstanceId = 'fi-evidence-001'
+            Severity          = 'High'
+            RiskScore         = '85'
+            ObjectId          = 'user-evidence-001'
+            DisplayName       = 'Evidence Test User'
+        }
+        $wa = [pscustomobject]@{
+            ActionId    = 'act-evidence-001'
+            FindingId   = 'f-evidence-001'
+            ActionType  = 'DisableAccount'
+            WhatIfRunId = 'wi-run-evidence-001'
+        }
+        $aa = [pscustomobject]@{
+            ActionId             = 'act-evidence-001'
+            ApprovalStatus       = 'Approved'
+            ApprovedBy           = 'approver@contoso.com'
+            ApprovalTicket       = 'CHG-EV-001'
+            ApprovalManifestHash = 'manifesthash-ev-001'
+        }
+        $ex = [pscustomobject]@{
+            ActionId              = 'act-evidence-001'
+            ExecutionOutcome      = 'Executed'
+            ExecutedUtc           = '2026-06-02T11:00:00Z'
+            GraphWriteCmdlet      = 'Update-MgUser'
+            PostWriteRequeryStatus = 'Confirmed'
+            EvidenceFile          = ''  # Empty evidence file
+            RollbackGuidance      = ''
+        }
+
+        $model = New-DecomTraceabilityModel -Findings @($finding) -WhatIfActions @($wa) -ApprovalActions @($aa) -ExecutionResults @($ex) -RunId 'run-evidence'
+
+        $row = $model.Rows | Where-Object { $_.FindingId -eq 'f-evidence-001' }
+        $row | Should -Not -BeNullOrEmpty
+        $row.TraceStatus | Should -Be 'EvidenceMissing'
+        $row.EvidenceFile | Should -Be ''
+        $model.Summary.EvidenceMissing | Should -Be 1
+    }
+
+    It 'Approved action with no execution becomes TraceGap' {
+        $finding = [pscustomobject]@{
+            FindingId         = 'f-tracegap-001'
+            FindingInstanceId = 'fi-tracegap-001'
+            Severity          = 'Medium'
+            RiskScore         = '60'
+            ObjectId          = 'user-tracegap-001'
+            DisplayName       = 'TraceGap Test User'
+        }
+        $wa = [pscustomobject]@{
+            ActionId    = 'act-tracegap-001'
+            FindingId   = 'f-tracegap-001'
+            ActionType  = 'RemoveLicense'
+            WhatIfRunId = 'wi-run-tracegap-001'
+        }
+        $aa = [pscustomobject]@{
+            ActionId             = 'act-tracegap-001'
+            ApprovalStatus       = 'Approved'
+            ApprovedBy           = 'approver@contoso.com'
+            ApprovalTicket       = 'CHG-TG-001'
+            ApprovalManifestHash = 'manifesthash-tg-001'
+        }
+        # Note: No execution record provided
+
+        $model = New-DecomTraceabilityModel -Findings @($finding) -WhatIfActions @($wa) -ApprovalActions @($aa) -ExecutionResults @() -RunId 'run-tracegap'
+
+        $row = $model.Rows | Where-Object { $_.FindingId -eq 'f-tracegap-001' }
+        $row | Should -Not -BeNullOrEmpty
+        $row.TraceStatus | Should -Be 'TraceGap'
+        $row.TraceGapReason | Should -Be 'Approval record present but execution outcome is NotExecuted.'
+        $model.Summary.TraceGap | Should -Be 1
     }
 }
