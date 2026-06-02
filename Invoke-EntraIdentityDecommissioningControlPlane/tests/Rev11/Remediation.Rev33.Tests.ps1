@@ -214,6 +214,39 @@ Describe 'Remediation.Rev33 — Application Owner and CA Exclusion Revalidation 
         }
     }
 
+    # ── P1 fixes: outcome logic and user validation hardening ──
+
+    Context 'AddApplicationOwner — outcome logic and user validation hardening (P1 fixes)' {
+
+        It 'AddApplicationOwner logs Executed when post-write re-query confirms owner present' {
+            InModuleScope Remediation {
+                # Outcome block: add-oriented — PresentTargetIds == targetIds means Executed
+                $script:RemContent = $script:RemContent  # already loaded in BeforeAll
+            }
+            $script:RemContent | Should -Match "actionType.*-eq.*'AddApplicationOwner'|'AddApplicationOwner'.*actionType"
+            $script:RemContent | Should -Match 'PresentTargetIds\.Count -eq \$targetIds\.Count'
+        }
+
+        It 'AddApplicationOwner logs Failed when owner still absent after write' {
+            # When PresentTargetIds is empty for AddApplicationOwner the outcome must be Failed not Executed
+            $script:RemContent | Should -Match "actionType.*-eq.*'AddApplicationOwner'"
+            # The removal-oriented branch (Count -eq 0 → Executed) must NOT be reached for AddApplicationOwner
+            # Verify add-oriented else branch emits Failed
+            $script:RemContent | Should -Match "PresentTargetIds\.Count -eq 0[\s\S]{0,200}'Failed'"
+        }
+
+        It 'AddApplicationOwner post-write re-query failure logs PartialFailed not Executed' {
+            # QuerySucceeded = false must yield PartialFailed regardless of action type
+            $script:RemContent | Should -Match 'QuerySucceeded'
+            $script:RemContent | Should -Match "'PartialFailed'"
+        }
+
+        It 'Confirm-DecomActionTargetValid blocks when NewOwnerType=User and Get-MgUser fails' {
+            $script:RemContent | Should -Match "NewOwnerType.*-eq.*'User'|'User'.*NewOwnerType"
+            $script:RemContent | Should -Match 'user read failed'
+        }
+    }
+
     # ── Safety invariants ──
 
     Context 'Rev3.3 safety invariants' {

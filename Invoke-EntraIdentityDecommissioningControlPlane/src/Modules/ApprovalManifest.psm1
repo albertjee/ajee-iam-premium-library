@@ -1258,6 +1258,10 @@ function Test-DecomApprovalManifest {
                 if ($oa.ProtectedObject -eq $true) {
                     $errors += "ProtectedObject action cannot be approved for owner addition"
                 }
+                $targetIds = @($oa.TargetObjectIds | ForEach-Object { [string]$_ })
+                if ($targetIds -notcontains [string]$oa.NewOwnerObjectId) {
+                    $errors += "AddApplicationOwner NewOwnerObjectId must be present in TargetObjectIds"
+                }
             }
             # No duplicate owner-add operations
             $ownerOpKeys = [System.Collections.Generic.HashSet[string]]::new()
@@ -1298,6 +1302,22 @@ function Test-DecomApprovalManifest {
                 }
                 if ($ca.BreakGlassIndicator -eq $true) {
                     $errors += "BreakGlassIndicator action cannot be approved for CA exclusion group removal"
+                }
+
+                # ExcludedPrincipalId required
+                if (-not $ca.ExcludedPrincipalId -or [string]$ca.ExcludedPrincipalId -eq '') {
+                    $errors += "RemoveCAExclusionGroupMember requires ExcludedPrincipalId"
+                }
+
+                # ObjectId must equal ExcludedPrincipalId
+                if ($ca.ExcludedPrincipalId -and ([string]$ca.ObjectId -ne [string]$ca.ExcludedPrincipalId)) {
+                    $errors += "RemoveCAExclusionGroupMember ObjectId must equal ExcludedPrincipalId"
+                }
+
+                # ExclusionGroupId must be in TargetObjectIds
+                $targetIds = @($ca.TargetObjectIds | ForEach-Object { [string]$_ })
+                if ($ca.ExclusionGroupId -and ($targetIds -notcontains [string]$ca.ExclusionGroupId)) {
+                    $errors += "RemoveCAExclusionGroupMember ExclusionGroupId must be present in TargetObjectIds"
                 }
             }
             # No duplicate CA exclusion operations

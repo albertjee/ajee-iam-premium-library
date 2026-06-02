@@ -218,6 +218,41 @@ Describe 'ApprovalManifest.Rev33 — Rev3.3 Action Type Validation' {
             ($result.Errors | Where-Object { $_ -match 'ProtectedObject' }) | Should -Not -BeNullOrEmpty
         }
 
+        It 'AddApplicationOwner rejected when NewOwnerObjectId not in TargetObjectIds' {
+            $differentObjId = [guid]::NewGuid().Guid
+            $actions = @([PSCustomObject]@{
+                ActionId='ACT-001'; FindingId='DEC-APP-001'; ObjectId=$script:appObjId
+                ObjectType='Application'; ActionType='AddApplicationOwner'
+                TargetObjectIds=@($script:ownerObjId)
+                NewOwnerObjectId=$differentObjId
+                BusinessJustification='test owner'; ProtectedObject=$false
+            })
+            $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actions
+            $path = Join-Path $script:testOutputDir "manifest-ownerid-mismatch-$([guid]::NewGuid().Guid).json"
+            $manifest = [ordered]@{
+                SchemaVersion='3.3'; EngagementId='ENG-33-AM'; ClientName='TestClient'
+                WhatIfRunId=[guid]::NewGuid().Guid; ApprovalStatus='Approved'
+                ApprovedBy='Jane CISO'; ApprovedUtc=(Get-Date).ToUniversalTime().ToString('o')
+                ExpiresUtc=(Get-Date).AddDays(3).ToUniversalTime().ToString('o')
+                AllowNonInteractive=$false; ApprovedActionsHash=$actionsHash
+                ApprovalEnvelopeHash='placeholder'; ApprovedActions=$actions
+            }
+            $manifest | ConvertTo-Json -Depth 10 | Set-Content $path -Encoding UTF8
+            $result = Test-DecomApprovalManifest -ManifestPath $path -CurrentEngagementId 'ENG-33-AM' `
+                -CurrentClientName 'TestClient' -WhatIfRunId $manifest.WhatIfRunId
+            $result.Valid | Should -Be $false
+            ($result.Errors | Where-Object { $_ -match 'NewOwnerObjectId.*TargetObjectIds|TargetObjectIds.*NewOwnerObjectId' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'AddApplicationOwner accepted when NewOwnerObjectId matches TargetObjectIds' {
+            # Already covered by 'Valid AddApplicationOwner passes' but make explicit
+            $path = Build-MinimalManifest
+            $manifest = Get-Content $path -Raw | ConvertFrom-Json
+            $result = Test-DecomApprovalManifest -ManifestPath $path -CurrentEngagementId 'ENG-33-AM' `
+                -CurrentClientName 'TestClient' -WhatIfRunId $manifest.WhatIfRunId
+            $result.Valid | Should -Be $true
+        }
+
         It 'Duplicate owner-add operation fails' {
             $actions = @(
                 [PSCustomObject]@{
@@ -342,6 +377,45 @@ Describe 'ApprovalManifest.Rev33 — Rev3.3 Action Type Validation' {
             $result = Test-DecomApprovalManifest -ManifestPath $path -CurrentEngagementId 'ENG-33-CA' `
                 -CurrentClientName 'TestClient' -WhatIfRunId $manifest.WhatIfRunId
             $result.Valid | Should -Be $false
+        }
+
+        It 'RemoveCAExclusionGroupMember rejected when ExcludedPrincipalId missing' {
+            $path = Build-CAManifest -ActionOverride @{ ExcludedPrincipalId = '' }
+            $manifest = Get-Content $path -Raw | ConvertFrom-Json
+            $result = Test-DecomApprovalManifest -ManifestPath $path -CurrentEngagementId 'ENG-33-CA' `
+                -CurrentClientName 'TestClient' -WhatIfRunId $manifest.WhatIfRunId
+            $result.Valid | Should -Be $false
+            ($result.Errors | Where-Object { $_ -match 'ExcludedPrincipalId' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'RemoveCAExclusionGroupMember rejected when ObjectId != ExcludedPrincipalId' {
+            $differentPrincipal = [guid]::NewGuid().Guid
+            $path = Build-CAManifest -ActionOverride @{ ObjectId = $differentPrincipal }
+            $manifest = Get-Content $path -Raw | ConvertFrom-Json
+            $result = Test-DecomApprovalManifest -ManifestPath $path -CurrentEngagementId 'ENG-33-CA' `
+                -CurrentClientName 'TestClient' -WhatIfRunId $manifest.WhatIfRunId
+            $result.Valid | Should -Be $false
+            ($result.Errors | Where-Object { $_ -match 'ObjectId.*ExcludedPrincipalId|ExcludedPrincipalId.*ObjectId' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'RemoveCAExclusionGroupMember rejected when ExclusionGroupId not in TargetObjectIds' {
+            $differentGroup = [guid]::NewGuid().Guid
+            $path = Build-CAManifest -ActionOverride @{ ExclusionGroupId = $differentGroup }
+            $manifest = Get-Content $path -Raw | ConvertFrom-Json
+            $result = Test-DecomApprovalManifest -ManifestPath $path -CurrentEngagementId 'ENG-33-CA' `
+                -CurrentClientName 'TestClient' -WhatIfRunId $manifest.WhatIfRunId
+            $result.Valid | Should -Be $false
+            ($result.Errors | Where-Object { $_ -match 'ExclusionGroupId.*TargetObjectIds|TargetObjectIds.*ExclusionGroupId' }) | Should -Not -BeNullOrEmpty
+        }
+
+        It 'Valid exact-bound CA exclusion approval passes' {
+            # Baseline: valid manifest where ObjectId == ExcludedPrincipalId and ExclusionGroupId in TargetObjectIds
+            $path = Build-CAManifest
+            $manifest = Get-Content $path -Raw | ConvertFrom-Json
+            $result = Test-DecomApprovalManifest -ManifestPath $path -CurrentEngagementId 'ENG-33-CA' `
+                -CurrentClientName 'TestClient' -WhatIfRunId $manifest.WhatIfRunId
+            $result.Valid | Should -Be $true
+            $result.Errors.Count | Should -Be 0
         }
 
         It 'Duplicate CA exclusion removal operation fails' {

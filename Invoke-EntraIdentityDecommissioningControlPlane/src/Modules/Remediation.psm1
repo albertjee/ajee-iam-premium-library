@@ -310,7 +310,13 @@ function Confirm-DecomActionTargetValid {
                             break
                         }
                     }
-                } catch { }
+                } catch {
+                    if ($Action.NewOwnerType -eq 'User') {
+                        $result.ValidationErrors.Add("NewOwnerType=User but user read failed for $newOwnerObjId — BLOCKED: $_")
+                        $result.Valid = $false
+                        break
+                    }
+                }
             }
 
             'RemoveCAExclusionGroupMember' {
@@ -873,6 +879,15 @@ function Invoke-DecomRemediation {
         } elseif (-not $afterState.QuerySucceeded) {
             $errorDetail += "Post-write re-query failed: $($afterState.ErrorDetail)"
             'PartialFailed'
+        } elseif ($actionType -eq 'AddApplicationOwner') {
+            # Add-oriented: success means owner IS PRESENT after write
+            if ($afterState.PresentTargetIds.Count -eq $targetIds.Count) {
+                'Executed'
+            } elseif ($afterState.PresentTargetIds.Count -gt 0) {
+                'PartialFailed'
+            } else {
+                'Failed'
+            }
         } elseif ($afterState.PresentTargetIds.Count -eq 0) {
             'Executed'
         } elseif ($afterState.PresentTargetIds.Count -lt $targetIds.Count) {
