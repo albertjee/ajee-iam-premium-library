@@ -105,6 +105,24 @@ Invoke-Pester -Path .\tests\Rev11\ -Output Detailed
 
 ---
 
+## Rev3.4 — Production Hardening
+
+Rev3.4 turns the tool from a powerful engineering asset into a consultant-deliverable product:
+
+- **Output manifest** — machine-readable index of every generated file with SHA-256 hashes and sensitivity classification
+- **Evidence bundle** — reproducible package of assessment, WhatIf, approval, execution, and hash manifests
+- **Redaction profiles** — client-safe sanitized copies (ClientSafe, PublicDemo, Strict, Internal)
+- **Replay validation** — validate WhatIf→Approval→Execution chain integrity without a Graph connection
+- **Approval diff** — compare WhatIf plan vs approval manifest to surface changes, rejections, target changes
+- **Traceability report** — end-to-end audit trail from Finding to WhatIf to Approval to Execution Evidence
+- **Client handoff package** — consultant-ready deliverable with checklist, index, and manifest
+- **Operator runbook pack** — execution, failure recovery, client handoff, redaction review, replay validation
+- **Rev3.5 NHI readiness** — extension points for upcoming NHI / agentic identity audit expansion
+
+Rev3.4 adds no new write scopes, no new remediation action types, and no NHI detectors.
+
+---
+
 ## Rev2.5 — SelfTest and Release Package
 
 ### SelfTest Mode

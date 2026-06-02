@@ -25,11 +25,22 @@ param(
     [switch]$GenerateExecutivePack,
     [switch]$SelfTest,
     [switch]$GenerateReleasePackage,
-    [string]$ReleasePackagePath = '.\release\Rev3.3'
+    [string]$ReleasePackagePath = '.\release\Rev3.4',
+
+    # Rev3.4 hardening output flags (all default off — backward compatible)
+    [switch]$GenerateEvidenceBundle,
+    [switch]$GenerateRedactedPackage,
+    [ValidateSet('ClientSafe','PublicDemo','Strict','Internal')]
+    [string]$RedactionProfile = 'ClientSafe',
+    [switch]$GenerateReplayValidation,
+    [switch]$GenerateApprovalDiff,
+    [switch]$GenerateTraceabilityReport,
+    [switch]$GenerateClientHandoff,
+    [switch]$GenerateRev35Readiness
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev3.3'
+$script:ToolVersion = 'Rev3.4'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -582,6 +593,126 @@ if ($Mode -eq 'WhatIfRemediation' -and $GenerateApprovalTemplate) {
 
     Write-DecomOk "WhatIf action plan: $actionPlanPath"
     Write-DecomInfo "Next: review with client, sign, then run Update-DecomApprovalManifestHash."
+}
+
+# In DemoMode, auto-enable all Rev3.4 hardening sample outputs
+if ($DemoMode) {
+    $GenerateRev35Readiness     = $true
+    $GenerateClientHandoff      = $true
+    $GenerateTraceabilityReport = $true
+    $GenerateReplayValidation   = $true
+    $GenerateApprovalDiff       = $true
+    $GenerateRedactedPackage    = $true
+    $GenerateEvidenceBundle     = $true
+}
+
+# ── Rev3.4 Hardening Outputs ──────────────────────────────────────────────────
+
+$hardeningTimestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+$runManifestForHardening = if (Test-Path $ManifestPath) { Get-Content $ManifestPath -Raw | ConvertFrom-Json } else { $null }
+$hardeningRunId = if ($runManifestForHardening -and $runManifestForHardening.RunId) { $runManifestForHardening.RunId } else { [guid]::NewGuid().ToString() }
+
+if ($GenerateRev35Readiness) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'Rev35Readiness.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $rr = New-DecomRev35ReadinessReport
+        $rrPath = Join-Path $RunFolder "rev35-readiness-report-$hardeningTimestamp.json"
+        Export-DecomRev35ReadinessJson -Report $rr -Path $rrPath
+        Write-DecomOk "Rev3.5 readiness report: $rrPath"
+    } catch { Write-DecomWarn "Rev3.5 readiness report skipped: $_" }
+}
+
+if ($GenerateClientHandoff) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'ClientHandoff.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $chPkg = New-DecomClientHandoffPackage -Context $Context -RunId $hardeningRunId -PackagePath $RunFolder
+        $chManifestPath = Join-Path $RunFolder "client-handoff-manifest-$hardeningTimestamp.json"
+        Export-DecomClientHandoffManifestJson -Package $chPkg -Path $chManifestPath
+        $chIndexPath = Join-Path $RunFolder "client-handoff-index-$hardeningTimestamp.md"
+        Export-DecomClientHandoffIndexMarkdown -Package $chPkg -Path $chIndexPath
+        Write-DecomOk "Client handoff manifest: $chManifestPath"
+        Write-DecomOk "Client handoff index: $chIndexPath"
+    } catch { Write-DecomWarn "Client handoff skipped: $_" }
+}
+
+if ($GenerateTraceabilityReport) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'Traceability.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $trModel = New-DecomTraceabilityModel -Findings $Findings -Context $Context -RunId $hardeningRunId
+        $trJsonPath = Join-Path $RunFolder "traceability-report-$hardeningTimestamp.json"
+        $trCsvPath  = Join-Path $RunFolder "traceability-report-$hardeningTimestamp.csv"
+        Export-DecomTraceabilityReportJson     -Model $trModel -Path $trJsonPath
+        Export-DecomTraceabilityReportCsv      -Model $trModel -Path $trCsvPath
+        Write-DecomOk "Traceability report: $trJsonPath"
+    } catch { Write-DecomWarn "Traceability report skipped: $_" }
+}
+
+if ($GenerateReplayValidation -and $runManifestForHardening) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'ReplayValidation.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $rvResult = Invoke-DecomReplayValidation -RunId $hardeningRunId
+        $rvPath = Export-DecomReplayValidationReportJson -ValidationResult $rvResult -OutputPath $RunFolder
+        Write-DecomOk "Replay validation report: $rvPath"
+    } catch { Write-DecomWarn "Replay validation skipped: $_" }
+}
+
+if ($GenerateApprovalDiff -and $runManifestForHardening) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'ApprovalDiff.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $adDiff = Compare-DecomWhatIfToApproval -WhatIfActions @() -ApprovalActions @() -RunId $hardeningRunId
+        $adPath = Join-Path $RunFolder "approval-diff-report-$hardeningTimestamp.json"
+        Export-DecomApprovalDiffJson -Diff $adDiff -Path $adPath
+        Write-DecomOk "Approval diff: $adPath"
+    } catch { Write-DecomWarn "Approval diff skipped: $_" }
+}
+
+if ($GenerateRedactedPackage) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'Redaction.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $redactionProfileObj = New-DecomRedactionProfile -ProfileName $RedactionProfile
+        $rdPath = Join-Path $RunFolder "redaction-report-$hardeningTimestamp.json"
+        Export-DecomRedactionReportJson -Profile $redactionProfileObj -Path $rdPath -RunId $hardeningRunId -ToolVersion $script:ToolVersion
+        Write-DecomOk "Redaction report: $rdPath"
+    } catch { Write-DecomWarn "Redaction report skipped: $_" }
+}
+
+if ($GenerateEvidenceBundle) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'EvidenceBundle.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $eb = New-DecomEvidenceBundle -Context $Context -RunId $hardeningRunId -BundleId ([guid]::NewGuid().ToString()) -SourceOutputPath $RunFolder -BundleOutputPath (Join-Path $RunFolder 'evidence-bundle')
+        New-Item -ItemType Directory -Path $eb.BundleOutputPath -Force | Out-Null
+        Get-ChildItem -Path $RunFolder -File | ForEach-Object {
+            $eb = Add-DecomEvidenceBundleFile -Bundle $eb -FilePath $_.FullName -Category 'Assessment'
+        }
+        $ebManifestPath = Join-Path $eb.BundleOutputPath "evidence-bundle-manifest-$hardeningTimestamp.json"
+        Export-DecomEvidenceBundleManifestJson -Bundle $eb -Path $ebManifestPath
+        $hashJsonPath = Join-Path $eb.BundleOutputPath "evidence-hashes-$hardeningTimestamp.json"
+        $hashCsvPath  = Join-Path $eb.BundleOutputPath "evidence-hashes-$hardeningTimestamp.csv"
+        Export-DecomEvidenceHashManifest -Bundle $eb -JsonPath $hashJsonPath -CsvPath $hashCsvPath
+        Write-DecomOk "Evidence bundle: $ebManifestPath"
+    } catch { Write-DecomWarn "Evidence bundle skipped: $_" }
+}
+
+if ($GenerateEvidenceBundle -or $GenerateRedactedPackage -or $GenerateTraceabilityReport -or $GenerateClientHandoff -or $GenerateRev35Readiness) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'OutputManifest.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $om = New-DecomOutputManifest -Context $Context -RunId $hardeningRunId -OutputRoot $RunFolder
+        Get-ChildItem -Path $RunFolder -File | Where-Object { $_.Extension -in @('.json','.csv','.html','.md') } | ForEach-Object {
+            $sensitivity = if ($_.Name -match 'redact') { 'ClientSafe' } else { 'Confidential' }
+            $category = switch -Regex ($_.Name) {
+                'readiness'    { 'Rev35Readiness';    break }
+                'handoff'      { 'ClientHandoff';     break }
+                'traceability' { 'Report';            break }
+                'evidence'     { 'ExecutionEvidence'; break }
+                'manifest'     { 'Report';            break }
+                default        { 'Assessment' }
+            }
+            $om = Add-DecomOutputManifestItem -Manifest $om -FilePath $_.FullName -Category $category -Sensitivity $sensitivity
+        }
+        $omPath = Join-Path $RunFolder "output-manifest-$hardeningTimestamp.json"
+        Export-DecomOutputManifestJson -Manifest $om -Path $omPath
+        Write-DecomOk "Output manifest: $omPath"
+    } catch { Write-DecomWarn "Output manifest skipped: $_" }
 }
 
 Write-Host ''

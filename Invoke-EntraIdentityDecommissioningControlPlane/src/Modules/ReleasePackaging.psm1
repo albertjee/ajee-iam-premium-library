@@ -6,18 +6,20 @@ function New-DecomReleasePackage {
         [Parameter(Mandatory = $true)]
         [PSObject]$Context,
         [Parameter(Mandatory = $true)]
-        [string]$OutputPath
+        [string]$OutputPath,
+        [string]$HardeningArtifactPath = '',
+        [switch]$RequireHardeningArtifacts
     )
 
     Write-DecomInfo "Generating release package at $OutputPath..."
 
     # Create release directory structure
-    $releaseDir = Join-Path $OutputPath "Rev3.0"
+    $releaseDir = Join-Path $OutputPath $Context.ToolVersion
+    $subDirs = @('release','evidence','redacted','reports','runbooks','docs','validation','schemas','handoff','demo')
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $releaseDir "docs") -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $releaseDir "runbooks") -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $releaseDir "sample-outputs") -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $releaseDir "validation") -Force | Out-Null
+    foreach ($sub in $subDirs) {
+        New-Item -ItemType Directory -Path (Join-Path $releaseDir $sub) -Force | Out-Null
+    }
 
     try {
         # Copy required documentation
@@ -58,8 +60,61 @@ function New-DecomReleasePackage {
             }
         }
 
-        # Generate release package manifest
-        Write-DecomReleasePackageManifest -Context $Context -OutputPath $releaseDir
+        # --- Rev3.4 hardening artifact scan ---
+        # Search paths: always $Context.OutputPath; optionally $HardeningArtifactPath
+        $scanPaths = @()
+        if ($Context.OutputPath -and (Test-Path $Context.OutputPath)) {
+            $scanPaths += $Context.OutputPath
+        }
+        if ($HardeningArtifactPath -ne '' -and (Test-Path $HardeningArtifactPath)) {
+            $scanPaths += $HardeningArtifactPath
+        }
+
+        # Artifact definitions: Name, Patterns, Required, DestSubDir
+        $hardeningArtifacts = @(
+            [PSCustomObject]@{ Name='output-manifest';           Patterns=@('output-manifest*.json');                              Required=$true;  DestSubDir='handoff'    },
+            [PSCustomObject]@{ Name='evidence-bundle-manifest';  Patterns=@('evidence-bundle-manifest*.json');                     Required=$true;  DestSubDir='evidence'   },
+            [PSCustomObject]@{ Name='evidence-hash-manifest';    Patterns=@('hashes*.json','evidence-hashes*.json');               Required=$true;  DestSubDir='evidence'   },
+            [PSCustomObject]@{ Name='replay-validation';         Patterns=@('replay-validation-report*.json');                     Required=$true;  DestSubDir='validation' },
+            [PSCustomObject]@{ Name='traceability-report';       Patterns=@('traceability-report*.json');                          Required=$true;  DestSubDir='validation' },
+            [PSCustomObject]@{ Name='redaction-report';          Patterns=@('redaction-report*.json');                             Required=$false; DestSubDir='redacted'   },
+            [PSCustomObject]@{ Name='client-handoff-index';      Patterns=@('client-handoff-index*.md','handoff-index*.md');       Required=$true;  DestSubDir='handoff'    },
+            [PSCustomObject]@{ Name='rev35-readiness';           Patterns=@('rev35-readiness-report*.json');                       Required=$true;  DestSubDir='handoff'    }
+        )
+
+        $missingRequired = @()
+
+        foreach ($artifact in $hardeningArtifacts) {
+            $found = $null
+            foreach ($scanPath in $scanPaths) {
+                if ($found) { break }
+                foreach ($pattern in $artifact.Patterns) {
+                    $match = Get-ChildItem -Path $scanPath -Filter $pattern -File -ErrorAction SilentlyContinue |
+                        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                    if ($match) { $found = $match; break }
+                }
+            }
+
+            if ($found) {
+                $dest = Join-Path $releaseDir "$($artifact.DestSubDir)\$($found.Name)"
+                Copy-Item -Path $found.FullName -Destination $dest -Force
+                Write-DecomOk "Hardening artifact copied [$($artifact.Name)]: $($found.Name)"
+            } else {
+                if ($artifact.Required) {
+                    $missingRequired += $artifact.Name
+                    Write-DecomWarn "Required hardening artifact missing: $($artifact.Name)"
+                } else {
+                    Write-DecomWarn "Optional hardening artifact not found: $($artifact.Name)"
+                }
+            }
+        }
+
+        # Generate release package manifest (passes missing list for manifest fields)
+        Write-DecomReleasePackageManifest -Context $Context -OutputPath $releaseDir -MissingRequiredArtifacts $missingRequired
+
+        if ($RequireHardeningArtifacts -and $missingRequired.Count -gt 0) {
+            throw "RequireHardeningArtifacts set but $($missingRequired.Count) required artifact(s) missing: $($missingRequired -join ', ')"
+        }
 
         Write-DecomOk "Release package generation completed"
 
@@ -104,17 +159,29 @@ function Write-DecomReleasePackageManifest {
         [Parameter(Mandatory = $true)]
         [PSObject]$Context,
         [Parameter(Mandatory = $true)]
-        [string]$OutputPath
+        [string]$OutputPath,
+        [string[]]$MissingRequiredArtifacts = @()
     )
 
+    $sourceRunId = ''
+    if ($Context.PSObject.Properties['RunId']) { $sourceRunId = $Context.RunId }
+
     $manifest = [PSCustomObject]@{
-        SchemaVersion = '3.0'
-        ToolVersion   = $Context.ToolVersion
-        GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
-        ClientName    = $Context.ClientName
-        EngagementId  = $Context.EngagementId
-        Assessor      = $Context.Assessor
-        Contents      = @(
+        SchemaVersion              = '3.4'
+        PackageId                  = [guid]::NewGuid().ToString()
+        ToolVersion                = $Context.ToolVersion
+        GeneratedUtc               = (Get-Date).ToUniversalTime().ToString('o')
+        SourceRunId                = $sourceRunId
+        ClientName                 = $Context.ClientName
+        EngagementId               = $Context.EngagementId
+        Assessor                   = $Context.Assessor
+        FileCount                  = 0
+        TotalBytes                 = 0
+        Sha256ManifestHash         = $null
+        RequiredArtifactsPresent   = ($MissingRequiredArtifacts.Count -eq 0)
+        MissingRequiredArtifacts   = $MissingRequiredArtifacts
+        Warnings                   = @()
+        Contents                   = @(
             [PSCustomObject]@{ Type = 'documentation'; Path = 'docs\Required-Permissions.md'; Description = 'Required Microsoft Graph permissions' },
             [PSCustomObject]@{ Type = 'documentation'; Path = 'docs\Findings-Catalog.md'; Description = 'Complete findings catalog with metadata' },
             [PSCustomObject]@{ Type = 'documentation'; Path = 'docs\Schema-Contracts.md'; Description = 'Schema contracts for all output objects' },
@@ -187,6 +254,20 @@ function Write-DecomReleasePackageManifest {
             Missing     = $missing
         }
     }
+
+    # Count files and bytes from release dir
+    if (Test-Path $OutputPath) {
+        $allFiles = Get-ChildItem -Path $OutputPath -File -Recurse -ErrorAction SilentlyContinue
+        $manifest.FileCount  = $allFiles.Count
+        $manifest.TotalBytes = ($allFiles | Measure-Object -Property Length -Sum).Sum
+        if ($null -eq $manifest.TotalBytes) { $manifest.TotalBytes = 0 }
+    }
+
+    # Compute SHA-256 of manifest JSON (excluding the hash field itself)
+    $jsonForHash = $manifest | ConvertTo-Json -Depth 10
+    $hashBytes   = [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                       [System.Text.Encoding]::UTF8.GetBytes($jsonForHash))
+    $manifest.Sha256ManifestHash = ([System.BitConverter]::ToString($hashBytes) -replace '-','').ToLower()
 
     $manifestPath = Join-Path $OutputPath "release-package-manifest.json"
     $json = $manifest | ConvertTo-Json -Depth 10

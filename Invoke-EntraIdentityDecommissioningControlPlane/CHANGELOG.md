@@ -1,5 +1,36 @@
 # Changelog
 
+## Rev3.4 — Production Hardening, Evidence Packaging, and Client Deployment Foundation
+
+### Added
+- Output manifest JSON/CSV (`New-DecomOutputManifest`, `Export-DecomOutputManifestJson`, `Export-DecomOutputManifestCsv`).
+- Evidence bundle manifest and evidence hash manifest (`New-DecomEvidenceBundle`, `Export-DecomEvidenceBundleManifestJson`, `Export-DecomEvidenceHashManifest`).
+- Client-safe redaction profiles: ClientSafe, PublicDemo, Strict, Internal (`New-DecomRedactionProfile`, `Invoke-DecomRedaction`).
+- Replay validation report: validates WhatIf→Approval→Execution chain without Graph connection (`Invoke-DecomReplayValidation`).
+- Approval diff report: shows what changed between WhatIf plan and approval manifest (`Compare-DecomWhatIfToApproval`).
+- End-to-end traceability report: Finding→WhatIf→Approval→Execution→Evidence per row (`New-DecomTraceabilityModel`).
+- Client handoff package generator with checklist and manifest index (`New-DecomClientHandoffPackage`).
+- Operator runbook pack: Operator-Execution, Failure-Recovery, Client-Handoff, Redaction-Review, Replay-Validation.
+- Rev3.5 NHI readiness report: documents extension points without implementing detectors (`New-DecomRev35ReadinessReport`).
+- Schema contract validation for all 9 new hardening output types (`SchemaContracts.psm1`).
+- `ReleasePackaging.psm1` hardened to include hardening artifacts, fail on missing required artifacts, and support `-RequireHardeningArtifacts` flag.
+- Rev3.4 hardening flags added to entry point: `-GenerateEvidenceBundle`, `-GenerateRedactedPackage`, `-RedactionProfile`, `-GenerateReplayValidation`, `-GenerateApprovalDiff`, `-GenerateTraceabilityReport`, `-GenerateClientHandoff`, `-GenerateRev35Readiness`.
+- DemoMode auto-generates all hardening sample outputs.
+
+### Safety
+- Rev3.4 adds no new write scopes.
+- Rev3.4 adds no new remediation action types.
+- Rev3.4 adds no new tenant modification behavior.
+- Existing Rev3.x remediation actions are unchanged.
+- Rev3.4 does not implement NHI / agentic identity detectors (reserved for Rev3.5).
+- All 8 new hardening modules are read-only.
+
+### Tests
+- Added Rev3.4 tests: Safety, OutputManifest, EvidenceBundle, Redaction, ReplayValidation, ApprovalDiff, Traceability, ClientHandoff, Rev35Readiness, ReleasePackaging, SchemaContracts hardening.
+- Total: 876 tests, 0 failures.
+
+---
+
 ## Rev3.2 — Controlled Application Credential Write Expansion and Governance Packs
 
 ### Added

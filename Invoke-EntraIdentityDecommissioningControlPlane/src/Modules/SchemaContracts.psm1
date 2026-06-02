@@ -3,7 +3,7 @@
 function Get-DecomSchemaContract {
     [CmdletBinding()]
     param(
-        [ValidateSet('Finding','RunManifest','ApprovalManifest','ExecutionLog','ExecutionEvidence','BaselineComparison','ExecutiveSummary','ClientReadoutPackManifest','CatalogValidationReport','WriteReadinessReport','CredentialHygienePack','ApplicationGovernancePack','ConditionalAccessGovernancePack','EmergencyAccessGovernancePack','ReleaseValidationReport')]
+        [ValidateSet('Finding','RunManifest','ApprovalManifest','ExecutionLog','ExecutionEvidence','BaselineComparison','ExecutiveSummary','ClientReadoutPackManifest','CatalogValidationReport','WriteReadinessReport','CredentialHygienePack','ApplicationGovernancePack','ConditionalAccessGovernancePack','EmergencyAccessGovernancePack','ReleaseValidationReport','OutputManifest','EvidenceBundleManifest','EvidenceHashManifest','RedactionReport','ReplayValidationReport','ApprovalDiffReport','TraceabilityReport','ClientHandoffManifest','Rev35ReadinessReport')]
         [string]$ObjectType
     )
 
@@ -278,6 +278,110 @@ function Get-DecomSchemaContract {
                     'Passed', 'FailedChecks', 'Details'
                 )
                 Description = 'Release validation report assessing safety and quality gates'
+            }
+        }
+        'OutputManifest' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
+                    'EngagementId', 'ClientName', 'OutputRoot', 'Files', 'Summary'
+                )
+                FieldTypes = @{
+                    SchemaVersion = 'string'
+                    ToolVersion = 'string'
+                    RunId = 'string'
+                    GeneratedUtc = 'string'
+                    EngagementId = 'string'
+                    ClientName = 'string'
+                    OutputRoot = 'string'
+                    Files = 'object'
+                    Summary = 'object'
+                }
+                AllowedValues = @{
+                    SchemaVersion = @('3.4')
+                }
+                Description = 'Output manifest cataloguing all run output files with hashes and sensitivity classifications'
+            }
+        }
+        'EvidenceBundleManifest' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'BundleId', 'GeneratedUtc',
+                    'SourceOutputPath', 'BundleOutputPath', 'FileCount', 'TotalBytes', 'Files'
+                )
+                Description = 'Evidence bundle manifest linking run outputs for audit and chain-of-custody'
+            }
+        }
+        'EvidenceHashManifest' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc', 'Hashes'
+                )
+                Description = 'Evidence hash manifest containing SHA-256 hashes for all bundled files'
+            }
+        }
+        'RedactionReport' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'RunId', 'ProfileName', 'TokenCount', 'RedactedFileCount', 'GeneratedUtc'
+                )
+                Description = 'Redaction report summarising profile settings and token substitution counts'
+            }
+        }
+        'ReplayValidationReport' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
+                    'OverallPassed', 'Checks'
+                )
+                Description = 'Replay validation report verifying WhatIf/Approval/Execution chain integrity'
+            }
+        }
+        'ApprovalDiffReport' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
+                    'Passed', 'DiffItems', 'Summary'
+                )
+                Description = 'Approval diff report comparing WhatIf actions to approval manifest'
+            }
+        }
+        'TraceabilityReport' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
+                    'Entries', 'Summary'
+                )
+                Description = 'End-to-end traceability report mapping findings to WhatIf, Approval, and Execution records'
+            }
+        }
+        'ClientHandoffManifest' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
+                    'EngagementId', 'ClientName', 'ValidationStatus',
+                    'Sections', 'ClientSafeFiles', 'SensitiveFiles', 'Warnings'
+                )
+                Description = 'Client handoff package manifest identifying client-safe and sensitive outputs'
+            }
+        }
+        'Rev35ReadinessReport' {
+            return [PSCustomObject]@{
+                SchemaVersion = '3.4'
+                RequiredFields = @(
+                    'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
+                    'ReadinessScore', 'NhiDetectorsImplemented', 'AgentIdentityDetectorsImplemented',
+                    'Checks', 'Summary'
+                )
+                Description = 'Rev3.5 NHI readiness report documenting reserved namespaces and readiness checks'
             }
         }
     }
