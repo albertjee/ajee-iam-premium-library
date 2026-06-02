@@ -169,7 +169,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 - **Rev1.3 current baseline:** 35 tests across Safety, Analysis, and Reporting suites
 - **Gate 3 command:**
   ```powershell
-  Invoke-Pester -Path .\tests\Rev11\ -Output Detailed
+  Invoke-Pester -Path .\tests\ -Output Detailed
   ```
 - Must show 0 failures — 35 passing is the current baseline. Any new rev must meet or exceed this.
 

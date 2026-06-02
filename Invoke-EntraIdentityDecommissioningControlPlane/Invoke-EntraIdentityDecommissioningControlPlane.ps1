@@ -740,7 +740,7 @@ if ($GenerateRedactedPackage) {
         New-Item -ItemType Directory -Path $redactedDir -Force | Out-Null
         $redactedCount = 0
 
-        Get-ChildItem -Path $RunFolder -File -Include '*.json','*.csv','*.md','*.html' |
+        Get-ChildItem -Path $RunFolder -File | Where-Object { $_.Extension -in @('.json','.csv','.md','.html') } |
             ForEach-Object {
                 try {
                     $raw = Get-Content $_.FullName -Raw -ErrorAction Stop
