@@ -250,7 +250,8 @@ if ($Mode -eq 'ExecuteRemediation') {
             'GroupMember.ReadWrite.All',
             'AppRoleAssignment.ReadWrite.All',
             'RoleManagement.ReadWrite.Directory',
-            'EntitlementManagement.ReadWrite.All'
+            'EntitlementManagement.ReadWrite.All',
+            'Application.ReadWrite.All'
         )
         Connect-MgGraph -Scopes $writeScopes -TenantId $TenantId -ErrorAction Stop | Out-Null
         Write-DecomOk "Graph connection established with write scopes"
