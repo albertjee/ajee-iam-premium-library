@@ -13,8 +13,8 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         Remove-Module WriteReadiness -Force -ErrorAction SilentlyContinue
     }
 
-    It 'Registry contains exactly twenty-three entries (14 original + 8 Rev3.1 guest + 1 Rev3.2 credential)' {
-        $script:registry.Count | Should -Be 23
+    It 'Registry contains exactly thirty entries (14 original + 8 Rev3.1 guest + 1 Rev3.2 credential + 7 Rev3.3 owner/CA)' {
+        $script:registry.Count | Should -Be 30
     }
 
     It 'Registry includes DEC-USER-001' {
@@ -33,8 +33,12 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
         $script:registry.FindingId | Should -Contain 'DEC-ROLE-001'
     }
 
-    It 'Registry does not include Rev2.2 finding DEC-APP-001' {
-        $script:registry.FindingId | Should -Not -Contain 'DEC-APP-001'
+    It 'Registry includes DEC-APP-001 as AddApplicationOwner (Rev3.3)' {
+        $script:registry.FindingId | Should -Contain 'DEC-APP-001'
+    }
+
+    It 'Registry does not include plan-only finding DEC-APP-004' {
+        $script:registry.FindingId | Should -Not -Contain 'DEC-APP-004'
     }
 
     It 'Registry includes Rev3.0 finding DEC-PIM-001' {
@@ -50,13 +54,13 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
     }
 
     It 'All registry entries have Status Executable or ExecutableWhenExactTargetPresent' {
-        $validStatuses = @('Executable', 'ExecutableWhenExactTargetPresent', 'ExecutableWhenExactExpiredCredentialKeyIdPresent')
+        $validStatuses = @('Executable', 'ExecutableWhenExactTargetPresent', 'ExecutableWhenExactExpiredCredentialKeyIdPresent', 'ExecutableWhenExactOwnerObjectIdPresent')
         $invalid = @($script:registry | Where-Object { $_.Status -notin $validStatuses })
         $invalid.Count | Should -Be 0
     }
 
     It 'Registry entries have valid IntroducedIn version labels' {
-        $validVersions = @('Rev2.0', 'Rev3.0', 'Rev3.1', 'Rev3.2')
+        $validVersions = @('Rev2.0', 'Rev3.0', 'Rev3.1', 'Rev3.2', 'Rev3.3')
         $invalid = @($script:registry | Where-Object { $_.IntroducedIn -notin $validVersions })
         $invalid.Count | Should -Be 0
     }

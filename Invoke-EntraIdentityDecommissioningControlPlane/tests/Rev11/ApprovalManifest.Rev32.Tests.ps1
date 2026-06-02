@@ -36,9 +36,10 @@ Describe 'ApprovalManifest.Rev32 — Credential ExecutionMap and Registry' {
         }
     }
 
-    It 'Approval manifest rejects credential action with invalid FindingId (not in scope)' {
+    It 'DEC-APP-004 (expiring credential, plan-only) is not in execution scope' {
         InModuleScope ApprovalManifest {
-            $script:ExecutionMap.ContainsKey('DEC-APP-001') | Should -Be $false
+            # DEC-APP-004 is expiring-but-not-yet-expired — not executable, not in map
+            $script:ExecutionMap.ContainsKey('DEC-APP-004') | Should -Be $false
         }
     }
 

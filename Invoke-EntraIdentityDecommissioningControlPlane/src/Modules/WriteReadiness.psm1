@@ -254,6 +254,89 @@ function Get-DecomExecutionScopeRegistry {
             RiskLevel = 'High'
             ApplicationOnly = $true
             CredentialType = 'PasswordCredential or KeyCredential'
+        },
+        # Rev3.3 — AddApplicationOwner
+        [PSCustomObject]@{
+            FindingId = 'DEC-APP-001'
+            ActionType = 'AddApplicationOwner'
+            WriteScope = 'Application.ReadWrite.All'
+            TargetType = 'DirectoryObjectOwner'
+            TargetObjectIdsRepresent = 'NewOwnerObjectId values'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.3'
+            Status = 'ExecutableWhenExactOwnerObjectIdPresent'
+            RiskLevel = 'High'
+            ApplicationOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-APP-002'
+            ActionType = 'AddApplicationOwner'
+            WriteScope = 'Application.ReadWrite.All'
+            TargetType = 'DirectoryObjectOwner'
+            TargetObjectIdsRepresent = 'NewOwnerObjectId values'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.3'
+            Status = 'ExecutableWhenExactOwnerObjectIdPresent'
+            RiskLevel = 'High'
+            ApplicationOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-APP-003'
+            ActionType = 'AddApplicationOwner'
+            WriteScope = 'Application.ReadWrite.All'
+            TargetType = 'DirectoryObjectOwner'
+            TargetObjectIdsRepresent = 'NewOwnerObjectId values'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.3'
+            Status = 'ExecutableWhenExactOwnerObjectIdPresent'
+            RiskLevel = 'High'
+            ApplicationOnly = $true
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-SPN-001'
+            ActionType = 'AddApplicationOwner'
+            WriteScope = 'Application.ReadWrite.All'
+            TargetType = 'DirectoryObjectOwner'
+            TargetObjectIdsRepresent = 'NewOwnerObjectId values'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.3'
+            Status = 'ExecutableWhenExactOwnerObjectIdPresent'
+            RiskLevel = 'High'
+            ApplicationOnly = $false
+        },
+        # Rev3.3 — RemoveCAExclusionGroupMember
+        [PSCustomObject]@{
+            FindingId = 'DEC-CA-002'
+            ActionType = 'RemoveCAExclusionGroupMember'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'CAExclusionGroup'
+            TargetObjectIdsRepresent = 'ExclusionGroupId values'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.3'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'Critical'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-CA-003'
+            ActionType = 'RemoveCAExclusionGroupMember'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'CAExclusionGroup'
+            TargetObjectIdsRepresent = 'ExclusionGroupId values'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.3'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'Critical'
+        },
+        [PSCustomObject]@{
+            FindingId = 'DEC-CA-004'
+            ActionType = 'RemoveCAExclusionGroupMember'
+            WriteScope = 'GroupMember.ReadWrite.All'
+            TargetType = 'CAExclusionGroup'
+            TargetObjectIdsRepresent = 'ExclusionGroupId values'
+            RequiresPerActionPrompt = $true
+            IntroducedIn = 'Rev3.3'
+            Status = 'ExecutableWhenExactTargetPresent'
+            RiskLevel = 'Critical'
         }
     )
 }

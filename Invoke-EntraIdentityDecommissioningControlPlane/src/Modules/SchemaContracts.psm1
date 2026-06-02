@@ -10,7 +10,7 @@ function Get-DecomSchemaContract {
     switch ($ObjectType) {
         'Finding' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'FindingId', 'Category', 'Severity', 'RiskScore', 'Confidence', 'ObjectType', 'ObjectId',
                     'DisplayName', 'UserPrincipalName', 'Evidence', 'EvidenceSource', 'GraphEndpoint',
@@ -43,7 +43,7 @@ function Get-DecomSchemaContract {
         }
         'RunManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'RunId', 'Mode', 'DemoMode', 'Summary', 'ExportPaths'
@@ -53,7 +53,7 @@ function Get-DecomSchemaContract {
         }
         'ApprovalManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName',
                     'RunId', 'ApprovedBy', 'ExpiresUtc', 'ApprovedActions'
@@ -63,7 +63,7 @@ function Get-DecomSchemaContract {
         }
         'ExecutionLog' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'RunId',
                     'Log'
@@ -73,7 +73,7 @@ function Get-DecomSchemaContract {
         }
         'ExecutionEvidence' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId',
                     'Actions', 'Summary'
@@ -83,7 +83,7 @@ function Get-DecomSchemaContract {
         }
         'BaselineComparison' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId',
                     'ComparisonResults', 'BaselineInfo'
@@ -93,7 +93,7 @@ function Get-DecomSchemaContract {
         }
         'ExecutiveSummary' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'Coverage', 'Findings', 'Summary', 'BaselineComparison', 'RiskMovement'
@@ -103,7 +103,7 @@ function Get-DecomSchemaContract {
         }
         'ClientReadoutPackManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'Items'
@@ -113,7 +113,7 @@ function Get-DecomSchemaContract {
         }
         'CatalogValidationReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'Passed', 'UnknownFindingIds', 'SeverityMismatches', 'RiskScoreMismatches',
@@ -124,7 +124,7 @@ function Get-DecomSchemaContract {
         }
         'WriteReadinessReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'ExecutionScopeRegistry', 'Rev3Candidates', 'Recommendation'
@@ -134,7 +134,7 @@ function Get-DecomSchemaContract {
         }
         'CredentialHygienePack' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'CredentialCount', 'ExpiredCredentialCount', 'ExpiringSoonCredentialCount', 'OwnerlessCredentialCount', 'SingleOwnerCredentialCount', 'DisabledOwnerCredentialCount',
@@ -175,7 +175,7 @@ function Get-DecomSchemaContract {
         }
         'ApplicationGovernancePack' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'ApplicationCount', 'UnownedApplicationCount', 'SingleOwnerApplicationCount', 'DisabledOwnerApplicationCount', 'DisabledOnlyOwnerApplicationCount',
@@ -210,7 +210,7 @@ function Get-DecomSchemaContract {
         }
         'ConditionalAccessGovernancePack' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'CAPolicyCount', 'ExclusionGroupCount', 'ExclusionCount', 'ExclusionsLackingReviewEvidenceCount', 'ConflictingReviewEvidenceCount',
@@ -243,7 +243,7 @@ function Get-DecomSchemaContract {
         }
         'EmergencyAccessGovernancePack' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'ProtectedObjectCount', 'EmergencyAccessAccountCount', 'ProtectedObjectBreakdown', 'WhatIfActionsBlockedCount', 'ApprovalActionsBlockedCount',
@@ -272,7 +272,7 @@ function Get-DecomSchemaContract {
         }
         'ReleaseValidationReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.2'
+                SchemaVersion = '3.3'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'GeneratedUtc', 'EngagementId', 'ClientName', 'Assessor',
                     'Passed', 'FailedChecks', 'Details'

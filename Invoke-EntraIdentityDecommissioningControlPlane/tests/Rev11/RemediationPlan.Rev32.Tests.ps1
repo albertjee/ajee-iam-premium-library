@@ -211,8 +211,8 @@ Describe 'RemediationPlan.Rev32 — WhatIf Generation for Expired Application Cr
         $action.FindingId | Should -Be 'DEC-APP-005'
     }
 
-    It 'WhatIf plan SchemaVersion is 3.2' {
+    It 'WhatIf plan SchemaVersion is 3.3 (current tool version)' {
         $plan = Get-Content $script:PwdPlan -Raw | ConvertFrom-Json
-        $plan.SchemaVersion | Should -Be '3.2'
+        $plan.SchemaVersion | Should -Be '3.3'
     }
 }

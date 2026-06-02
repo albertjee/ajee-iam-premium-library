@@ -234,6 +234,157 @@ function Confirm-DecomActionTargetValid {
                     }
                 }
             }
+            'AddApplicationOwner' {
+                $newOwnerObjId = [string]$Action.NewOwnerObjectId
+                if (-not $newOwnerObjId -or $newOwnerObjId -eq '') {
+                    $result.ValidationErrors.Add("NewOwnerObjectId is missing — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+                $objType = [string]$Action.ObjectType
+                if ($objType -notin @('Application','ServicePrincipal','')) {
+                    $result.ValidationErrors.Add("ObjectType '$objType' is not Application or ServicePrincipal — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+                # Read target application/service principal
+                try {
+                    if ($objType -eq 'ServicePrincipal') {
+                        $spn = Get-MgServicePrincipal -ServicePrincipalId $objectId -Property 'Id,DisplayName' -ErrorAction Stop
+                        if ($null -eq $spn) {
+                            $result.ValidationErrors.Add("ServicePrincipal $objectId not found — BLOCKED")
+                            $result.Valid = $false
+                            break
+                        }
+                        # Check if owner already present
+                        $owners = @(Get-MgServicePrincipalOwner -ServicePrincipalId $objectId -All -ErrorAction Stop)
+                        $alreadyOwner = $null -ne ($owners | Where-Object { $_.Id -eq $newOwnerObjId })
+                        if ($alreadyOwner) {
+                            $result.InvalidTargets.Add("$newOwnerObjId : already owner of ServicePrincipal (no-op)")
+                        }
+                    } else {
+                        $app = Get-MgApplication -ApplicationId $objectId -Property 'Id,DisplayName' -ErrorAction Stop
+                        if ($null -eq $app) {
+                            $result.ValidationErrors.Add("Application $objectId not found — BLOCKED")
+                            $result.Valid = $false
+                            break
+                        }
+                        # Check if owner already present
+                        $owners = @(Get-MgApplicationOwner -ApplicationId $objectId -All -ErrorAction Stop)
+                        $alreadyOwner = $null -ne ($owners | Where-Object { $_.Id -eq $newOwnerObjId })
+                        if ($alreadyOwner) {
+                            $result.InvalidTargets.Add("$newOwnerObjId : already owner of Application (no-op)")
+                        }
+                    }
+                } catch {
+                    $result.ValidationErrors.Add("Target read failed for $objectId : $_")
+                    $result.Valid = $false
+                    break
+                }
+                # Read new owner object
+                try {
+                    $ownerObj = Get-MgDirectoryObject -DirectoryObjectId $newOwnerObjId -ErrorAction Stop
+                    if ($null -eq $ownerObj) {
+                        $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId not found — BLOCKED")
+                        $result.Valid = $false
+                        break
+                    }
+                } catch {
+                    $result.ValidationErrors.Add("NewOwnerObjectId read failed for $newOwnerObjId : $_")
+                    $result.Valid = $false
+                    break
+                }
+                # If owner is a user, check AccountEnabled and UserType
+                try {
+                    $ownerUser = Get-MgUser -UserId $newOwnerObjId -Property 'Id,AccountEnabled,UserType' -ErrorAction Stop
+                    if ($null -ne $ownerUser) {
+                        if ($ownerUser.AccountEnabled -eq $false) {
+                            $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId is disabled (AccountEnabled=false) — BLOCKED")
+                            $result.Valid = $false
+                            break
+                        }
+                        $allowGuest = if ($null -ne $Action.AllowGuestOwner) { [bool]$Action.AllowGuestOwner } else { $false }
+                        if ($ownerUser.UserType -eq 'Guest' -and -not $allowGuest) {
+                            $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId is a Guest and AllowGuestOwner is not true — BLOCKED")
+                            $result.Valid = $false
+                            break
+                        }
+                    }
+                } catch { }
+            }
+
+            'RemoveCAExclusionGroupMember' {
+                $groupId     = if ($Action.ExclusionGroupId) { [string]$Action.ExclusionGroupId } else { if ($targetIds.Count -gt 0) { [string]$targetIds[0] } else { '' } }
+                $principalId = if ($Action.ExcludedPrincipalId) { [string]$Action.ExcludedPrincipalId } else { $objectId }
+                $policyId    = [string]$Action.PolicyId
+                if (-not $policyId -or $policyId -eq '') {
+                    $result.ValidationErrors.Add("PolicyId missing — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+                if (-not $groupId -or $groupId -eq '') {
+                    $result.ValidationErrors.Add("ExclusionGroupId missing — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+                if (-not $principalId -or $principalId -eq '') {
+                    $result.ValidationErrors.Add("ExcludedPrincipalId missing — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+                # Safety: check EmergencyAccessIndicator and BreakGlassIndicator
+                if ($Action.EmergencyAccessIndicator -eq $true) {
+                    $result.ValidationErrors.Add("EmergencyAccessIndicator=true — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+                if ($Action.BreakGlassIndicator -eq $true) {
+                    $result.ValidationErrors.Add("BreakGlassIndicator=true — BLOCKED")
+                    $result.Valid = $false
+                    break
+                }
+                # Read CA policy (read-only, confirm it still excludes the group)
+                try {
+                    $policy = Get-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $policyId -ErrorAction Stop
+                    if ($null -eq $policy) {
+                        $result.ValidationErrors.Add("CA policy $policyId not found — BLOCKED")
+                        $result.Valid = $false
+                        break
+                    }
+                    # Check if policy excludes the group
+                    $excludedGroups = @()
+                    if ($policy.Conditions -and $policy.Conditions.Users) {
+                        $excludedGroups = @($policy.Conditions.Users.ExcludeGroups)
+                    }
+                    if ($null -ne $policy.AdditionalProperties -and $policy.AdditionalProperties['conditions']) {
+                        $conds = $policy.AdditionalProperties['conditions']
+                        if ($conds['users'] -and $conds['users']['excludeGroups']) {
+                            $excludedGroups += @($conds['users']['excludeGroups'])
+                        }
+                    }
+                    $stillExcludes = $excludedGroups -contains $groupId
+                    if (-not $stillExcludes) {
+                        $result.InvalidTargets.Add("$groupId : CA policy no longer excludes this group (stale/no-op)")
+                    }
+                } catch {
+                    $result.ValidationErrors.Add("CA policy read failed for $policyId : $_")
+                    $result.Valid = $false
+                    break
+                }
+                # Read group and confirm principal is member
+                try {
+                    $members = @(Get-MgGroupMember -GroupId $groupId -All -ErrorAction Stop)
+                    $isMember = $null -ne ($members | Where-Object { $_.Id -eq $principalId })
+                    if (-not $isMember) {
+                        $result.InvalidTargets.Add("$principalId : not member of exclusion group $groupId (already removed or state changed)")
+                    }
+                } catch {
+                    $result.ValidationErrors.Add("Group member read failed for $groupId : $_")
+                    $result.Valid = $false
+                    break
+                }
+            }
+
         }
     } catch {
         $result.ErrorDetail = $_.ToString()
@@ -265,6 +416,14 @@ $script:ExecutionMap = @{
     'DEC-GREV-002'  = 'RemoveGuestGroupMembership'
     'DEC-GREV-003'  = 'GuestGroupOrAppRole'
     'DEC-APP-005'   = 'RemoveExpiredApplicationCredential'
+    # Rev3.3
+    'DEC-APP-001'   = 'AddApplicationOwner'
+    'DEC-APP-002'   = 'AddApplicationOwner'
+    'DEC-APP-003'   = 'AddApplicationOwner'
+    'DEC-SPN-001'   = 'AddApplicationOwner'
+    'DEC-CA-002'    = 'RemoveCAExclusionGroupMember'
+    'DEC-CA-003'    = 'RemoveCAExclusionGroupMember'
+    'DEC-CA-004'    = 'RemoveCAExclusionGroupMember'
 }
 
 $script:ManualApprovalFindingIds = @(
@@ -273,7 +432,9 @@ $script:ManualApprovalFindingIds = @(
     'DEC-PIM-001','DEC-PIM-002','DEC-PIM-003','DEC-PIM-004','DEC-PIM-005','DEC-PIM-006',
     'DEC-GUEST-001','DEC-GUEST-002','DEC-GUEST-003',
     'DEC-GREV-001','DEC-GREV-002','DEC-GREV-003',
-    'DEC-APP-005'
+    'DEC-APP-005',
+    'DEC-APP-001','DEC-APP-002','DEC-APP-003','DEC-SPN-001',
+    'DEC-CA-002','DEC-CA-003','DEC-CA-004'
 )
 
 function Confirm-DecomGuestIdentity {
@@ -387,7 +548,8 @@ function Invoke-DecomRemediation {
         if ($revalidation.InvalidTargets.Count -gt 0) {
             if ($revalidation.InvalidTargets.Count -eq $targetIds.Count -and
                 $actionType -in @('RemoveGuestGroupMembership','RevokeGuestAppRoleAssignment',
-                                  'RemoveExpiredApplicationCredential')) {
+                                  'RemoveExpiredApplicationCredential',
+                                  'AddApplicationOwner','RemoveCAExclusionGroupMember')) {
                 Add-DecomExecutionAction `
                     -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
                     -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
@@ -613,6 +775,81 @@ function Invoke-DecomRemediation {
                 }
             }
 
+            'AddApplicationOwner' {
+                $newOwnerObjId = [string]$action.NewOwnerObjectId
+                $objType       = [string]$action.ObjectType
+                if (-not $newOwnerObjId -or $newOwnerObjId -eq '') {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
+                        -ErrorDetail "NewOwnerObjectId missing — BLOCKED"
+                    continue
+                }
+                $odataRef = "https://graph.microsoft.com/v1.0/directoryObjects/$newOwnerObjId"
+                try {
+                    if ($objType -eq 'ServicePrincipal') {
+                        if (-not (Get-Command 'New-MgServicePrincipalOwnerByRef' -ErrorAction SilentlyContinue)) {
+                            Add-DecomExecutionAction `
+                                -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                                -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                                -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                                -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
+                                -ErrorDetail 'New-MgServicePrincipalOwnerByRef cmdlet unavailable.'
+                            continue
+                        }
+                        New-MgServicePrincipalOwnerByRef -ServicePrincipalId $objectId `
+                            -BodyParameter @{ '@odata.id' = $odataRef } -ErrorAction Stop
+                    } else {
+                        if (-not (Get-Command 'New-MgApplicationOwnerByRef' -ErrorAction SilentlyContinue)) {
+                            Add-DecomExecutionAction `
+                                -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                                -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                                -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                                -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
+                                -ErrorDetail 'New-MgApplicationOwnerByRef cmdlet unavailable.'
+                            continue
+                        }
+                        New-MgApplicationOwnerByRef -ApplicationId $objectId `
+                            -BodyParameter @{ '@odata.id' = $odataRef } -ErrorAction Stop
+                    }
+                } catch {
+                    $failedTargets.Add($newOwnerObjId)
+                    $errorDetail += "Owner add failed for $newOwnerObjId : $_; "
+                }
+            }
+
+            'RemoveCAExclusionGroupMember' {
+                $groupId     = if ($action.ExclusionGroupId) { [string]$action.ExclusionGroupId } else { if ($targetIds.Count -gt 0) { [string]$targetIds[0] } else { '' } }
+                $principalId = if ($action.ExcludedPrincipalId) { [string]$action.ExcludedPrincipalId } else { $objectId }
+                if (-not $groupId -or -not $principalId) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
+                        -ErrorDetail "ExclusionGroupId or ExcludedPrincipalId missing — BLOCKED"
+                    continue
+                }
+                # Safety re-check at execution time
+                if ($action.EmergencyAccessIndicator -eq $true -or $action.BreakGlassIndicator -eq $true) {
+                    Add-DecomExecutionAction `
+                        -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
+                        -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
+                        -Outcome 'Blocked' -TargetObjectIds $targetIds `
+                        -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
+                        -ErrorDetail "EmergencyAccess/BreakGlass indicator — BLOCKED at execution time"
+                    continue
+                }
+                try {
+                    Remove-MgGroupMemberByRef -GroupId $groupId -DirectoryObjectId $principalId -ErrorAction Stop
+                } catch {
+                    $failedTargets.Add($groupId)
+                    $errorDetail += "CA exclusion group member removal failed for principal $principalId in group $groupId : $_; "
+                }
+            }
+
             default {
                 Add-DecomExecutionAction `
                     -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
@@ -776,6 +1013,40 @@ function Get-DecomTargetState {
             } catch {
                 $querySucceeded = $false
                 $queryError += "Application $objectId re-query failed: $_; "
+            }
+        }
+
+        'AddApplicationOwner' {
+            $newOwnerObjId = [string]$Action.NewOwnerObjectId
+            if (-not $newOwnerObjId) { break }
+            $objType = [string]$Action.ObjectType
+            try {
+                if ($objType -eq 'ServicePrincipal') {
+                    $owners = @(Get-MgServicePrincipalOwner -ServicePrincipalId $objectId -All -ErrorAction Stop)
+                } else {
+                    $owners = @(Get-MgApplicationOwner -ApplicationId $objectId -All -ErrorAction Stop)
+                }
+                if ($null -ne ($owners | Where-Object { $_.Id -eq $newOwnerObjId })) {
+                    $present.Add($newOwnerObjId)
+                }
+            } catch {
+                $querySucceeded = $false
+                $queryError += "Owner re-query failed for $objectId : $_; "
+            }
+        }
+
+        'RemoveCAExclusionGroupMember' {
+            $groupId     = if ($Action.ExclusionGroupId) { [string]$Action.ExclusionGroupId } else { if ($targetIds.Count -gt 0) { [string]$targetIds[0] } else { '' } }
+            $principalId = if ($Action.ExcludedPrincipalId) { [string]$Action.ExcludedPrincipalId } else { $objectId }
+            if (-not $groupId) { break }
+            try {
+                $members = @(Get-MgGroupMember -GroupId $groupId -All -ErrorAction Stop)
+                if ($null -ne ($members | Where-Object { $_.Id -eq $principalId })) {
+                    $present.Add($groupId)
+                }
+            } catch {
+                $querySucceeded = $false
+                $queryError += "CA exclusion group member re-query failed for $groupId : $_; "
             }
         }
 

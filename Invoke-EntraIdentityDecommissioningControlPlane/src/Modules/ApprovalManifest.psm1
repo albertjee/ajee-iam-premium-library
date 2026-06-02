@@ -56,6 +56,21 @@ function Convert-DecomActionToCanonical {
         AppId                     = [string]$Action.AppId
         OwnerCount                = if ($null -ne $Action.OwnerCount) { [int]$Action.OwnerCount } else { 0 }
         HasOwner                  = if ($null -ne $Action.HasOwner) { [bool]$Action.HasOwner } else { $false }
+        # Rev3.3 owner fields
+        NewOwnerObjectId          = [string]$Action.NewOwnerObjectId
+        NewOwnerUserPrincipalName = [string]$Action.NewOwnerUserPrincipalName
+        NewOwnerType              = [string]$Action.NewOwnerType
+        OwnerSource               = [string]$Action.OwnerSource
+        BusinessJustification     = [string]$Action.BusinessJustification
+        AllowGuestOwner           = if ($null -ne $Action.AllowGuestOwner) { [bool]$Action.AllowGuestOwner } else { $false }
+        # Rev3.3 CA exclusion fields
+        PolicyId                  = [string]$Action.PolicyId
+        PolicyDisplayName         = [string]$Action.PolicyDisplayName
+        ExclusionGroupId          = [string]$Action.ExclusionGroupId
+        ExclusionGroupDisplayName = [string]$Action.ExclusionGroupDisplayName
+        ExcludedPrincipalId       = [string]$Action.ExcludedPrincipalId
+        EmergencyAccessIndicator  = if ($null -ne $Action.EmergencyAccessIndicator) { [bool]$Action.EmergencyAccessIndicator } else { $false }
+        BreakGlassIndicator       = if ($null -ne $Action.BreakGlassIndicator) { [bool]$Action.BreakGlassIndicator } else { $false }
     }
 }
 
@@ -130,7 +145,16 @@ $script:ExecutionMap = @{
     'DEC-GREV-001' = 'RemoveGuestGroupMembership'
     'DEC-GREV-002' = 'RemoveGuestGroupMembership'
     'DEC-GREV-003' = 'GuestMultiAction'
-    'DEC-APP-005'  = 'RemoveExpiredApplicationCredential'
+    'DEC-APP-005'   = 'RemoveExpiredApplicationCredential'
+    # Rev3.3 — AddApplicationOwner
+    'DEC-APP-001'   = 'AddApplicationOwner'
+    'DEC-APP-002'   = 'AddApplicationOwner'
+    'DEC-APP-003'   = 'AddApplicationOwner'
+    'DEC-SPN-001'   = 'AddApplicationOwner'
+    # Rev3.3 — RemoveCAExclusionGroupMember
+    'DEC-CA-002'    = 'RemoveCAExclusionGroupMember'
+    'DEC-CA-003'    = 'RemoveCAExclusionGroupMember'
+    'DEC-CA-004'    = 'RemoveCAExclusionGroupMember'
 }
 
 $script:GuestDualFindingIds = [System.Collections.Generic.HashSet[string]] @('DEC-GUEST-002', 'DEC-GREV-003')
@@ -142,6 +166,8 @@ $script:AllGuestFindingIds = [System.Collections.Generic.HashSet[string]] @(
     'DEC-GREV-001', 'DEC-GREV-002', 'DEC-GREV-003'
 )
 $script:CredentialFindingIds = [System.Collections.Generic.HashSet[string]] @('DEC-APP-005')
+$script:OwnerFindingIds      = [System.Collections.Generic.HashSet[string]] @('DEC-APP-001','DEC-APP-002','DEC-APP-003','DEC-SPN-001')
+$script:CAExclusionFindingIds= [System.Collections.Generic.HashSet[string]] @('DEC-CA-002','DEC-CA-003','DEC-CA-004')
 
 function Get-DecomFindingExactTargetIds {
     param([pscustomobject]$Finding, [string]$FindingType)
@@ -184,6 +210,20 @@ function Get-DecomFindingExactTargetIds {
         }
     } elseif ($FindingType -eq 'CredentialKeyId') {
         foreach ($prop in @('CredentialKeyId','CredentialKeyIds','KeyId','KeyIds','TargetObjectId','TargetObjectIds')) {
+            $val = $Finding.$prop
+            if ($val) {
+                if ($val -is [string]) {
+                    if ($val -ne '') { [void]$ids.Add($val); break }
+                } elseif ($val -is [System.Collections.IEnumerable]) {
+                    foreach ($item in $val) {
+                        if ($item -and [string]$item -ne '') { [void]$ids.Add([string]$item) }
+                    }
+                    if ($ids.Count -gt 0) { break }
+                }
+            }
+        }
+    } elseif ($FindingType -eq 'OwnerObjectId') {
+        foreach ($prop in @('NewOwnerObjectId','NewOwnerObjectIds','OwnerObjectId','OwnerObjectIds','TargetObjectId','TargetObjectIds')) {
             $val = $Finding.$prop
             if ($val) {
                 if ($val -is [string]) {
@@ -425,6 +465,55 @@ function Resolve-DecomExecutableTargets {
                         })
                         $result.Resolved = ($result.TargetObjects.Count -gt 0)
                     }
+                }
+            }
+
+            { $script:OwnerFindingIds.Contains($_) } {
+                # Exact NewOwnerObjectId must be present — no inference from display name
+                $exactOwnerIds = Get-DecomFindingExactTargetIds -Finding $Finding -FindingType 'OwnerObjectId'
+                if ($exactOwnerIds.Count -eq 0) {
+                    $result.ErrorDetail = 'No exact NewOwnerObjectId found in finding — executable AddApplicationOwner not generated (use owner mapping or manual approval)'
+                    $result.Resolved = $false
+                } else {
+                    $objType = if ($Finding.ObjectType) { [string]$Finding.ObjectType } else { 'Application' }
+                    $result.TargetObjects = @(foreach ($oid in $exactOwnerIds) {
+                        [PSCustomObject]@{
+                            TargetObjectId    = $oid
+                            TargetDisplayName = $oid
+                            TargetActionType  = 'AddApplicationOwner'
+                            RoleAssignmentId  = ''; RoleDefinitionId = ''; RoleDisplayName = ''
+                            NewOwnerObjectId  = $oid
+                        }
+                    })
+                    $result.Resolved = ($result.TargetObjects.Count -gt 0)
+                }
+            }
+
+            { $script:CAExclusionFindingIds.Contains($_) } {
+                # Exact PolicyId, ExclusionGroupId, and ExcludedPrincipalId must be present
+                $policyId    = [string]$Finding.PolicyId
+                $groupId     = if ($Finding.ExclusionGroupId) { [string]$Finding.ExclusionGroupId } else { '' }
+                $principalId = if ($Finding.ExcludedPrincipalId) { [string]$Finding.ExcludedPrincipalId } else { [string]$Finding.ObjectId }
+                if (-not $policyId) {
+                    $result.ErrorDetail = 'PolicyId missing — cannot generate executable RemoveCAExclusionGroupMember'
+                    $result.Resolved = $false
+                } elseif (-not $groupId) {
+                    $result.ErrorDetail = 'ExclusionGroupId missing — cannot generate executable RemoveCAExclusionGroupMember'
+                    $result.Resolved = $false
+                } elseif (-not $principalId) {
+                    $result.ErrorDetail = 'ExcludedPrincipalId/ObjectId missing — cannot generate executable RemoveCAExclusionGroupMember'
+                    $result.Resolved = $false
+                } else {
+                    $result.TargetObjects = @([PSCustomObject]@{
+                        TargetObjectId    = $groupId
+                        TargetDisplayName = if ($Finding.ExclusionGroupDisplayName) { [string]$Finding.ExclusionGroupDisplayName } else { $groupId }
+                        TargetActionType  = 'RemoveCAExclusionGroupMember'
+                        RoleAssignmentId  = ''; RoleDefinitionId = ''; RoleDisplayName = ''
+                        PolicyId          = $policyId
+                        ExclusionGroupId  = $groupId
+                        ExcludedPrincipalId = $principalId
+                    })
+                    $result.Resolved = $true
                 }
             }
 
@@ -698,6 +787,130 @@ function New-DecomWhatIfActionPlan {
             continue
         }
 
+        # Owner findings (Rev3.3): one action per approved NewOwnerObjectId
+        if ($script:OwnerFindingIds.Contains($finding.FindingId)) {
+            foreach ($tgt in @($targets.TargetObjects)) {
+                $newOwnerObjId = if ($tgt.NewOwnerObjectId) { [string]$tgt.NewOwnerObjectId } else { [string]$tgt.TargetObjectId }
+                $opKey = "AddApplicationOwner|$($finding.ObjectId)|$newOwnerObjId"
+                if ($claimedOperationKeys.Contains($opKey)) {
+                    $planOnly.Add([ordered]@{
+                        FindingId         = $finding.FindingId
+                        ObjectId          = $finding.ObjectId
+                        DisplayName       = $finding.DisplayName
+                        TargetObjectId    = $newOwnerObjId
+                        TargetDisplayName = $tgt.TargetDisplayName
+                        Reason            = 'Duplicate owner-add operation already included in ApprovedActions'
+                    })
+                    continue
+                }
+                [void]$claimedOperationKeys.Add($opKey)
+
+                $ownerSource = if ($finding.OwnerSource) { [string]$finding.OwnerSource } else { 'ApprovalManifest' }
+                $ownerType   = if ($finding.NewOwnerType)  { [string]$finding.NewOwnerType }  else { 'User' }
+                $ownerUpn    = if ($finding.NewOwnerUserPrincipalName) { [string]$finding.NewOwnerUserPrincipalName } else { '' }
+                $bizJust     = if ($finding.BusinessJustification) { [string]$finding.BusinessJustification } else { 'Application requires an active owner for governance accountability' }
+                $objType     = if ($finding.ObjectType) { [string]$finding.ObjectType } else { 'Application' }
+
+                $action = [ordered]@{
+                    ActionId               = 'ACT-{0:D3}' -f $actionNum
+                    FindingId              = $finding.FindingId
+                    ObjectId               = $finding.ObjectId
+                    ObjectType             = $objType
+                    DisplayName            = $finding.DisplayName
+                    UserPrincipalName      = [string]$finding.UserPrincipalName
+                    ActionType             = 'AddApplicationOwner'
+                    TargetObjectIds        = @($newOwnerObjId)
+                    TargetDisplayNames     = @($newOwnerObjId)
+                    TargetType             = 'DirectoryObjectOwner'
+                    Evidence               = [string]$finding.Evidence
+                    RiskScore              = $finding.RiskScore
+                    ProtectedObject        = $finding.ProtectedObject
+                    RequiresManualApproval = $true
+                    NewOwnerObjectId       = $newOwnerObjId
+                    NewOwnerUserPrincipalName = $ownerUpn
+                    NewOwnerType           = $ownerType
+                    OwnerSource            = $ownerSource
+                    BusinessJustification  = $bizJust
+                    AllowGuestOwner        = if ($null -ne $finding.AllowGuestOwner) { [bool]$finding.AllowGuestOwner } else { $false }
+                    RollbackGuidance       = 'Rollback requires manually removing the added owner via the application ownership management interface. Rev3.3 does not auto-rollback owner additions.'
+                    PostWriteEvidenceRequired = $true
+                    PreflightChecks        = @('ExactNewOwnerObjectIdPresent','TargetApplicationOrServicePrincipalReadable','NewOwnerObjectReadable','NewOwnerNotDisabled','NewOwnerGuestCheckPassed','ProtectedObjectNotSet')
+                    ReadinessStatus        = 'ReadyForApproval'
+                    ReadinessReason        = 'Exact NewOwnerObjectId present in approval manifest'
+                    RoleAssignmentId       = ''
+                    RoleDefinitionId       = ''
+                    RoleDisplayName        = ''
+                }
+
+                $actions.Add($action)
+                $actionNum++
+            }
+            continue
+        }
+
+        # CA exclusion findings (Rev3.3): one action per ExclusionGroupId / ExcludedPrincipalId pair
+        if ($script:CAExclusionFindingIds.Contains($finding.FindingId)) {
+            foreach ($tgt in @($targets.TargetObjects)) {
+                $groupId     = if ($tgt.ExclusionGroupId)   { [string]$tgt.ExclusionGroupId }   else { [string]$tgt.TargetObjectId }
+                $principalId = if ($tgt.ExcludedPrincipalId){ [string]$tgt.ExcludedPrincipalId } else { [string]$finding.ObjectId }
+                $policyId    = if ($tgt.PolicyId)            { [string]$tgt.PolicyId }            else { [string]$finding.PolicyId }
+                $opKey = "RemoveCAExclusionGroupMember|$principalId|$groupId"
+                if ($claimedOperationKeys.Contains($opKey)) {
+                    $planOnly.Add([ordered]@{
+                        FindingId         = $finding.FindingId
+                        ObjectId          = $finding.ObjectId
+                        DisplayName       = $finding.DisplayName
+                        TargetObjectId    = $groupId
+                        TargetDisplayName = $tgt.TargetDisplayName
+                        Reason            = 'Duplicate CA exclusion group member removal already included in ApprovedActions'
+                    })
+                    continue
+                }
+                [void]$claimedOperationKeys.Add($opKey)
+
+                $reviewStatus = if ($finding.LastReviewEvidenceUtc) { 'Present' } else { 'Unknown' }
+                $isEmergency  = if ($null -ne $finding.EmergencyAccessIndicator) { [bool]$finding.EmergencyAccessIndicator } else { $false }
+                $isBreakGlass = if ($null -ne $finding.BreakGlassIndicator)      { [bool]$finding.BreakGlassIndicator }      else { $false }
+
+                $action = [ordered]@{
+                    ActionId               = 'ACT-{0:D3}' -f $actionNum
+                    FindingId              = $finding.FindingId
+                    ObjectId               = $principalId
+                    ObjectType             = if ($finding.ObjectType) { [string]$finding.ObjectType } else { 'User' }
+                    DisplayName            = $finding.DisplayName
+                    UserPrincipalName      = [string]$finding.UserPrincipalName
+                    ActionType             = 'RemoveCAExclusionGroupMember'
+                    TargetObjectIds        = @($groupId)
+                    TargetDisplayNames     = @($tgt.TargetDisplayName)
+                    TargetType             = 'CAExclusionGroup'
+                    Evidence               = [string]$finding.Evidence
+                    RiskScore              = $finding.RiskScore
+                    ProtectedObject        = $finding.ProtectedObject
+                    RequiresManualApproval = $true
+                    PolicyId               = $policyId
+                    PolicyDisplayName      = if ($finding.PolicyDisplayName) { [string]$finding.PolicyDisplayName } else { '' }
+                    ExclusionGroupId       = $groupId
+                    ExclusionGroupDisplayName = if ($finding.ExclusionGroupDisplayName) { [string]$finding.ExclusionGroupDisplayName } else { $groupId }
+                    ExcludedPrincipalId    = $principalId
+                    EmergencyAccessIndicator = $isEmergency
+                    BreakGlassIndicator    = $isBreakGlass
+                    ReviewEvidenceStatus   = $reviewStatus
+                    RollbackGuidance       = 'Rollback requires re-adding the principal to the exclusion group via group membership management. Rev3.3 does not auto-rollback CA exclusion group membership changes.'
+                    PostWriteEvidenceRequired = $true
+                    PreflightChecks        = @('ExactExclusionGroupIdPresent','ExactExcludedPrincipalIdPresent','ExactPolicyIdPresent','PolicyStillExcludesGroup','PrincipalIsMember','PrincipalNotProtected','PrincipalNotEmergencyAccess','ProtectedObjectNotSet')
+                    ReadinessStatus        = 'ReadyForApproval'
+                    ReadinessReason        = 'Exact PolicyId, ExclusionGroupId, and ExcludedPrincipalId present'
+                    RoleAssignmentId       = ''
+                    RoleDefinitionId       = ''
+                    RoleDisplayName        = ''
+                }
+
+                $actions.Add($action)
+                $actionNum++
+            }
+            continue
+        }
+
         # Non-role action families can group multiple target IDs in one action,
         # but duplicate target operations must still be removed.
         $effectiveTargets = @()
@@ -754,7 +967,7 @@ function New-DecomWhatIfActionPlan {
     $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actionsArray
 
     $manifest = [ordered]@{
-        SchemaVersion = '3.2'
+        SchemaVersion = '3.3'
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o')
         EngagementId = $EngagementId
         ClientName = $ClientName
@@ -1020,6 +1233,84 @@ function Test-DecomApprovalManifest {
                     }
                     [void]$credOpKeys.Add($credKey)
                 }
+            }
+        }
+
+        # Rev3.3 owner action types require SchemaVersion 3.3 or higher
+        $rev33OwnerActions = @($manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'AddApplicationOwner' })
+        if ($rev33OwnerActions.Count -gt 0) {
+            $svRaw = [string]$manifest.SchemaVersion
+            $svMajor = 0; $svMinor = 0
+            if ($svRaw -match '^(\d+)\.(\d+)') { [int]$svMajor = $Matches[1]; [int]$svMinor = $Matches[2] }
+            if ($svMajor -lt 3 -or ($svMajor -eq 3 -and $svMinor -lt 3)) {
+                $errors += "Rev3.3 owner action types require approval manifest SchemaVersion 3.3 or higher (found: $svRaw)"
+            }
+            foreach ($oa in $rev33OwnerActions) {
+                if ($oa.FindingId -notin @('DEC-APP-001','DEC-APP-002','DEC-APP-003','DEC-SPN-001')) {
+                    $errors += "AddApplicationOwner FindingId must be DEC-APP-001, DEC-APP-002, DEC-APP-003, or DEC-SPN-001 (found: $($oa.FindingId))"
+                }
+                if (-not $oa.NewOwnerObjectId -or [string]$oa.NewOwnerObjectId -eq '') {
+                    $errors += "AddApplicationOwner requires NewOwnerObjectId"
+                }
+                if (-not $oa.BusinessJustification -or [string]$oa.BusinessJustification -eq '') {
+                    $errors += "AddApplicationOwner requires BusinessJustification"
+                }
+                if ($oa.ProtectedObject -eq $true) {
+                    $errors += "ProtectedObject action cannot be approved for owner addition"
+                }
+            }
+            # No duplicate owner-add operations
+            $ownerOpKeys = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($oa in $rev33OwnerActions) {
+                $ownerKey = "AddApplicationOwner|$($oa.ObjectId)|$($oa.NewOwnerObjectId)"
+                if ($ownerOpKeys.Contains($ownerKey)) {
+                    $errors += "Duplicate owner-add operation: $ownerKey"
+                    break
+                }
+                [void]$ownerOpKeys.Add($ownerKey)
+            }
+        }
+
+        # Rev3.3 CA exclusion action types require SchemaVersion 3.3 or higher
+        $rev33CAActions = @($manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'RemoveCAExclusionGroupMember' })
+        if ($rev33CAActions.Count -gt 0) {
+            $svRaw = [string]$manifest.SchemaVersion
+            $svMajor = 0; $svMinor = 0
+            if ($svRaw -match '^(\d+)\.(\d+)') { [int]$svMajor = $Matches[1]; [int]$svMinor = $Matches[2] }
+            if ($svMajor -lt 3 -or ($svMajor -eq 3 -and $svMinor -lt 3)) {
+                $errors += "Rev3.3 CA exclusion action types require approval manifest SchemaVersion 3.3 or higher (found: $svRaw)"
+            }
+            foreach ($ca in $rev33CAActions) {
+                if ($ca.FindingId -notin @('DEC-CA-002','DEC-CA-003','DEC-CA-004')) {
+                    $errors += "RemoveCAExclusionGroupMember FindingId must be DEC-CA-002, DEC-CA-003, or DEC-CA-004 (found: $($ca.FindingId))"
+                }
+                if (-not $ca.PolicyId -or [string]$ca.PolicyId -eq '') {
+                    $errors += "RemoveCAExclusionGroupMember requires PolicyId"
+                }
+                if (-not $ca.ExclusionGroupId -and (-not $ca.TargetObjectIds -or $ca.TargetObjectIds.Count -eq 0)) {
+                    $errors += "RemoveCAExclusionGroupMember requires ExclusionGroupId"
+                }
+                if ($ca.ProtectedObject -eq $true) {
+                    $errors += "ProtectedObject action cannot be approved for CA exclusion group removal"
+                }
+                if ($ca.EmergencyAccessIndicator -eq $true) {
+                    $errors += "EmergencyAccessIndicator action cannot be approved for CA exclusion group removal"
+                }
+                if ($ca.BreakGlassIndicator -eq $true) {
+                    $errors += "BreakGlassIndicator action cannot be approved for CA exclusion group removal"
+                }
+            }
+            # No duplicate CA exclusion operations
+            $caOpKeys = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($ca in $rev33CAActions) {
+                $groupId     = if ($ca.ExclusionGroupId) { [string]$ca.ExclusionGroupId } else { [string](@($ca.TargetObjectIds)[0]) }
+                $principalId = if ($ca.ExcludedPrincipalId) { [string]$ca.ExcludedPrincipalId } else { [string]$ca.ObjectId }
+                $caKey = "RemoveCAExclusionGroupMember|$principalId|$groupId"
+                if ($caOpKeys.Contains($caKey)) {
+                    $errors += "Duplicate CA exclusion group member removal operation: $caKey"
+                    break
+                }
+                [void]$caOpKeys.Add($caKey)
             }
         }
 

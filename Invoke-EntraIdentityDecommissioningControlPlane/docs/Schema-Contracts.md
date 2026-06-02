@@ -1,7 +1,7 @@
 # Schema Contracts
 
-**SchemaVersion:** 3.2  
-**Rev:** 3.2
+**SchemaVersion:** 3.3  
+**Rev:** 3.3
 
 ---
 

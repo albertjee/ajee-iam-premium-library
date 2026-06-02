@@ -25,11 +25,11 @@ param(
     [switch]$GenerateExecutivePack,
     [switch]$SelfTest,
     [switch]$GenerateReleasePackage,
-    [string]$ReleasePackagePath = '.\release\Rev3.2'
+    [string]$ReleasePackagePath = '.\release\Rev3.3'
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev3.2'
+$script:ToolVersion = 'Rev3.3'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -74,6 +74,7 @@ $modulesToLoad = @(
     'EmergencyAccessGovernance'
     'ReleasePackaging'
     'GuestGovernance'
+    'Rev3CapabilityMatrix'
 )
 
 foreach ($mod in $modulesToLoad) {
@@ -485,7 +486,7 @@ if ($GenerateExecutivePack) {
 
     # Prepare executive pack context
     $execContext = [pscustomobject]@{
-        SchemaVersion = '2.4'
+        SchemaVersion = '3.3'
         ToolVersion   = $Context.ToolVersion
         ClientName    = $Context.ClientName
         EngagementId  = $Context.EngagementId
