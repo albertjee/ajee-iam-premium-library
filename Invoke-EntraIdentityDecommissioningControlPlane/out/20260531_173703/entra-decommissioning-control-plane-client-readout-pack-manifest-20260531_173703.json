@@ -1,0 +1,21 @@
+{
+  "SchemaVersion": "2.4",
+  "ToolVersion": "Rev2.4",
+  "GeneratedUtc": "2026-06-01T00:37:03.7831628Z",
+  "ClientName": "Unknown",
+  "EngagementId": "",
+  "Assessor": "",
+  "TenantId": "contoso.onmicrosoft.com",
+  "ExecutiveRiskPosture": "Critical",
+  "BaselineAvailable": false,
+  "Files": {
+    "Html": ".\\out\\20260531_173703\\entra-decommissioning-control-plane-report-20260531_173703.html",
+    "Manifest": ".\\out\\20260531_173703\\entra-decommissioning-control-plane-run-manifest-20260531_173703.json",
+    "BaselineComparisonCsv": null,
+    "RemediationPlan": ".\\out\\20260531_173703\\entra-decommissioning-control-plane-remediation-plan-20260531_173703.md",
+    "BaselineComparisonJson": null,
+    "Csv": ".\\out\\20260531_173703\\entra-decommissioning-control-plane-assessment-20260531_173703.csv",
+    "Json": ".\\out\\20260531_173703\\entra-decommissioning-control-plane-findings-20260531_173703.json"
+  },
+  "SafetyStatement": "Rev2.4 generated read-only reporting artifacts and did not modify tenant configuration."
+}

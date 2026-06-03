@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entra Identity Decommissioning — Execution Report Rev3.1</title>
+<style>
+:root{--navy:#0b1220;--gold:#c6a75e;--text:#f8fafc;--muted:#cbd5e1;--cyan:#38bdf8;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:rgba(198,167,94,0.35);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:linear-gradient(135deg,#0b1220,#020617);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+.advisory-bar{width:100%;background:#0a0f1a;border-left:6px solid var(--gold);padding:12px 32px;font-size:13px;color:#94a3b8;}
+.advisory-bar strong{color:var(--gold);}
+.container{max-width:1280px;margin:0 auto;padding:40px;}
+.header{border-left:6px solid var(--gold);padding-left:20px;margin-bottom:32px;}
+.header h1{color:var(--text);font-size:34px;font-weight:700;}
+.header .subtitle{color:var(--muted);font-size:16px;margin-top:6px;}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;}
+.meta-item .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
+.meta-item .value{color:var(--gold);font-size:14px;font-weight:600;margin-top:2px;}
+.section-title{font-size:18px;font-weight:700;color:var(--gold);margin:32px 0 16px;border-bottom:1px solid var(--border);padding-bottom:8px;}
+.scorecard{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px;}
+.score-card{background:rgba(22,32,51,0.92);border-radius:12px;padding:16px;text-align:center;border:1px solid var(--border);}
+.score-card .score-label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.score-card .score-value{font-size:26px;font-weight:700;}
+table{width:100%;border-collapse:collapse;background:rgba(11,18,32,0.7);}
+thead th{background:rgba(22,32,51,0.95);color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);}
+tbody td{padding:12px 14px;border-bottom:1px solid rgba(198,167,94,0.12);font-size:14px;color:var(--text);vertical-align:top;}
+tbody tr:hover{background:rgba(22,32,51,0.6);}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12px;display:flex;justify-content:space-between;align-items:center;}
+</style>
+</head>
+<body>
+<div class="advisory-bar">
+  <strong>Execution Evidence Report</strong> — Rev3.1 | Controlled Remediation — Client Deliverable
+</div>
+<div class="container">
+  <div class="header">
+    <h1>Entra Identity Decommissioning Control Plane</h1>
+    <div class="subtitle">Controlled Remediation Execution Report — Rev3.1</div>
+    <div class="meta-grid">
+      <div class="meta-item"><div class="label">Tenant</div><div class="value">NewportHighPTSA.onmicrosoft.com</div></div>
+      <div class="meta-item"><div class="label">Run Date</div><div class="value">2026-06-01 12:27:30 UTC</div></div>
+      <div class="meta-item"><div class="label">Version</div><div class="value">Rev3.1</div></div>
+      <div class="meta-item"><div class="label">Client</div><div class="value">Newport High PTSA</div></div>
+      <div class="meta-item"><div class="label">Engagement ID</div><div class="value">ENG-004</div></div>
+      <div class="meta-item"><div class="label">Assessor</div><div class="value">Albert Jee</div></div>
+      <div class="meta-item"><div class="label">Approved By</div><div class="value">Albert Jee - Administrator</div></div>
+      <div class="meta-item"><div class="label">Approval Ticket</div><div class="value">—</div></div>
+      <div class="meta-item"><div class="label">Run ID</div><div class="value" style="font-size:11px;font-family:monospace">fc37fb11-93fc-44c5-b0e5-61648395aca9</div></div>
+    </div>
+  </div>
+
+  <div class="section-title">Execution Scorecard</div>
+  <div class="scorecard">
+    <div class="score-card"><div class="score-label" style="color:var(--green)">Executed</div><div class="score-value" style="color:var(--green)">0</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--orange)">Partial</div><div class="score-value" style="color:var(--orange)">3</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--red)">Failed</div><div class="score-value" style="color:var(--red)">0</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--red)">Blocked</div><div class="score-value" style="color:var(--red)">0</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--orange)">Declined</div><div class="score-value" style="color:var(--orange)">0</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--muted)">Out of Scope</div><div class="score-value" style="color:var(--muted)">0</div></div>
+  </div>
+
+  <div class="section-title">Action Evidence</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Action ID</th>
+        <th>Finding ID</th>
+        <th>Object</th>
+        <th>Action Type</th>
+        <th>Outcome</th>
+        <th>Before State</th>
+        <th>After State</th>
+        <th>Error Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr>
+  <td style="font-family:monospace;font-size:12px;">ACT-001</td>
+  <td style="font-family:monospace;font-size:12px;">DEC-USER-001</td>
+  <td>Test Decom User 1</td>
+  <td style="font-size:12px;color:var(--muted)">RemoveGroupMembership</td>
+  <td style="color:#f59e0b;font-weight:700">PartialFailed</td>
+  <td style="font-size:11px;color:var(--muted)">c5219d4d-7fd4-495f-9adc-d512cc00f317<br>d8a18347-9be0-4a6c-955d-92830d1dae71<br>1dabc9b2-b2fb-447d-abac-9f4b2b17b03d</td>
+  <td style="font-size:11px;color:var(--muted)">c5219d4d-7fd4-495f-9adc-d512cc00f317</td>
+  <td style="font-size:12px;color:var(--muted)">Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.
+
+Status: 403 (Forbidden)
+ErrorCode: Authorization_RequestDenied
+Date: 2026-06-01T19:27:23
+
+Headers:
+Cache-Control                 : no-cache
+Vary                          : Accept-Encoding
+Strict-Transport-Security     : max-age=31536000
+request-id                    : 62458d26-bfca-44a3-aee8-e762b55945a4
+client-request-id             : 2ec85a20-4b17-41de-9733-7bf9789ab67c
+x-ms-ags-diagnostic           : {&quot;ServerInfo&quot;:{&quot;DataCenter&quot;:&quot;West US&quot;,&quot;Slice&quot;:&quot;E&quot;,&quot;Ring&quot;:&quot;4&quot;,&quot;ScaleUnit&quot;:&quot;001&quot;,&quot;RoleInstance&quot;:&quot;BY1PEPF00002561&quot;}}
+x-ms-resource-unit            : 1
+Date                          : Mon, 01 Jun 2026 19:27:22 GMT
+
+; </td>
+</tr><tr>
+  <td style="font-family:monospace;font-size:12px;">ACT-002</td>
+  <td style="font-family:monospace;font-size:12px;">DEC-USER-001</td>
+  <td>Test Decom User 2</td>
+  <td style="font-size:12px;color:var(--muted)">RemoveGroupMembership</td>
+  <td style="color:#f59e0b;font-weight:700">PartialFailed</td>
+  <td style="font-size:11px;color:var(--muted)">c5219d4d-7fd4-495f-9adc-d512cc00f317<br>d8a18347-9be0-4a6c-955d-92830d1dae71<br>083bf356-4b68-433a-8206-fa4bbcf346fc</td>
+  <td style="font-size:11px;color:var(--muted)">c5219d4d-7fd4-495f-9adc-d512cc00f317</td>
+  <td style="font-size:12px;color:var(--muted)">Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.
+
+Status: 403 (Forbidden)
+ErrorCode: Authorization_RequestDenied
+Date: 2026-06-01T19:27:26
+
+Headers:
+Cache-Control                 : no-cache
+Vary                          : Accept-Encoding
+Strict-Transport-Security     : max-age=31536000
+request-id                    : 77716b64-3179-4828-b0e7-2795be4c1f18
+client-request-id             : 0b78ec04-7dcb-42f6-b45a-00a10b776030
+x-ms-ags-diagnostic           : {&quot;ServerInfo&quot;:{&quot;DataCenter&quot;:&quot;West US&quot;,&quot;Slice&quot;:&quot;E&quot;,&quot;Ring&quot;:&quot;4&quot;,&quot;ScaleUnit&quot;:&quot;001&quot;,&quot;RoleInstance&quot;:&quot;BY1PEPF00002561&quot;}}
+x-ms-resource-unit            : 1
+Date                          : Mon, 01 Jun 2026 19:27:26 GMT
+
+; </td>
+</tr><tr>
+  <td style="font-family:monospace;font-size:12px;">ACT-003</td>
+  <td style="font-family:monospace;font-size:12px;">DEC-USER-001</td>
+  <td>Test Decom User 3</td>
+  <td style="font-size:12px;color:var(--muted)">RemoveGroupMembership</td>
+  <td style="color:#f59e0b;font-weight:700">PartialFailed</td>
+  <td style="font-size:11px;color:var(--muted)">c5219d4d-7fd4-495f-9adc-d512cc00f317<br>083bf356-4b68-433a-8206-fa4bbcf346fc<br>1dabc9b2-b2fb-447d-abac-9f4b2b17b03d</td>
+  <td style="font-size:11px;color:var(--muted)">c5219d4d-7fd4-495f-9adc-d512cc00f317</td>
+  <td style="font-size:12px;color:var(--muted)">Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.
+
+Status: 403 (Forbidden)
+ErrorCode: Authorization_RequestDenied
+Date: 2026-06-01T19:27:29
+
+Headers:
+Cache-Control                 : no-cache
+Vary                          : Accept-Encoding
+Strict-Transport-Security     : max-age=31536000
+request-id                    : 34b83aa0-2335-43de-a63c-e72f97797e07
+client-request-id             : 420015db-9f0b-458e-b6b8-89c9a289a2e9
+x-ms-ags-diagnostic           : {&quot;ServerInfo&quot;:{&quot;DataCenter&quot;:&quot;West US&quot;,&quot;Slice&quot;:&quot;E&quot;,&quot;Ring&quot;:&quot;4&quot;,&quot;ScaleUnit&quot;:&quot;001&quot;,&quot;RoleInstance&quot;:&quot;BY1PEPF00002561&quot;}}
+x-ms-resource-unit            : 1
+Date                          : Mon, 01 Jun 2026 19:27:29 GMT
+
+; </td>
+</tr>
+    </tbody>
+  </table>
+
+  <footer>
+    <span>Generated: 2026-06-01 12:27:30 UTC | Entra Identity Decommissioning Control Plane Rev3.1</span>
+    <span style="color:var(--muted);">© 2026 Albert Jee. All rights reserved. | Consultant advisory tool — not a continuous monitoring platform</span>
+  </footer>
+</div>
+</body>
+</html>

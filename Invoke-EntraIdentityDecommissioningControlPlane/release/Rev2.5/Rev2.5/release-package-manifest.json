@@ -1,0 +1,120 @@
+{
+  "SchemaVersion": "2.5",
+  "ToolVersion": "Rev2.5",
+  "GeneratedUtc": "2026-06-01T07:23:51.0069340Z",
+  "ClientName": "",
+  "EngagementId": "",
+  "Assessor": "",
+  "Contents": [
+    {
+      "Type": "documentation",
+      "Path": "docs\\Required-Permissions.md",
+      "Description": "Required Microsoft Graph permissions"
+    },
+    {
+      "Type": "documentation",
+      "Path": "docs\\Findings-Catalog.md",
+      "Description": "Complete findings catalog with metadata"
+    },
+    {
+      "Type": "documentation",
+      "Path": "docs\\Schema-Contracts.md",
+      "Description": "Schema contracts for all output objects"
+    },
+    {
+      "Type": "documentation",
+      "Path": "docs\\Rev3-Write-Readiness.md",
+      "Description": "Rev3.0 write expansion readiness guidance"
+    },
+    {
+      "Type": "runbook",
+      "Path": "runbooks\\Assessment-Runbook.md",
+      "Description": "Guide for running assessments"
+    },
+    {
+      "Type": "runbook",
+      "Path": "runbooks\\WhatIf-Approval-Runbook.md",
+      "Description": "WhatIf approval process guide"
+    },
+    {
+      "Type": "runbook",
+      "Path": "runbooks\\ExecuteRemediation-Runbook.md",
+      "Description": "Three-gate execution model guide"
+    },
+    {
+      "Type": "runbook",
+      "Path": "runbooks\\Executive-Pack-Runbook.md",
+      "Description": "Executive evidence pack generation guide"
+    },
+    {
+      "Type": "runbook",
+      "Path": "runbooks\\Troubleshooting.md",
+      "Description": "Common issues and resolution steps"
+    },
+    {
+      "Type": "runbook",
+      "Path": "runbooks\\Rev3-Write-Readiness-Runbook.md",
+      "Description": "Rev3 write-readiness report interpretation guide"
+    },
+    {
+      "Type": "sample",
+      "Path": "sample-outputs\\demo-html-report.html",
+      "Description": "Demo HTML assessment report",
+      "Missing": true
+    },
+    {
+      "Type": "sample",
+      "Path": "sample-outputs\\demo-findings.json",
+      "Description": "Demo findings JSON export",
+      "Missing": true
+    },
+    {
+      "Type": "sample",
+      "Path": "sample-outputs\\demo-remediation-plan.md",
+      "Description": "Demo remediation plan markdown",
+      "Missing": true
+    },
+    {
+      "Type": "sample",
+      "Path": "sample-outputs\\demo-executive-summary.md",
+      "Description": "Demo executive summary markdown",
+      "Missing": true
+    },
+    {
+      "Type": "sample",
+      "Path": "sample-outputs\\demo-governance-dashboard.html",
+      "Description": "Demo governance KPI dashboard HTML",
+      "Missing": true
+    },
+    {
+      "Type": "validation",
+      "Path": "validation\\release-validation-report.json",
+      "Description": "Release validation report",
+      "Missing": false
+    },
+    {
+      "Type": "validation",
+      "Path": "validation\\catalog-validation-report.json",
+      "Description": "Catalog validation report",
+      "Missing": true
+    },
+    {
+      "Type": "validation",
+      "Path": "validation\\schema-validation-report.json",
+      "Description": "Schema validation report",
+      "Missing": true
+    },
+    {
+      "Type": "validation",
+      "Path": "validation\\execution-scope-registry.json",
+      "Description": "Execution scope registry",
+      "Missing": true
+    },
+    {
+      "Type": "validation",
+      "Path": "validation\\rev3-write-readiness-report.json",
+      "Description": "Rev3 write-readiness report",
+      "Missing": true
+    }
+  ]
+}

@@ -43,7 +43,7 @@ param(
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev3.5'
+$script:ToolVersion = 'Rev3.6'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -523,7 +523,7 @@ if ($GenerateExecutivePack) {
 
     # Prepare executive pack context
     $execContext = [pscustomobject]@{
-        SchemaVersion = '3.3'
+        SchemaVersion = '3.6'
         ToolVersion   = $Context.ToolVersion
         ClientName    = $Context.ClientName
         EngagementId  = $Context.EngagementId

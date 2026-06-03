@@ -1,0 +1,20 @@
+{
+  "SchemaVersion": "3.4",
+  "ToolVersion": "Rev3.5",
+  "RunId": "01090474-0345-4f11-843c-2fa038f9d089",
+  "GeneratedUtc": "2026-06-03T01:43:05.0832364Z",
+  "ProfileName": "ClientSafe",
+  "TokenCount": 54,
+  "RedactedFileCount": 10,
+  "Summary": {
+    "TenantIdsRedacted": 1,
+    "ObjectIdsRedacted": 33,
+    "AppIdsRedacted": 0,
+    "UpnsRedacted": 20,
+    "EmailsRedacted": 0,
+    "DisplayNamesRedacted": 0,
+    "RedactDisplayNames": false,
+    "RedactRunId": false,
+    "RedactHashes": false
+  }
+}

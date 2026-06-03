@@ -1,0 +1,16 @@
+{
+  "SchemaVersion": "3.4",
+  "ToolVersion": "Rev3.4",
+  "RunId": "2adb7aa7-0e96-419b-a09c-1fb56a559137",
+  "ValidatedUtc": "2026-06-02T19:45:21.4588169Z",
+  "Passed": true,
+  "CheckCount": 0,
+  "PassedChecks": 0,
+  "FailedChecks": 0,
+  "Findings": [],
+  "Warnings": [
+    "WhatIfReport not provided — WhatIf binding checks skipped",
+    "ApprovalManifest not provided — approval binding and action checks skipped",
+    "ExecutionEvidence not provided — execution consistency checks skipped"
+  ]
+}

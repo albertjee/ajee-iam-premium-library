@@ -26,8 +26,8 @@ function Compare-DecomWhatIfToApproval {
     )
 
     $diff = [pscustomobject]@{
-        SchemaVersion = '3.4'
-        ToolVersion   = 'Rev3.4'
+        SchemaVersion = '3.6'
+        ToolVersion   = 'Rev3.6'
         RunId         = $RunId
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Passed        = $true

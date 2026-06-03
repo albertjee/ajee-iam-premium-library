@@ -1,0 +1,106 @@
+{
+  "SchemaVersion": "3.1",
+  "GeneratedUtc": "2026-06-01T19:24:56.1127359Z",
+  "EngagementId": "ENG-004",
+  "ClientName": "Newport High PTSA",
+  "Assessor": "Albert Jee",
+  "WhatIfRunId": "a7efc0ee-04a3-488d-854d-81883958f6ea",
+  "ApprovalStatus": "Approved",
+  "ApprovedBy": "Albert Jee - Administrator",
+  "ApprovedUtc": "2026-06-01T19:25:56.9776677Z",
+  "ExpiresUtc": "2026-06-04T19:24:56.1128008Z",
+  "AllowNonInteractive": false,
+  "ApprovedActionsHash": "28b46cc24f80fc02d8a1de233850a0f8666a43faf1f1b6fc33e773973d6b7098",
+  "ApprovalEnvelopeHash": "bc0d7c7f4b57a1075f5626456d230677d32c0c015e72e3fd33f74cdc0c1c7b64",
+  "ApprovedActions": [
+    {
+      "ActionId": "ACT-001",
+      "FindingId": "DEC-USER-001",
+      "ObjectId": "98d88229-04ae-497e-8e07-2eba4f619a14",
+      "ObjectType": "User",
+      "DisplayName": "Test Decom User 1",
+      "UserPrincipalName": "testdecom1@NewportHighPTSA.onmicrosoft.com",
+      "ActionType": "RemoveGroupMembership",
+      "TargetObjectIds": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "d8a18347-9be0-4a6c-955d-92830d1dae71",
+        "1dabc9b2-b2fb-447d-abac-9f4b2b17b03d"
+      ],
+      "TargetDisplayNames": [
+        "All Users",
+        "TestDecom-SecurityGroup-1",
+        "TestDecom-SecurityGroup-3"
+      ],
+      "Evidence": "Disabled user retains direct membership in 3 group(s): All Users, TestDecom-SecurityGroup-1, TestDecom-SecurityGroup-3",
+      "RiskScore": 55,
+      "ProtectedObject": false,
+      "RoleAssignmentId": "",
+      "RoleDefinitionId": "",
+      "RoleDisplayName": ""
+    },
+    {
+      "ActionId": "ACT-002",
+      "FindingId": "DEC-USER-001",
+      "ObjectId": "e08f8759-8c0e-4987-978a-54925828acf5",
+      "ObjectType": "User",
+      "DisplayName": "Test Decom User 2",
+      "UserPrincipalName": "testdecom2@NewportHighPTSA.onmicrosoft.com",
+      "ActionType": "RemoveGroupMembership",
+      "TargetObjectIds": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "d8a18347-9be0-4a6c-955d-92830d1dae71",
+        "083bf356-4b68-433a-8206-fa4bbcf346fc"
+      ],
+      "TargetDisplayNames": [
+        "All Users",
+        "TestDecom-SecurityGroup-1",
+        "TestDecom-SecurityGroup-2"
+      ],
+      "Evidence": "Disabled user retains direct membership in 3 group(s): All Users, TestDecom-SecurityGroup-1, TestDecom-SecurityGroup-2",
+      "RiskScore": 55,
+      "ProtectedObject": false,
+      "RoleAssignmentId": "",
+      "RoleDefinitionId": "",
+      "RoleDisplayName": ""
+    },
+    {
+      "ActionId": "ACT-003",
+      "FindingId": "DEC-USER-001",
+      "ObjectId": "2dc800c6-c2d5-4512-bf2e-81d6ee5b7a9b",
+      "ObjectType": "User",
+      "DisplayName": "Test Decom User 3",
+      "UserPrincipalName": "testdecom3@NewportHighPTSA.onmicrosoft.com",
+      "ActionType": "RemoveGroupMembership",
+      "TargetObjectIds": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "083bf356-4b68-433a-8206-fa4bbcf346fc",
+        "1dabc9b2-b2fb-447d-abac-9f4b2b17b03d"
+      ],
+      "TargetDisplayNames": [
+        "All Users",
+        "TestDecom-SecurityGroup-2",
+        "TestDecom-SecurityGroup-3"
+      ],
+      "Evidence": "Disabled user retains direct membership in 3 group(s): All Users, TestDecom-SecurityGroup-2, TestDecom-SecurityGroup-3",
+      "RiskScore": 55,
+      "ProtectedObject": false,
+      "RoleAssignmentId": "",
+      "RoleDefinitionId": "",
+      "RoleDisplayName": ""
+    }
+  ],
+  "PlanOnlyActions": [],
+  "SkippedActions": [],
+  "Instructions": [
+    "1. Review every ApprovedAction with the client.",
+    "2. Confirm ObjectId, DisplayName, ActionType, TargetDisplayNames, and RoleDisplayName where present.",
+    "3. Remove any actions the client does not approve.",
+    "4. Set ApprovalStatus to Approved.",
+    "5. Set ApprovedBy to client approver full name and role.",
+    "6. Set ApprovedUtc to ISO datetime of approval.",
+    "7. Optionally set AllowNonInteractive to true only if client approves automation without per-action prompts.",
+    "8. Run: Update-DecomApprovalManifestHash -ManifestPath <path>.",
+    "9. Do not modify any other fields after hash update."
+  ]
+}
+

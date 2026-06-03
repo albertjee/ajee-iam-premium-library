@@ -1,0 +1,78 @@
+{
+  "SchemaVersion": "2.0",
+  "RunId": "fc37fb11-93fc-44c5-b0e5-61648395aca9",
+  "EngagementId": "ENG-004",
+  "StartedUtc": "2026-06-01T19:27:17.7694018Z",
+  "CompletedUtc": "2026-06-01T19:27:30.5717561Z",
+  "Actions": [
+    {
+      "Timestamp": "2026-06-01T19:27:24.0640206Z",
+      "ActionId": "ACT-001",
+      "FindingId": "DEC-USER-001",
+      "ObjectId": "98d88229-04ae-497e-8e07-2eba4f619a14",
+      "DisplayName": "Test Decom User 1",
+      "ActionType": "RemoveGroupMembership",
+      "Outcome": "PartialFailed",
+      "TargetObjectIds": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "d8a18347-9be0-4a6c-955d-92830d1dae71",
+        "1dabc9b2-b2fb-447d-abac-9f4b2b17b03d"
+      ],
+      "TargetsBefore": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "d8a18347-9be0-4a6c-955d-92830d1dae71",
+        "1dabc9b2-b2fb-447d-abac-9f4b2b17b03d"
+      ],
+      "TargetsAfter": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317"
+      ],
+      "ErrorDetail": "Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.\r\n\r\nStatus: 403 (Forbidden)\r\nErrorCode: Authorization_RequestDenied\r\nDate: 2026-06-01T19:27:23\r\n\r\nHeaders:\r\nCache-Control                 : no-cache\r\nVary                          : Accept-Encoding\r\nStrict-Transport-Security     : max-age=31536000\r\nrequest-id                    : 62458d26-bfca-44a3-aee8-e762b55945a4\r\nclient-request-id             : 2ec85a20-4b17-41de-9733-7bf9789ab67c\r\nx-ms-ags-diagnostic           : {\"ServerInfo\":{\"DataCenter\":\"West US\",\"Slice\":\"E\",\"Ring\":\"4\",\"ScaleUnit\":\"001\",\"RoleInstance\":\"BY1PEPF00002561\"}}\r\nx-ms-resource-unit            : 1\r\nDate                          : Mon, 01 Jun 2026 19:27:22 GMT\r\n\r\n; "
+    },
+    {
+      "Timestamp": "2026-06-01T19:27:27.4026119Z",
+      "ActionId": "ACT-002",
+      "FindingId": "DEC-USER-001",
+      "ObjectId": "e08f8759-8c0e-4987-978a-54925828acf5",
+      "DisplayName": "Test Decom User 2",
+      "ActionType": "RemoveGroupMembership",
+      "Outcome": "PartialFailed",
+      "TargetObjectIds": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "d8a18347-9be0-4a6c-955d-92830d1dae71",
+        "083bf356-4b68-433a-8206-fa4bbcf346fc"
+      ],
+      "TargetsBefore": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "d8a18347-9be0-4a6c-955d-92830d1dae71",
+        "083bf356-4b68-433a-8206-fa4bbcf346fc"
+      ],
+      "TargetsAfter": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317"
+      ],
+      "ErrorDetail": "Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.\r\n\r\nStatus: 403 (Forbidden)\r\nErrorCode: Authorization_RequestDenied\r\nDate: 2026-06-01T19:27:26\r\n\r\nHeaders:\r\nCache-Control                 : no-cache\r\nVary                          : Accept-Encoding\r\nStrict-Transport-Security     : max-age=31536000\r\nrequest-id                    : 77716b64-3179-4828-b0e7-2795be4c1f18\r\nclient-request-id             : 0b78ec04-7dcb-42f6-b45a-00a10b776030\r\nx-ms-ags-diagnostic           : {\"ServerInfo\":{\"DataCenter\":\"West US\",\"Slice\":\"E\",\"Ring\":\"4\",\"ScaleUnit\":\"001\",\"RoleInstance\":\"BY1PEPF00002561\"}}\r\nx-ms-resource-unit            : 1\r\nDate                          : Mon, 01 Jun 2026 19:27:26 GMT\r\n\r\n; "
+    },
+    {
+      "Timestamp": "2026-06-01T19:27:30.5687694Z",
+      "ActionId": "ACT-003",
+      "FindingId": "DEC-USER-001",
+      "ObjectId": "2dc800c6-c2d5-4512-bf2e-81d6ee5b7a9b",
+      "DisplayName": "Test Decom User 3",
+      "ActionType": "RemoveGroupMembership",
+      "Outcome": "PartialFailed",
+      "TargetObjectIds": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "083bf356-4b68-433a-8206-fa4bbcf346fc",
+        "1dabc9b2-b2fb-447d-abac-9f4b2b17b03d"
+      ],
+      "TargetsBefore": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+        "083bf356-4b68-433a-8206-fa4bbcf346fc",
+        "1dabc9b2-b2fb-447d-abac-9f4b2b17b03d"
+      ],
+      "TargetsAfter": [
+        "c5219d4d-7fd4-495f-9adc-d512cc00f317"
+      ],
+      "ErrorDetail": "Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.\r\n\r\nStatus: 403 (Forbidden)\r\nErrorCode: Authorization_RequestDenied\r\nDate: 2026-06-01T19:27:29\r\n\r\nHeaders:\r\nCache-Control                 : no-cache\r\nVary                          : Accept-Encoding\r\nStrict-Transport-Security     : max-age=31536000\r\nrequest-id                    : 34b83aa0-2335-43de-a63c-e72f97797e07\r\nclient-request-id             : 420015db-9f0b-458e-b6b8-89c9a289a2e9\r\nx-ms-ags-diagnostic           : {\"ServerInfo\":{\"DataCenter\":\"West US\",\"Slice\":\"E\",\"Ring\":\"4\",\"ScaleUnit\":\"001\",\"RoleInstance\":\"BY1PEPF00002561\"}}\r\nx-ms-resource-unit            : 1\r\nDate                          : Mon, 01 Jun 2026 19:27:29 GMT\r\n\r\n; "
+    }
+  ]
+}

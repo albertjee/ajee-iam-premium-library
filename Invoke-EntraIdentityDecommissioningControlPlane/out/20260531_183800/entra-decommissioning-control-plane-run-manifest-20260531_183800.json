@@ -1,0 +1,51 @@
+{
+  "SchemaVersion": "2.4",
+  "RunId": "f961fdf7-d3d6-4da7-bff7-22cb66bbe3f3",
+  "GeneratedUtc": "2026-06-01T01:39:34.6730467Z",
+  "TenantId": "NewportHighPTSA.onmicrosoft.com",
+  "Mode": "Assessment",
+  "DemoMode": false,
+  "EngagementId": "ENG-002",
+  "ClientName": "Newport High PTSA",
+  "Assessor": "Albert Jee",
+  "Coverage": {
+    "Users": true,
+    "Groups": true,
+    "Applications": true,
+    "ServicePrincipals": true,
+    "DirectoryRoles": true,
+    "SignInLogs": true,
+    "AuditLogs": true,
+    "ConditionalAccess": true,
+    "EntitlementManagement": false,
+    "PimEligibleAssignments": false,
+    "PimActivationEvidence": false,
+    "EntitlementAssignments": false,
+    "AccessPackagePolicies": false,
+    "AccessReviewScheduleEvidence": false,
+    "AccessReviews": false,
+    "AccessReviewDefinitions": false,
+    "AccessReviewInstances": false,
+    "AccessReviewDecisions": false,
+    "GuestReviewCorrelation": false,
+    "PimReviewCorrelation": false,
+    "AccessPackageReviewCorrelation": false,
+    "CAExclusionReviewCorrelation": true,
+    "GovernanceEvidenceLimitations": []
+  },
+  "FindingSummary": {
+    "Informational": 2,
+    "Total": 40,
+    "Critical": 0,
+    "High": 12,
+    "Medium": 26,
+    "Low": 0
+  },
+  "Exports": {
+    "RemediationPlan": ".\\out\\20260531_183800\\entra-decommissioning-control-plane-remediation-plan-20260531_183800.md",
+    "Csv": ".\\out\\20260531_183800\\entra-decommissioning-control-plane-assessment-20260531_183800.csv",
+    "Json": ".\\out\\20260531_183800\\entra-decommissioning-control-plane-findings-20260531_183800.json",
+    "Manifest": ".\\out\\20260531_183800\\entra-decommissioning-control-plane-run-manifest-20260531_183800.json",
+    "Html": ".\\out\\20260531_183800\\entra-decommissioning-control-plane-report-20260531_183800.html"
+  }
+}

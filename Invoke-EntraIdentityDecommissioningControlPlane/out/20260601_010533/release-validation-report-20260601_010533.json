@@ -1,0 +1,22 @@
+{
+  "SchemaVersion": "2.5",
+  "ToolVersion": "Rev3.0",
+  "GeneratedUtc": "2026-06-01T08:05:33.6283976Z",
+  "ClientName": "",
+  "EngagementId": "",
+  "Assessor": "",
+  "Passed": false,
+  "VersionConsistent": false,
+  "SafetyInvariantsOK": true,
+  "NoUnexpectedWriteScope": true,
+  "NoUnexpectedWriteCmdlet": true,
+  "Errors": [
+    "ReleaseValidation.psm1 contains stale SchemaVersion (should be 3.0 for Rev3.0)",
+    "CatalogValidation.psm1 contains stale SchemaVersion (should be 3.0 for Rev3.0)",
+    "SchemaContracts.psm1 contains stale SchemaVersion (should be 3.0 for Rev3.0)",
+    "WriteReadiness.psm1 contains stale SchemaVersion (should be 3.0 for Rev3.0)",
+    "ReleasePackaging.psm1 contains stale SchemaVersion (should be 3.0 for Rev3.0)"
+  ],
+  "Warnings": [],
+  "Footer": "© 2026 Albert Jee. All rights reserved."
+}

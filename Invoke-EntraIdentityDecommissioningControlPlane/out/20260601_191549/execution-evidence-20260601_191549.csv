@@ -1,0 +1,53 @@
+"RunId","ActionId","FindingId","ActionType","ObjectId","DisplayName","TargetObjectId","BeforeState","AfterState","Outcome","ErrorDetail","ApprovedBy","ApprovalManifestHash","ExecutedUtc"
+"632d1b4e-97a1-4228-abf8-fdcd3f9920bb","ACT-001","DEC-USER-001","RemoveGroupMembership","98d88229-04ae-497e-8e07-2eba4f619a14","Test Decom User 1","c5219d4d-7fd4-495f-9adc-d512cc00f317","c5219d4d-7fd4-495f-9adc-d512cc00f317","c5219d4d-7fd4-495f-9adc-d512cc00f317","Failed","Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.
+
+Status: 403 (Forbidden)
+ErrorCode: Authorization_RequestDenied
+Date: 2026-06-02T02:16:13
+
+Headers:
+Cache-Control                 : no-cache
+Vary                          : Accept-Encoding
+Strict-Transport-Security     : max-age=31536000
+request-id                    : e972dc09-1d26-43b6-8c52-e3a9db13a24d
+client-request-id             : 65066a4b-22c3-41cd-99e2-16093bd148c5
+x-ms-ags-diagnostic           : {""ServerInfo"":{""DataCenter"":""West US"",""Slice"":""E"",""Ring"":""4"",""ScaleUnit"":""006"",""RoleInstance"":""BY1PEPF0001DDEA""}}
+x-ms-resource-unit            : 1
+Date                          : Tue, 02 Jun 2026 02:16:12 GMT
+
+; ","Albert Jee - Administrator","25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48","2026-06-02T02:16:13.2181739Z"
+"632d1b4e-97a1-4228-abf8-fdcd3f9920bb","ACT-002","DEC-USER-001","RemoveGroupMembership","e08f8759-8c0e-4987-978a-54925828acf5","Test Decom User 2","c5219d4d-7fd4-495f-9adc-d512cc00f317","c5219d4d-7fd4-495f-9adc-d512cc00f317","c5219d4d-7fd4-495f-9adc-d512cc00f317","Failed","Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.
+
+Status: 403 (Forbidden)
+ErrorCode: Authorization_RequestDenied
+Date: 2026-06-02T02:16:15
+
+Headers:
+Cache-Control                 : no-cache
+Vary                          : Accept-Encoding
+Strict-Transport-Security     : max-age=31536000
+request-id                    : d9d64977-a217-4ec3-860c-d11afc40dadc
+client-request-id             : 0deddaaf-cdf3-4278-907d-6651ca8b14c3
+x-ms-ags-diagnostic           : {""ServerInfo"":{""DataCenter"":""West US"",""Slice"":""E"",""Ring"":""4"",""ScaleUnit"":""006"",""RoleInstance"":""BY1PEPF0001DDEA""}}
+x-ms-resource-unit            : 1
+Date                          : Tue, 02 Jun 2026 02:16:14 GMT
+
+; ","Albert Jee - Administrator","25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48","2026-06-02T02:16:14.5571558Z"
+"632d1b4e-97a1-4228-abf8-fdcd3f9920bb","ACT-003","DEC-USER-001","RemoveGroupMembership","2dc800c6-c2d5-4512-bf2e-81d6ee5b7a9b","Test Decom User 3","c5219d4d-7fd4-495f-9adc-d512cc00f317","c5219d4d-7fd4-495f-9adc-d512cc00f317","c5219d4d-7fd4-495f-9adc-d512cc00f317","Failed","Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.
+
+Status: 403 (Forbidden)
+ErrorCode: Authorization_RequestDenied
+Date: 2026-06-02T02:16:16
+
+Headers:
+Cache-Control                 : no-cache
+Vary                          : Accept-Encoding
+Strict-Transport-Security     : max-age=31536000
+request-id                    : 8d61a77c-8c1a-45e1-b95c-fc205c96615e
+client-request-id             : 6396b7f4-5cc2-45d4-a741-6c04c188d710
+x-ms-ags-diagnostic           : {""ServerInfo"":{""DataCenter"":""West US"",""Slice"":""E"",""Ring"":""4"",""ScaleUnit"":""006"",""RoleInstance"":""BY1PEPF0001DDEA""}}
+x-ms-resource-unit            : 1
+Date                          : Tue, 02 Jun 2026 02:16:15 GMT
+
+; ","Albert Jee - Administrator","25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48","2026-06-02T02:16:16.1237680Z"
+"632d1b4e-97a1-4228-abf8-fdcd3f9920bb","ACT-004","DEC-APP-005","RemoveExpiredApplicationCredential","ce472608-cabf-468c-a816-c214e17cbb17","PowerShelltoTeamsGraphAPI","7ce1e898-6e40-4bba-9b27-aa085dd29ab0","7ce1e898-6e40-4bba-9b27-aa085dd29ab0","","Executed","","Albert Jee - Administrator","25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48","2026-06-02T02:16:26.1042803Z"

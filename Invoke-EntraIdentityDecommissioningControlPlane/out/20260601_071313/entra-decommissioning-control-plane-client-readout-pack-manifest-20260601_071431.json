@@ -1,0 +1,21 @@
+{
+  "SchemaVersion": "2.4",
+  "ToolVersion": "Rev3.0",
+  "GeneratedUtc": "2026-06-01T14:14:31.4662672Z",
+  "ClientName": "Newport High PTSA",
+  "EngagementId": "ENG-002",
+  "Assessor": "Albert Jee",
+  "TenantId": "NewportHighPTSA.onmicrosoft.com",
+  "ExecutiveRiskPosture": "Elevated",
+  "BaselineAvailable": false,
+  "Files": {
+    "Csv": ".\\out\\20260601_071313\\entra-decommissioning-control-plane-assessment-20260601_071313.csv",
+    "Json": ".\\out\\20260601_071313\\entra-decommissioning-control-plane-findings-20260601_071313.json",
+    "Html": ".\\out\\20260601_071313\\entra-decommissioning-control-plane-report-20260601_071313.html",
+    "RemediationPlan": ".\\out\\20260601_071313\\entra-decommissioning-control-plane-remediation-plan-20260601_071313.md",
+    "BaselineComparisonJson": null,
+    "Manifest": ".\\out\\20260601_071313\\entra-decommissioning-control-plane-run-manifest-20260601_071313.json",
+    "BaselineComparisonCsv": null
+  },
+  "SafetyStatement": "Rev2.4 generated read-only reporting artifacts and did not modify tenant configuration."
+}

@@ -967,7 +967,7 @@ function New-DecomWhatIfActionPlan {
     $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actionsArray
 
     $manifest = [ordered]@{
-        SchemaVersion = '3.3'
+        SchemaVersion = '3.6'
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o')
         EngagementId = $EngagementId
         ClientName = $ClientName

@@ -1,0 +1,167 @@
+{
+  "SchemaVersion": "3.2",
+  "GeneratedUtc": "2026-06-02T01:33:29.3306036Z",
+  "EngagementId": "ENG-DEMO-32-WI2",
+  "ClientName": "Rev32Validation",
+  "Assessor": "",
+  "WhatIfRunId": "bd2d864c-4b4d-40a3-9e45-e1472b91dcd9",
+  "ApprovalStatus": "PendingSignature",
+  "ApprovedBy": "[CLIENT APPROVER NAME AND ROLE — REQUIRED]",
+  "ApprovedUtc": "[APPROVAL DATE — REQUIRED]",
+  "ExpiresUtc": "2026-06-05T01:33:29.3353534Z",
+  "AllowNonInteractive": false,
+  "ApprovedActionsHash": "b4ae954f2ae1627e0e5b6f135f1e3c4d74ae52d0cfff84b3e714ef48504fcebf",
+  "ApprovalEnvelopeHash": "[RECOMPUTE AFTER SIGNING — run Update-DecomApprovalManifestHash]",
+  "ApprovedActions": [
+    {
+      "ActionId": "ACT-001",
+      "FindingId": "DEC-APP-005",
+      "ObjectId": "a1b2c3d4-0012-0012-0012-000000000012",
+      "ObjectType": "Application",
+      "DisplayName": "Legacy SSO Connector",
+      "UserPrincipalName": "",
+      "ActionType": "RemoveExpiredApplicationCredential",
+      "TargetObjectIds": [
+        "dddddddd-0012-0012-0012-000000000012"
+      ],
+      "TargetDisplayNames": [
+        "dddddddd-0012-0012-0012-000000000012"
+      ],
+      "TargetType": "ApplicationCredential",
+      "Evidence": "Client secret expired 47 days ago (2026-04-13) — credential still attached to application",
+      "RiskScore": 68,
+      "ProtectedObject": false,
+      "RequiresManualApproval": true,
+      "CredentialType": "PasswordCredential",
+      "CredentialKeyId": "dddddddd-0012-0012-0012-000000000012",
+      "CredentialEndDateTime": "2026-04-13T00:00:00Z",
+      "CredentialExpired": true,
+      "ApplicationId": "",
+      "AppId": "a1b2c3d4-0012-0012-0012-000000000099",
+      "OwnerCount": 1,
+      "HasOwner": true,
+      "ReadinessStatus": "ReadyForApproval",
+      "ReadinessReason": "Exact expired credential KeyId present and credential expired at WhatIf time",
+      "RollbackGuidance": "Rollback requires creating a new application credential through the application owner or platform engineering process. Rev3.2 does not auto-rollback credential removal because secret material cannot be recovered after deletion.",
+      "PostWriteEvidenceRequired": true,
+      "PreflightChecks": [
+        "ExactCredentialKeyIdPresent",
+        "CredentialExpiredAtExecutionTime",
+        "ProtectedObjectNotSet",
+        "ApplicationReadSucceeds"
+      ],
+      "RoleAssignmentId": "",
+      "RoleDefinitionId": "",
+      "RoleDisplayName": ""
+    }
+  ],
+  "PlanOnlyActions": [],
+  "SkippedActions": [
+    {
+      "FindingId": "DEC-USER-003",
+      "DisplayName": "Alex Mercer",
+      "Reason": "Authentication needed. Please call Connect-MgGraph."
+    },
+    {
+      "FindingId": "DEC-USER-001",
+      "DisplayName": "Jordan Riley",
+      "Reason": "Authentication needed. Please call Connect-MgGraph."
+    },
+    {
+      "FindingId": "DEC-USER-002",
+      "DisplayName": "Morgan Chen",
+      "Reason": "Authentication needed. Please call Connect-MgGraph."
+    },
+    {
+      "FindingId": "DEC-ROLE-001",
+      "DisplayName": "Sam Okafor",
+      "Reason": "Authentication needed. Please call Connect-MgGraph."
+    },
+    {
+      "FindingId": "DEC-PIM-001",
+      "DisplayName": "Disabled Admin (PIM)",
+      "Reason": "No exact EligibilityScheduleId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-GUEST-002",
+      "DisplayName": "ext_partner@fabrikam.com",
+      "Reason": "No exact group IDs or app role assignment IDs found — PlanOnly: use manual guidance"
+    },
+    {
+      "FindingId": "DEC-PIM-002",
+      "DisplayName": "ext_privileged@fabrikam.com",
+      "Reason": "No exact EligibilityScheduleId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-PIM-006",
+      "DisplayName": "eligible.stalereview@contoso.com",
+      "Reason": "No exact EligibilityScheduleId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-GREV-003",
+      "DisplayName": "ext_privileged_norev@fabrikam.com",
+      "Reason": "No exact group IDs or app role assignment IDs found — PlanOnly: use manual guidance"
+    },
+    {
+      "FindingId": "DEC-AP-001",
+      "DisplayName": "Offboarded Employee",
+      "Reason": "No exact AccessPackageAssignmentId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-PIM-005",
+      "DisplayName": "eligible.noreview@contoso.com",
+      "Reason": "No exact EligibilityScheduleId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-AP-008",
+      "DisplayName": "contractor_pending@northwind.com",
+      "Reason": "No exact AccessPackageAssignmentId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-GREV-002",
+      "DisplayName": "ext_unsponsored@tailspin.com",
+      "Reason": "No exact group IDs found in finding — PlanOnly: use manual guidance"
+    },
+    {
+      "FindingId": "DEC-AP-007",
+      "DisplayName": "contractor_stale_review@northwind.com",
+      "Reason": "No exact AccessPackageAssignmentId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-AP-002",
+      "DisplayName": "ext_vendor2@tailspin.com",
+      "Reason": "No exact AccessPackageAssignmentId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-GREV-001",
+      "DisplayName": "ext_review_missing@fabrikam.com",
+      "Reason": "No exact group IDs found in finding — PlanOnly: use manual guidance"
+    },
+    {
+      "FindingId": "DEC-GUEST-003",
+      "DisplayName": "ext_contractor@northwind.com",
+      "Reason": "No exact group IDs found in finding — PlanOnly: use manual guidance"
+    },
+    {
+      "FindingId": "DEC-PIM-003",
+      "DisplayName": "PIM Coverage",
+      "Reason": "No exact EligibilityScheduleId found in finding — broad principal query not permitted"
+    },
+    {
+      "FindingId": "DEC-GUEST-001",
+      "DisplayName": "ext_vendor@tailspin.com",
+      "Reason": "No exact group IDs found in finding — PlanOnly: use manual guidance"
+    }
+  ],
+  "Instructions": [
+    "1. Review every ApprovedAction with the client.",
+    "2. Confirm ObjectId, DisplayName, ActionType, TargetDisplayNames, and RoleDisplayName where present.",
+    "3. Remove any actions the client does not approve.",
+    "4. Set ApprovalStatus to Approved.",
+    "5. Set ApprovedBy to client approver full name and role.",
+    "6. Set ApprovedUtc to ISO datetime of approval.",
+    "7. Optionally set AllowNonInteractive to true only if client approves automation without per-action prompts.",
+    "8. Run: Update-DecomApprovalManifestHash -ManifestPath <path>.",
+    "9. Do not modify any other fields after hash update."
+  ]
+}

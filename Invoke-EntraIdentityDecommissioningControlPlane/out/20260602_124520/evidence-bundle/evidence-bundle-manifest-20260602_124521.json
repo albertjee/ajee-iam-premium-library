@@ -1,0 +1,132 @@
+{
+  "SchemaVersion": "3.4",
+  "ToolVersion": "Rev3.4",
+  "RunId": "2adb7aa7-0e96-419b-a09c-1fb56a559137",
+  "BundleId": "c9ae249c-218e-4d7c-b840-0d0e5a7a0da0",
+  "GeneratedUtc": "2026-06-02T19:45:21.6402081Z",
+  "SourceOutputPath": ".\\out\\20260602_124520",
+  "BundleOutputPath": ".\\out\\20260602_124520\\evidence-bundle",
+  "FileCount": 13,
+  "TotalBytes": 191080,
+  "Sha256ManifestHash": null,
+  "Files": [
+    {
+      "FileId": "0bea860d-19c2-45f0-bb9b-5c7ecb482341",
+      "FileName": "approval-diff-report-20260602_124521.json",
+      "RelativePath": ".\\approval-diff-report-20260602_124521.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\approval-diff-report-20260602_124521.json",
+      "Category": "Assessment",
+      "SizeBytes": 382,
+      "Sha256": "e14ffb2651e5b6e7321ce361eef97c056eb0012b065e4eec10ddd79ed27f1f17"
+    },
+    {
+      "FileId": "f31492e3-6ab3-419b-91d6-7476741fca30",
+      "FileName": "client-handoff-index-20260602_124521.md",
+      "RelativePath": ".\\client-handoff-index-20260602_124521.md",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\client-handoff-index-20260602_124521.md",
+      "Category": "Assessment",
+      "SizeBytes": 1638,
+      "Sha256": "0b2b90d8fa496a846a670797aba6ce8bca4d61030990e9e0aacbb4e885f0c096"
+    },
+    {
+      "FileId": "da31b7e3-35ee-458d-9d35-9ca67a393d8b",
+      "FileName": "client-handoff-manifest-20260602_124521.json",
+      "RelativePath": ".\\client-handoff-manifest-20260602_124521.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\client-handoff-manifest-20260602_124521.json",
+      "Category": "Assessment",
+      "SizeBytes": 1300,
+      "Sha256": "b0af701d2c3b290358e149f53787eaa7e4955ba52b0404f1db2c3cdee93817be"
+    },
+    {
+      "FileId": "2f09ae8c-6abd-4592-959f-ad11c97c4054",
+      "FileName": "entra-decommissioning-control-plane-assessment-20260602_124520.csv",
+      "RelativePath": ".\\entra-decommissioning-control-plane-assessment-20260602_124520.csv",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\entra-decommissioning-control-plane-assessment-20260602_124520.csv",
+      "Category": "Assessment",
+      "SizeBytes": 22015,
+      "Sha256": "b4dcaa594020c0dc226f9b072f670f2204db8cf602de39911c9b31421a08ddd7"
+    },
+    {
+      "FileId": "d3234977-14ad-45b6-89e5-e218d38f0d37",
+      "FileName": "entra-decommissioning-control-plane-findings-20260602_124520.json",
+      "RelativePath": ".\\entra-decommissioning-control-plane-findings-20260602_124520.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\entra-decommissioning-control-plane-findings-20260602_124520.json",
+      "Category": "Assessment",
+      "SizeBytes": 38618,
+      "Sha256": "dd658e120db6ed131999f30ea4962d4b9a9b7f3a46ac3c1d3dcff79195fb0304"
+    },
+    {
+      "FileId": "f3951a4d-eab2-471e-ba02-703e460e573f",
+      "FileName": "entra-decommissioning-control-plane-remediation-plan-20260602_124520.md",
+      "RelativePath": ".\\entra-decommissioning-control-plane-remediation-plan-20260602_124520.md",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\entra-decommissioning-control-plane-remediation-plan-20260602_124520.md",
+      "Category": "Assessment",
+      "SizeBytes": 45959,
+      "Sha256": "292e98912de4c13fa4012ebba0c8394bbd6f9bd400efa890d432af8caf54f804"
+    },
+    {
+      "FileId": "6305c910-7def-4815-9c5f-21c357ad1102",
+      "FileName": "entra-decommissioning-control-plane-report-20260602_124520.html",
+      "RelativePath": ".\\entra-decommissioning-control-plane-report-20260602_124520.html",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\entra-decommissioning-control-plane-report-20260602_124520.html",
+      "Category": "Assessment",
+      "SizeBytes": 40348,
+      "Sha256": "db012c0214a69d28cdad3415c70863627357ba9ab2e998efdfbb0eef676292da"
+    },
+    {
+      "FileId": "9a9accee-6e41-41ec-9e92-d98a4c51eaf6",
+      "FileName": "entra-decommissioning-control-plane-run-manifest-20260602_124520.json",
+      "RelativePath": ".\\entra-decommissioning-control-plane-run-manifest-20260602_124520.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\entra-decommissioning-control-plane-run-manifest-20260602_124520.json",
+      "Category": "Assessment",
+      "SizeBytes": 1812,
+      "Sha256": "62d73884ee8a40654329878196961f427b95817931aa93aa876e1ed18bbf07a1"
+    },
+    {
+      "FileId": "9205c794-a1ca-4638-9d31-d24af1e7db70",
+      "FileName": "redaction-report-20260602_124521.json",
+      "RelativePath": ".\\redaction-report-20260602_124521.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\redaction-report-20260602_124521.json",
+      "Category": "Assessment",
+      "SizeBytes": 518,
+      "Sha256": "d8b633a9a348fd1748b866e584fca7f96daac8553dc8aea1d21de70251094812"
+    },
+    {
+      "FileId": "55a480d9-7acc-49a5-a241-fe7dd52d17a4",
+      "FileName": "replay-validation-report-2adb7aa7-0e96-419b-a09c-1fb56a559137-20260602_124521.json",
+      "RelativePath": ".\\replay-validation-report-2adb7aa7-0e96-419b-a09c-1fb56a559137-20260602_124521.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\replay-validation-report-2adb7aa7-0e96-419b-a09c-1fb56a559137-20260602_124521.json",
+      "Category": "Assessment",
+      "SizeBytes": 520,
+      "Sha256": "b35b7e6867aba33b617a4bd53c5e85e6aa261b9f40a62672c63a1b84f64a7471"
+    },
+    {
+      "FileId": "8f6ba2a9-f0a4-4c68-9198-516974a9dc3d",
+      "FileName": "rev35-readiness-report-20260602_124521.json",
+      "RelativePath": ".\\rev35-readiness-report-20260602_124521.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\rev35-readiness-report-20260602_124521.json",
+      "Category": "Assessment",
+      "SizeBytes": 2637,
+      "Sha256": "1761562a04203301a56b72223c4274eed5c32ff6c9040ec2a389a464342b8f15"
+    },
+    {
+      "FileId": "f97f5b5c-9f62-4087-82d4-ec4441e1b077",
+      "FileName": "traceability-report-20260602_124521.csv",
+      "RelativePath": ".\\traceability-report-20260602_124521.csv",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\traceability-report-20260602_124521.csv",
+      "Category": "Assessment",
+      "SizeBytes": 6994,
+      "Sha256": "716f5966cdf510c80ee1f8797da0ee2fd4f259f8a8d8bd04e7b4fa2b0d554e79"
+    },
+    {
+      "FileId": "2962dbdb-60ac-4262-a3c5-d279ca31f73e",
+      "FileName": "traceability-report-20260602_124521.json",
+      "RelativePath": ".\\traceability-report-20260602_124521.json",
+      "FullPath": "C:\\Git\\ajee-iam-premium-library\\Invoke-EntraIdentityDecommissioningControlPlane\\out\\20260602_124520\\traceability-report-20260602_124521.json",
+      "Category": "Assessment",
+      "SizeBytes": 28339,
+      "Sha256": "7768b79bd896beb390edaaf5280e9bad9b59c4bf4f9c1ca7a9c4ace7556e9c2e"
+    }
+  ],
+  "Limitations": []
+}

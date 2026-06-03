@@ -1,0 +1,29 @@
+{
+  "SchemaVersion": "3.1",
+  "GeneratedUtc": "2026-06-01T19:18:16.4074822Z",
+  "EngagementId": "ENG-003",
+  "ClientName": "Newport High PTSA",
+  "Assessor": "Albert Jee",
+  "WhatIfRunId": "df5e576a-0c54-404b-91b1-d8eafe19a53e",
+  "ApprovalStatus": "PendingSignature",
+  "ApprovedBy": "[CLIENT APPROVER NAME AND ROLE — REQUIRED]",
+  "ApprovedUtc": "[APPROVAL DATE — REQUIRED]",
+  "ExpiresUtc": "2026-06-04T19:18:16.4075415Z",
+  "AllowNonInteractive": false,
+  "ApprovedActionsHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ApprovalEnvelopeHash": "[RECOMPUTE AFTER SIGNING — run Update-DecomApprovalManifestHash]",
+  "ApprovedActions": [],
+  "PlanOnlyActions": [],
+  "SkippedActions": [],
+  "Instructions": [
+    "1. Review every ApprovedAction with the client.",
+    "2. Confirm ObjectId, DisplayName, ActionType, TargetDisplayNames, and RoleDisplayName where present.",
+    "3. Remove any actions the client does not approve.",
+    "4. Set ApprovalStatus to Approved.",
+    "5. Set ApprovedBy to client approver full name and role.",
+    "6. Set ApprovedUtc to ISO datetime of approval.",
+    "7. Optionally set AllowNonInteractive to true only if client approves automation without per-action prompts.",
+    "8. Run: Update-DecomApprovalManifestHash -ManifestPath <path>.",
+    "9. Do not modify any other fields after hash update."
+  ]
+}

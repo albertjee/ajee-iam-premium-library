@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Executive Summary - Unknown</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0d1b2a; color: #e8eaf6; margin: 0; padding: 0; }
+  .header { background: #1a2744; padding: 28px 40px; border-bottom: 3px solid #2e4a7a; }
+  .header h1 { margin: 0; font-size: 1.6em; color: #7eb3ff; }
+  .header .sub { color: #a0b4d0; margin-top: 6px; font-size: 0.9em; }
+  .content { max-width: 1100px; margin: 0 auto; padding: 30px 40px; }
+  h2 { color: #7eb3ff; border-bottom: 1px solid #2e4a7a; padding-bottom: 6px; margin-top: 32px; }
+  .posture-badge { display: inline-block; background: #c0392b; color: #fff; padding: 10px 28px; border-radius: 4px; font-size: 1.3em; font-weight: bold; letter-spacing: 1px; margin: 10px 0; }
+  .kpi-grid { display: flex; gap: 16px; flex-wrap: wrap; margin: 18px 0; }
+  .kpi { background: #1a2744; border: 1px solid #2e4a7a; border-radius: 6px; padding: 16px 24px; min-width: 130px; text-align: center; }
+  .kpi .val { font-size: 2em; font-weight: bold; color: #7eb3ff; }
+  .kpi .lbl { font-size: 0.8em; color: #a0b4d0; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.9em; }
+  th { background: #1a2744; color: #7eb3ff; padding: 9px 12px; text-align: left; border: 1px solid #2e4a7a; }
+  td { padding: 8px 12px; border: 1px solid #2e4a7a; }
+  tr:nth-child(even) { background: #131e30; }
+  .meta-table td:first-child { color: #a0b4d0; width: 160px; }
+  ol, ul { padding-left: 22px; }
+  li { margin: 5px 0; }
+  .footer { text-align: center; color: #4a6080; padding: 24px; font-size: 0.8em; border-top: 1px solid #1a2744; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Executive Summary — Entra Identity Decommissioning Control Plane</h1>
+  <div class="sub">Rev2.4 | SchemaVersion 2.4 | 2026-06-01T00:37:03.7831628Z</div>
+</div>
+<div class="content">
+
+<h2>Engagement Context</h2>
+<table class="meta-table">
+<tr><td>Client</td><td>Unknown</td></tr>
+<tr><td>Engagement ID</td><td></td></tr>
+<tr><td>Assessor</td><td></td></tr>
+<tr><td>Tenant ID</td><td>contoso.onmicrosoft.com</td></tr>
+<tr><td>Generated</td><td>2026-06-01T00:37:03.7831628Z</td></tr>
+</table>
+
+<h2>Executive Risk Posture</h2>
+<div class="posture-badge">Critical</div>
+<p>Critical identity governance gaps detected. Immediate remediation required.</p>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="val">38</div><div class="lbl">Total Findings</div></div>
+  <div class="kpi"><div class="val" style="color:#c0392b">6</div><div class="lbl">Critical</div></div>
+  <div class="kpi"><div class="val" style="color:#e67e22">14</div><div class="lbl">High</div></div>
+  <div class="kpi"><div class="val" style="color:#f39c12">12</div><div class="lbl">Medium</div></div>
+</div>
+
+<h2>Top 10 Risks</h2>
+<table>
+<tr><th>#</th><th>Finding ID</th><th>Severity</th><th>Risk Score</th><th>Evidence</th></tr>
+<tr><td>1</td><td>DEC-USER-003</td><td style='color:#c0392b;font-weight:bold'>Critical</td><td>92</td><td>Disabled user retains Global Administrator role assignment</td></tr>
+<tr><td>2</td><td>DEC-ROLE-001</td><td style='color:#c0392b;font-weight:bold'>Critical</td><td>90</td><td>Disabled user holds active Privileged Role Administrator assignment — account is disabled</td></tr>
+<tr><td>3</td><td>DEC-APP-002</td><td style='color:#c0392b;font-weight:bold'>Critical</td><td>88</td><td>Application owned exclusively by disabled user alex.mercer@contoso.com — no active owner remains</td></tr>
+<tr><td>4</td><td>DEC-GUEST-002</td><td style='color:#c0392b;font-weight:bold'>Critical</td><td>85</td><td>Guest account holds User Administrator role — no sponsor metadata</td></tr>
+<tr><td>5</td><td>DEC-CA-004</td><td style='color:#e67e22;font-weight:bold'>High</td><td>70</td><td>CA policy exclusion group last reviewed 2025-08-01 — more than 90 days ago. Review has lapsed for...</td></tr>
+<tr><td>6</td><td>DEC-AP-001</td><td style='color:#e67e22;font-weight:bold'>High</td><td>70</td><td>Disabled user retains access package assignment. Review Entitlement Management lifecycle closure.</td></tr>
+<tr><td>7</td><td>DEC-REV-001</td><td style='color:#27ae60;font-weight:bold'>Informational</td><td>20</td><td>Access review definitions found but no review decision records returned — coverage may be partial...</td></tr>
+<tr><td>8</td><td>DEC-GOV-001</td><td style='color:#27ae60;font-weight:bold'>Informational</td><td>18</td><td>Access review API cmdlets unavailable — review governance coverage could not be assessed. AccessR...</td></tr>
+<tr><td>9</td><td>DEC-PIM-001</td><td style='color:#c0392b;font-weight:bold'>Critical</td><td>86</td><td>Disabled user retains eligible privileged role assignment. Eligibility should be reviewed before ...</td></tr>
+<tr><td>10</td><td>DEC-PIM-002</td><td style='color:#c0392b;font-weight:bold'>Critical</td><td>84</td><td>Guest identity retains eligible privileged role assignment. Review external privileged access gov...</td></tr>
+
+</table>
+
+<h2>Governance Evidence Coverage</h2>
+<table>
+<tr><th>Coverage Area</th><th>Status</th></tr>
+<tr><td>ConditionalAccess</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>EntitlementAssignments</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>DirectoryRoles</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>GuestReviewCorrelation</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>PimEligibleAssignments</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>Users</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>Groups</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>AccessPackagePolicies</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>AccessReviews</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>Applications</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>AuditLogs</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>ServicePrincipals</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>PimActivationEvidence</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>EntitlementManagement</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>AccessReviewInstances</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>SignInLogs</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>AccessReviewDecisions</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>GovernanceEvidenceLimitations</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>AccessReviewScheduleEvidence</td><td><span style="color:#e67e22">Partial/Unavailable</span></td></tr>
+<tr><td>AccessReviewDefinitions</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>CAExclusionReviewCorrelation</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>AccessPackageReviewCorrelation</td><td><span style="color:#27ae60">Full</span></td></tr>
+<tr><td>PimReviewCorrelation</td><td><span style="color:#27ae60">Full</span></td></tr>
+
+</table>
+
+<h2>Baseline Movement</h2><p>No baseline provided. Trend comparison not available for this run.</p>
+
+<h2>Recommended Next Actions</h2>
+<ol><li>Close critical disabled-user and privileged-role residue first.</li> <li>Review guest privileged access and sponsor ownership.</li> <li>Validate access review coverage for CA exclusion groups.</li> <li>Establish review cadence for PIM eligible assignments.</li> <li>Confirm access package review schedules and expiration policy.</li> <li>Re-run assessment after remediation to prove risk reduction.</li>
+
+<h2>Consultant Notes and Limitations</h2>
+<ul><li>Assessment performed in read-only mode. No tenant modifications were made.</li> <li>Coverage may be partial depending on Graph permissions and license availability.</li> <li>Access review correlation requires AccessReview.Read.All permission.</li> <li>PIM data requires PrivilegedAccess.Read.AzureAD or equivalent.</li>
+
+</div>
+<div class="footer">© 2026 Albert Jee. All rights reserved. | Rev2.4 | SchemaVersion 2.4</div>
+</body>
+</html>

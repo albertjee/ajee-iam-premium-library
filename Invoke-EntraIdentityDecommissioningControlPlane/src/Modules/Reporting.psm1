@@ -11,7 +11,7 @@ function Export-DecomAssessmentCsv {
 function Export-DecomAssessmentJson {
     param([object[]]$Findings, [string]$Path, [pscustomobject]$Context)
     $payload = [ordered]@{
-        SchemaVersion = '3.4'
+        SchemaVersion = '3.6'
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Tenant        = $Context.TenantId
         Mode          = $Context.Mode

@@ -1,0 +1,68 @@
+{
+  "SchemaVersion": "3.4",
+  "ToolVersion": "Rev3.4",
+  "RunId": "81883f64-e8f0-40ef-88b6-10b608aaf339",
+  "GeneratedUtc": "2026-06-02T19:43:54.8801236Z",
+  "Hashes": [
+    {
+      "FileName": "approval-diff-report-20260602_124354.json",
+      "RelativePath": ".\\approval-diff-report-20260602_124354.json",
+      "Sha256": "e36a6c727a123a3402b563c17d6c50440c027f07b917f096dd8fc7487df4428f"
+    },
+    {
+      "FileName": "client-handoff-index-20260602_124354.md",
+      "RelativePath": ".\\client-handoff-index-20260602_124354.md",
+      "Sha256": "eaf7704b5b8d9c21b86a7d7fdf2cfaa03f2cd9165657f64bdbf9b38f06adc467"
+    },
+    {
+      "FileName": "client-handoff-manifest-20260602_124354.json",
+      "RelativePath": ".\\client-handoff-manifest-20260602_124354.json",
+      "Sha256": "8d490967cc48110dad223ca8017470ba4e46f37edf9ec9af762f5f65b5b61f2c"
+    },
+    {
+      "FileName": "entra-decommissioning-control-plane-assessment-20260602_124354.csv",
+      "RelativePath": ".\\entra-decommissioning-control-plane-assessment-20260602_124354.csv",
+      "Sha256": "25832c673840a12129b851afbb3d605b7e229fdbc396af34cdedd11807cfc74b"
+    },
+    {
+      "FileName": "entra-decommissioning-control-plane-findings-20260602_124354.json",
+      "RelativePath": ".\\entra-decommissioning-control-plane-findings-20260602_124354.json",
+      "Sha256": "42e44941aa3cf57b3d03533637c4574c1b8cc5c79305c06934db62c287332d2c"
+    },
+    {
+      "FileName": "entra-decommissioning-control-plane-remediation-plan-20260602_124354.md",
+      "RelativePath": ".\\entra-decommissioning-control-plane-remediation-plan-20260602_124354.md",
+      "Sha256": "27bb3ae45ddac2a21acbc9f91d4ba60a5c5d74fd1bdc47dd6bf6c456a8d89b41"
+    },
+    {
+      "FileName": "entra-decommissioning-control-plane-report-20260602_124354.html",
+      "RelativePath": ".\\entra-decommissioning-control-plane-report-20260602_124354.html",
+      "Sha256": "a22df19f8fe2c0a319c122a43b044fd7abaf3fc276b1092a458a75282b4a6a5c"
+    },
+    {
+      "FileName": "entra-decommissioning-control-plane-run-manifest-20260602_124354.json",
+      "RelativePath": ".\\entra-decommissioning-control-plane-run-manifest-20260602_124354.json",
+      "Sha256": "b59142fb40f82a7498571b928c6d4fcf9faa8da259e747bef6fb724e887bcb0c"
+    },
+    {
+      "FileName": "redaction-report-20260602_124354.json",
+      "RelativePath": ".\\redaction-report-20260602_124354.json",
+      "Sha256": "ad3a43ea4e1432d0fb7e93c636c4d2f760bfe36ce5b9121f7f357a35f220474e"
+    },
+    {
+      "FileName": "rev35-readiness-report-20260602_124354.json",
+      "RelativePath": ".\\rev35-readiness-report-20260602_124354.json",
+      "Sha256": "fe943306545cce3c98b30319ed63c82d450317b41e459178120ce1fa6519e706"
+    },
+    {
+      "FileName": "traceability-report-20260602_124354.csv",
+      "RelativePath": ".\\traceability-report-20260602_124354.csv",
+      "Sha256": "716f5966cdf510c80ee1f8797da0ee2fd4f259f8a8d8bd04e7b4fa2b0d554e79"
+    },
+    {
+      "FileName": "traceability-report-20260602_124354.json",
+      "RelativePath": ".\\traceability-report-20260602_124354.json",
+      "Sha256": "8755656da4aea6200a23d1790a332db874c663998f62a7aaf5b8031146368941"
+    }
+  ]
+}

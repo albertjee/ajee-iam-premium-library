@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entra Identity Decommissioning Assessment — Rev2.4</title>
+<style>
+:root {
+  --navy:   #0b1220;
+  --gold:   #c6a75e;
+  --text:   #f8fafc;
+  --muted:  #cbd5e1;
+  --cyan:   #38bdf8;
+  --red:    #ef4444;
+  --orange: #f59e0b;
+  --green:  #22c55e;
+  --border: rgba(198,167,94,0.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:linear-gradient(135deg,#0b1220,#020617);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+.advisory-bar{width:100%;background:#0a0f1a;border-left:6px solid var(--gold);padding:12px 32px;font-size:13px;color:#94a3b8;}
+.advisory-bar strong{color:var(--gold);}
+.container{max-width:1280px;margin:0 auto;padding:40px;}
+.header{border-left:6px solid var(--gold);padding-left:20px;margin-bottom:32px;}
+.header h1{color:var(--text);font-size:34px;font-weight:700;line-height:1.2;}
+.header .subtitle{color:var(--muted);font-size:16px;margin-top:6px;}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;}
+.meta-item .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
+.meta-item .value{color:var(--gold);font-size:14px;font-weight:600;margin-top:2px;}
+.section-title{font-size:18px;font-weight:700;color:var(--gold);margin:32px 0 16px;border-bottom:1px solid var(--border);padding-bottom:8px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.kpi-card{background:rgba(22,32,51,0.92);border-radius:16px;padding:20px;border:1px solid var(--border);}
+.kpi-card .kpi-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
+.kpi-card .kpi-value{font-size:34px;font-weight:700;margin:8px 0 4px;}
+.kpi-card .kpi-note{color:var(--muted);font-size:13px;}
+.scorecard{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.score-card{background:rgba(22,32,51,0.92);border-radius:12px;padding:16px;text-align:center;border:1px solid var(--border);}
+.score-card .score-label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.score-card .score-value{font-size:28px;font-weight:700;}
+.filter-bar{display:flex;gap:12px;margin-bottom:16px;align-items:center;}
+.filter-bar select{background:rgba(22,32,51,0.92);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;}
+.filter-bar label{color:var(--muted);font-size:13px;}
+table{width:100%;border-collapse:collapse;background:rgba(11,18,32,0.7);}
+thead th{background:rgba(22,32,51,0.95);color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);}
+tbody td{padding:12px 14px;border-bottom:1px solid rgba(198,167,94,0.12);font-size:14px;color:var(--text);vertical-align:top;}
+tbody tr:hover{background:rgba(22,32,51,0.6);}
+.exec-summary{background:rgba(22,32,51,0.6);border-radius:12px;padding:20px 24px;color:var(--muted);line-height:1.7;margin-bottom:24px;}
+.exec-summary strong{color:var(--text);}
+.coverage-table{width:100%;border-collapse:collapse;}
+.coverage-table td{padding:10px 14px;border-bottom:1px solid rgba(198,167,94,0.1);font-size:14px;}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12px;display:flex;justify-content:space-between;align-items:center;}
+.limitations{background:rgba(22,32,51,0.6);border-radius:12px;padding:20px 24px;color:var(--muted);font-size:13px;line-height:1.8;}
+.limitations li{margin-left:20px;margin-bottom:4px;}
+@media print{
+  body{background:#fff;color:#000;}
+  .advisory-bar,.filter-bar,[style*="position:fixed"]{display:none!important;}
+  table{border:1px solid #ccc;}
+  thead th{background:#f0f0f0;color:#000;}
+  tbody td{color:#000;border-bottom:1px solid #ddd;}
+}
+</style>
+</head>
+<body>
+
+<div class="advisory-bar">
+  <strong>Consultant Assessment Tool</strong> — Assessment-first. No tenant objects modified in this run.
+</div>
+<div class="container">
+  <div class="header">
+    <h1>Entra Identity Decommissioning Control Plane</h1>
+    <div class="subtitle">Identity Governance Assessment Report — Rev2.4</div>
+    <div class="meta-grid">
+      <div class="meta-item"><div class="label">Tenant</div><div class="value">NewportHighPTSA.onmicrosoft.com</div></div>
+      <div class="meta-item"><div class="label">Run Date</div><div class="value">2026-05-31 18:39:34 UTC</div></div>
+      <div class="meta-item"><div class="label">Version</div><div class="value">Rev2.4</div></div>
+      <div class="meta-item"><div class="label">Mode</div><div class="value">Assessment</div></div>
+      <div class="meta-item"><div class="label">Client</div><div class="value">Newport High PTSA</div></div>
+      <div class="meta-item"><div class="label">Engagement ID</div><div class="value">ENG-002</div></div>
+      <div class="meta-item"><div class="label">Assessor</div><div class="value">Albert Jee</div></div>
+      <div class="meta-item"><div class="label">Coverage</div><div class="value">Partial</div></div>
+      <div class="meta-item"><div class="label">Findings Total</div><div class="value">40</div></div>
+    </div>
+  </div>
+
+  <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.4);border-radius:10px;padding:14px 18px;color:#22c55e;font-weight:600;margin-bottom:24px;">
+  &#10003; Assessment mode — no tenant objects were modified during this run.
+</div>
+
+  <div class="section-title">Executive Summary</div>
+  <div class="exec-summary">
+    <p>This assessment identified <strong>40 finding(s)</strong> across the Entra identity environment, including
+    <strong style="color:var(--red)">0 Critical</strong>,
+    <strong style="color:var(--orange)">12 High</strong>,
+    <strong style="color:var(--cyan)">26 Medium</strong>,
+    <strong style="color:var(--green)">0 Low</strong>, and
+    <strong style="color:var(--muted)">2 Informational</strong> findings.
+    A total of <strong>12</strong> findings require immediate attention.
+    
+    All findings were identified in read-only Assessment mode — no tenant objects were modified during this run.</p>
+  </div>
+
+  <div class="section-title">Key Performance Indicators</div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Findings</div>
+      <div class="kpi-value" style="color:var(--cyan)">40</div>
+      <div class="kpi-note">Across all severity levels</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Critical + High</div>
+      <div class="kpi-value" style="color:var(--red)">12</div>
+      <div class="kpi-note">Require immediate action</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Protected Objects</div>
+      <div class="kpi-value" style="color:var(--orange)">0</div>
+      <div class="kpi-note">Manual review required</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Coverage Mode</div>
+      <div class="kpi-value" style="color:var(--gold);font-size:24px;">Partial</div>
+      <div class="kpi-note">Graph API coverage</div>
+    </div>
+  </div>
+
+  <div class="section-title">Severity Scorecard</div>
+  <div class="scorecard">
+    <div class="score-card"><div class="score-label" style="color:var(--red)">Critical</div><div class="score-value" style="color:var(--red)">0</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--orange)">High</div><div class="score-value" style="color:var(--orange)">12</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--cyan)">Medium</div><div class="score-value" style="color:var(--cyan)">26</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--green)">Low</div><div class="score-value" style="color:var(--green)">0</div></div>
+    <div class="score-card"><div class="score-label" style="color:var(--muted)">Informational</div><div class="score-value" style="color:var(--muted)">2</div></div>
+  </div>
+
+  <div class="section-title">Findings</div>
+  <div class="filter-bar">
+    <label>Severity:</label>
+    <select id="filterSeverity" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="Critical">Critical</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+      <option value="Informational">Informational</option>
+    </select>
+    <label>Category:</label>
+    <select id="filterCategory" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="User Lifecycle">User Lifecycle</option>
+      <option value="Application">Application</option>
+      <option value="Guest Lifecycle">Guest Lifecycle</option>
+      <option value="Conditional Access">Conditional Access</option>
+      <option value="Governance">Governance</option>
+    </select>
+  </div>
+  <table id="findingsTable">
+    <thead>
+      <tr>
+        <th>Finding ID</th>
+        <th>Severity</th>
+        <th>Category</th>
+        <th>Object</th>
+        <th>Evidence</th>
+        <th>Recommended Action</th>
+        <th>Confidence</th>
+        <th>Remediation Mode</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-003</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>Exclude from CA</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy exclusion group &#39;Exclude from CA&#39; has no correlated access review definition — members excluded without review governance.</td>
+  <td style="font-size:13px;">Create access review definition scoped to &#39;Exclude from CA&#39; group to govern CA exclusion membership.</td>
+  <td>Low</td>
+  <td style="font-size:12px;">InformationOnly</td>
+</tr><tr data-severity="High" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-APP-005</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Application</td>
+  <td>PowerShelltoTeamsGraphAPI</td>
+  <td style="font-size:13px;color:var(--muted)">Client secret &#39;albert demo secret&#39; expired 1271 days ago (2022-12-07) — still attached to application</td>
+  <td style="font-size:13px;">Remove expired Client secret from &#39;PowerShelltoTeamsGraphAPI&#39; and rotate if integration still active</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-001</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>Microsoft-managed: Block device code flow</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy excludes 1 user(s) and 0 group(s) from policy scope</td>
+  <td style="font-size:13px;">Review and reduce exclusions in &#39;Microsoft-managed: Block device code flow&#39;; initiate access review for excluded identities</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-001</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>CA005: Require multifactor authentication for guest access</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy excludes 1 user(s) and 0 group(s) from policy scope</td>
+  <td style="font-size:13px;">Review and reduce exclusions in &#39;CA005: Require multifactor authentication for guest access&#39;; initiate access review for excluded identities</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-001</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>CA902 Session Admin Persistence</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy excludes 0 user(s) and 1 group(s) from policy scope</td>
+  <td style="font-size:13px;">Review and reduce exclusions in &#39;CA902 Session Admin Persistence&#39;; initiate access review for excluded identities</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-001</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>CA901 Block usagr from outside USA</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy excludes 2 user(s) and 0 group(s) from policy scope</td>
+  <td style="font-size:13px;">Review and reduce exclusions in &#39;CA901 Block usagr from outside USA&#39;; initiate access review for excluded identities</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-001</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>CA001: Require multifactor authentication for admins</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy excludes 2 user(s) and 1 group(s) from policy scope</td>
+  <td style="font-size:13px;">Review and reduce exclusions in &#39;CA001: Require multifactor authentication for admins&#39;; initiate access review for excluded identities</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-001</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>CA006: Require multifactor authentication for Azure management</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy excludes 1 user(s) and 1 group(s) from policy scope</td>
+  <td style="font-size:13px;">Review and reduce exclusions in &#39;CA006: Require multifactor authentication for Azure management&#39;; initiate access review for excluded identities</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-001</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>CA003: Block legacy authentication</td>
+  <td style="font-size:13px;color:var(--muted)">CA policy excludes 2 user(s) and 0 group(s) from policy scope</td>
+  <td style="font-size:13px;">Review and reduce exclusions in &#39;CA003: Block legacy authentication&#39;; initiate access review for excluded identities</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-002</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>Exclude from CA</td>
+  <td style="font-size:13px;color:var(--muted)">CA exclusion group &#39;Exclude from CA&#39; has 3 members in policy &#39;CA902 Session Admin Persistence&#39; — access review status unknown</td>
+  <td style="font-size:13px;">Create access review for &#39;Exclude from CA&#39;; validate all 3 members still require CA exclusion</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-002</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>Exclude from CA</td>
+  <td style="font-size:13px;color:var(--muted)">CA exclusion group &#39;Exclude from CA&#39; has 3 members in policy &#39;CA001: Require multifactor authentication for admins&#39; — access review status unknown</td>
+  <td style="font-size:13px;">Create access review for &#39;Exclude from CA&#39;; validate all 3 members still require CA exclusion</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="High" data-category="Conditional Access">
+  <td style="font-family:monospace;font-size:12px;">DEC-CA-002</td>
+  <td style="color:var(--orange);font-weight:700">High</td>
+  <td>Conditional Access</td>
+  <td>Exclude from CA</td>
+  <td style="font-size:13px;color:var(--muted)">CA exclusion group &#39;Exclude from CA&#39; has 3 members in policy &#39;CA006: Require multifactor authentication for Azure management&#39; — access review status unknown</td>
+  <td style="font-size:13px;">Create access review for &#39;Exclude from CA&#39;; validate all 3 members still require CA exclusion</td>
+  <td>Medium</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-APP-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>aljee demo</td>
+  <td style="font-size:13px;color:var(--muted)">Application has no owner assigned</td>
+  <td style="font-size:13px;">Assign accountable owner to application &#39;aljee demo&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-APP-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>P2P Server</td>
+  <td style="font-size:13px;color:var(--muted)">Application has no owner assigned</td>
+  <td style="font-size:13px;">Assign accountable owner to application &#39;P2P Server&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-APP-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>AdminDroid Service Application</td>
+  <td style="font-size:13px;color:var(--muted)">Application has no owner assigned</td>
+  <td style="font-size:13px;">Assign accountable owner to application &#39;AdminDroid Service Application&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-APP-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>m365-security-assessment-tool-dev</td>
+  <td style="font-size:13px;color:var(--muted)">Application has no owner assigned</td>
+  <td style="font-size:13px;">Assign accountable owner to application &#39;m365-security-assessment-tool-dev&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-APP-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>AJ-LAB-M365CopilotReadiness-ReadOnly</td>
+  <td style="font-size:13px;color:var(--muted)">Application has no owner assigned</td>
+  <td style="font-size:13px;">Assign accountable owner to application &#39;AJ-LAB-M365CopilotReadiness-ReadOnly&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-APP-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Milestone_Plan</td>
+  <td style="font-size:13px;color:var(--muted)">Application has no owner assigned</td>
+  <td style="font-size:13px;">Assign accountable owner to application &#39;Milestone_Plan&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>aljee demo</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;aljee demo&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>FTOP-Multi [wsfed enabled]</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;FTOP-Multi [wsfed enabled]&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Email</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;Email&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>mmrpreview</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;mmrpreview&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>iOS Accounts</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;iOS Accounts&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Modern Workplace Tools</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;Modern Workplace Tools&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Flipgrid</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;Flipgrid&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Microsoft Tech Community</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;Microsoft Tech Community&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>LCTools</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;LCTools&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>M365 MCP Server for Claude</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;M365 MCP Server for Claude&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>M365 MCP Client for Claude</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;M365 MCP Client for Claude&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>ca-policy-analyzer</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;ca-policy-analyzer&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Toreon Security Office</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;Toreon Security Office&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>PowerShelltoTeamsGraphAPI</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;PowerShelltoTeamsGraphAPI&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>AdminDroid Office 365 Reporter</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;AdminDroid Office 365 Reporter&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Microsoft Graph PowerShell</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;Microsoft Graph PowerShell&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>AdminDroid Office 365 Reporter - Mail App</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;AdminDroid Office 365 Reporter - Mail App&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>AdminDroid Office 365 Reporter - Sign In</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;AdminDroid Office 365 Reporter - Sign In&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>M365Permissions PowerShell Module</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;M365Permissions PowerShell Module&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Medium" data-category="Application">
+  <td style="font-family:monospace;font-size:12px;">DEC-SPN-001</td>
+  <td style="color:var(--cyan);font-weight:700">Medium</td>
+  <td>Application</td>
+  <td>Access Package Builder</td>
+  <td style="font-size:13px;color:var(--muted)">Service principal has no owner assigned — accountability gap for this enterprise application</td>
+  <td style="font-size:13px;">Assign accountable owner to service principal &#39;Access Package Builder&#39;</td>
+  <td>High</td>
+  <td style="font-size:12px;">ManualApprovalRequired</td>
+</tr><tr data-severity="Informational" data-category="Governance">
+  <td style="font-family:monospace;font-size:12px;">DEC-GOV-001</td>
+  <td style="color:var(--muted)">Informational</td>
+  <td>Governance</td>
+  <td>Access Review API Coverage</td>
+  <td style="font-size:13px;color:var(--muted)">Access review API cmdlets unavailable — review governance coverage could not be assessed. AccessReview.Read.All permission may be missing.</td>
+  <td style="font-size:13px;">Grant AccessReview.Read.All permission and re-run assessment to enable access review governance coverage.</td>
+  <td>Low</td>
+  <td style="font-size:12px;">InformationOnly</td>
+</tr><tr data-severity="Informational" data-category="Governance">
+  <td style="font-family:monospace;font-size:12px;">DEC-GOV-002</td>
+  <td style="color:var(--muted)">Informational</td>
+  <td>Governance</td>
+  <td>Access Review Cmdlet Coverage</td>
+  <td style="font-size:13px;color:var(--muted)">Access review data collection failed — review governance coverage could not be assessed.</td>
+  <td style="font-size:13px;">Verify AccessReview.Read.All permission and re-run assessment.</td>
+  <td>Low</td>
+  <td style="font-size:12px;">InformationOnly</td>
+</tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">Coverage Summary</div>
+  <table class="coverage-table">
+    <thead><tr><th style="background:rgba(22,32,51,0.95);color:var(--gold);font-size:11px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);">Graph Area</th><th style="background:rgba(22,32,51,0.95);color:var(--gold);font-size:11px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);">Status</th></tr></thead>
+    <tbody>
+<tr><td style='color:var(--muted)'>Users</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>Groups</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>Applications</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>ServicePrincipals</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>DirectoryRoles</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>SignInLogs</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>AuditLogs</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>ConditionalAccess</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>EntitlementManagement</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>PimEligibleAssignments</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>PimActivationEvidence</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>EntitlementAssignments</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>AccessPackagePolicies</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>AccessReviewScheduleEvidence</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>AccessReviews</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>AccessReviewDefinitions</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>AccessReviewInstances</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>AccessReviewDecisions</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>GuestReviewCorrelation</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>PimReviewCorrelation</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>AccessPackageReviewCorrelation</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+<tr><td style='color:var(--muted)'>CAExclusionReviewCorrelation</td><td><span style="color:var(--green)">&#10003; Available</span></td></tr>
+<tr><td style='color:var(--muted)'>GovernanceEvidenceLimitations</td><td><span style="color:var(--muted)">&#8212; Not assessed</span></td></tr>
+
+    </tbody>
+  </table>
+
+  <div class="section-title">Remediation Roadmap</div>
+<div style="background:rgba(22,32,51,0.92);border-radius:12px;padding:16px 20px;margin-bottom:12px;border-left:4px solid var(--gold);">
+  <div style="color:var(--gold);font-size:12px;font-weight:700;margin-bottom:6px;">PRIORITY 1 — High</div>
+  <div style="color:var(--text);font-weight:600;margin-bottom:4px;">DEC-CA-003 · Exclude from CA</div>
+  <div style="color:var(--muted);font-size:13px;">Create access review definition scoped to &#39;Exclude from CA&#39; group to govern CA exclusion membership.</div>
+</div><div style="background:rgba(22,32,51,0.92);border-radius:12px;padding:16px 20px;margin-bottom:12px;border-left:4px solid var(--gold);">
+  <div style="color:var(--gold);font-size:12px;font-weight:700;margin-bottom:6px;">PRIORITY 2 — High</div>
+  <div style="color:var(--text);font-weight:600;margin-bottom:4px;">DEC-APP-005 · PowerShelltoTeamsGraphAPI</div>
+  <div style="color:var(--muted);font-size:13px;">Remove expired Client secret from &#39;PowerShelltoTeamsGraphAPI&#39; and rotate if integration still active</div>
+</div><div style="background:rgba(22,32,51,0.92);border-radius:12px;padding:16px 20px;margin-bottom:12px;border-left:4px solid var(--gold);">
+  <div style="color:var(--gold);font-size:12px;font-weight:700;margin-bottom:6px;">PRIORITY 3 — High</div>
+  <div style="color:var(--text);font-weight:600;margin-bottom:4px;">DEC-CA-001 · Microsoft-managed: Block device code flow</div>
+  <div style="color:var(--muted);font-size:13px;">Review and reduce exclusions in &#39;Microsoft-managed: Block device code flow&#39;; initiate access review for excluded identities</div>
+</div>
+
+  <div class="section-title">Assumptions and Limitations</div>
+  <div class="limitations">
+    <ul>
+      <li>All findings were identified in read-only Assessment mode — no tenant objects were modified during this run.</li>
+      <li>Sign-in log analysis requires the <code>AuditLog.Read.All</code> delegated permission. If this scope was unavailable, stale identity analysis may be incomplete.</li>
+      <li>IGA coverage assessment requires the <code>EntitlementManagement.Read.All</code> delegated permission.</li>
+      <li>Rev1.1 does not support hybrid or on-premises AD DS environments. Only cloud-only and hybrid cloud-synced objects are assessed.</li>
+      <li>Protected object classification is based on display name pattern matching. False positives are possible and should be reviewed with the client.</li>
+      <li>Findings reflect point-in-time assessment. Access state may have changed between assessment and report delivery.</li>
+      <li>This tool is a consultant advisory tool — it is not a continuous monitoring platform.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <span>Generated: 2026-05-31 18:39:34 UTC | Entra Identity Decommissioning Control Plane Rev2.4</span>
+    <span style="color:var(--muted);">© 2026 Albert Jee. All rights reserved. | Consultant advisory tool — not a continuous monitoring platform</span>
+  </footer>
+</div>
+
+<script>
+function applyFilters() {
+  var severity = document.getElementById('filterSeverity').value;
+  var category = document.getElementById('filterCategory').value;
+  var rows = document.querySelectorAll('#findingsTable tbody tr');
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var sev = row.getAttribute('data-severity') || '';
+    var cat = row.getAttribute('data-category') || '';
+    var show = (!severity || sev === severity) && (!category || cat === category);
+    row.style.display = show ? '' : 'none';
+  }
+}
+</script>
+</body>
+</html>

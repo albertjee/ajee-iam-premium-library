@@ -1,0 +1,20 @@
+{
+  "SchemaVersion": "3.0",
+  "ToolVersion": "Rev3.1",
+  "GeneratedUtc": "2026-06-01T19:05:05.3190789Z",
+  "ClientName": "",
+  "EngagementId": "",
+  "Assessor": "",
+  "Passed": false,
+  "VersionConsistent": false,
+  "SafetyInvariantsOK": false,
+  "NoUnexpectedWriteScope": true,
+  "NoUnexpectedWriteCmdlet": true,
+  "Errors": [
+    "Entry point does not declare ToolVersion = Rev3.0",
+    "Remediation.psm1 contains unexpected write action: RemoveAccessPackageAssignment",
+    "Remediation.psm1 contains unexpected write action: RemovePimEligibleAssignment"
+  ],
+  "Warnings": [],
+  "Footer": "© 2026 Albert Jee. All rights reserved."
+}

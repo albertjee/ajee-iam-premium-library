@@ -90,8 +90,8 @@ function Invoke-DecomReplayValidation {
     $overallPassed = ($failedChecks -eq 0) -and ($allFindings.Count -gt 0)
 
     return [pscustomobject]@{
-        SchemaVersion = '3.4'
-        ToolVersion   = 'Rev3.4'
+        SchemaVersion = '3.6'
+        ToolVersion = 'Rev3.6'
         RunId         = $RunId
         ValidatedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Passed        = $overallPassed

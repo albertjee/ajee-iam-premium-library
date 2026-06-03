@@ -1,0 +1,73 @@
+{
+  "SchemaVersion": "2.1",
+  "RunId": "632d1b4e-97a1-4228-abf8-fdcd3f9920bb",
+  "GeneratedUtc": "2026-06-02T02:16:26.1459525Z",
+  "ApprovedBy": "Albert Jee - Administrator",
+  "ApprovalManifestHash": "25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48",
+  "Actions": [
+    {
+      "RunId": "632d1b4e-97a1-4228-abf8-fdcd3f9920bb",
+      "ActionId": "ACT-001",
+      "FindingId": "DEC-USER-001",
+      "ActionType": "RemoveGroupMembership",
+      "ObjectId": "98d88229-04ae-497e-8e07-2eba4f619a14",
+      "DisplayName": "Test Decom User 1",
+      "TargetObjectId": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "BeforeState": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "AfterState": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "Outcome": "Failed",
+      "ErrorDetail": "Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.\r\n\r\nStatus: 403 (Forbidden)\r\nErrorCode: Authorization_RequestDenied\r\nDate: 2026-06-02T02:16:13\r\n\r\nHeaders:\r\nCache-Control                 : no-cache\r\nVary                          : Accept-Encoding\r\nStrict-Transport-Security     : max-age=31536000\r\nrequest-id                    : e972dc09-1d26-43b6-8c52-e3a9db13a24d\r\nclient-request-id             : 65066a4b-22c3-41cd-99e2-16093bd148c5\r\nx-ms-ags-diagnostic           : {\"ServerInfo\":{\"DataCenter\":\"West US\",\"Slice\":\"E\",\"Ring\":\"4\",\"ScaleUnit\":\"006\",\"RoleInstance\":\"BY1PEPF0001DDEA\"}}\r\nx-ms-resource-unit            : 1\r\nDate                          : Tue, 02 Jun 2026 02:16:12 GMT\r\n\r\n; ",
+      "ApprovedBy": "Albert Jee - Administrator",
+      "ApprovalManifestHash": "25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48",
+      "ExecutedUtc": "2026-06-02T02:16:13.2181739Z"
+    },
+    {
+      "RunId": "632d1b4e-97a1-4228-abf8-fdcd3f9920bb",
+      "ActionId": "ACT-002",
+      "FindingId": "DEC-USER-001",
+      "ActionType": "RemoveGroupMembership",
+      "ObjectId": "e08f8759-8c0e-4987-978a-54925828acf5",
+      "DisplayName": "Test Decom User 2",
+      "TargetObjectId": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "BeforeState": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "AfterState": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "Outcome": "Failed",
+      "ErrorDetail": "Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.\r\n\r\nStatus: 403 (Forbidden)\r\nErrorCode: Authorization_RequestDenied\r\nDate: 2026-06-02T02:16:15\r\n\r\nHeaders:\r\nCache-Control                 : no-cache\r\nVary                          : Accept-Encoding\r\nStrict-Transport-Security     : max-age=31536000\r\nrequest-id                    : d9d64977-a217-4ec3-860c-d11afc40dadc\r\nclient-request-id             : 0deddaaf-cdf3-4278-907d-6651ca8b14c3\r\nx-ms-ags-diagnostic           : {\"ServerInfo\":{\"DataCenter\":\"West US\",\"Slice\":\"E\",\"Ring\":\"4\",\"ScaleUnit\":\"006\",\"RoleInstance\":\"BY1PEPF0001DDEA\"}}\r\nx-ms-resource-unit            : 1\r\nDate                          : Tue, 02 Jun 2026 02:16:14 GMT\r\n\r\n; ",
+      "ApprovedBy": "Albert Jee - Administrator",
+      "ApprovalManifestHash": "25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48",
+      "ExecutedUtc": "2026-06-02T02:16:14.5571558Z"
+    },
+    {
+      "RunId": "632d1b4e-97a1-4228-abf8-fdcd3f9920bb",
+      "ActionId": "ACT-003",
+      "FindingId": "DEC-USER-001",
+      "ActionType": "RemoveGroupMembership",
+      "ObjectId": "2dc800c6-c2d5-4512-bf2e-81d6ee5b7a9b",
+      "DisplayName": "Test Decom User 3",
+      "TargetObjectId": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "BeforeState": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "AfterState": "c5219d4d-7fd4-495f-9adc-d512cc00f317",
+      "Outcome": "Failed",
+      "ErrorDetail": "Group c5219d4d-7fd4-495f-9adc-d512cc00f317 : Insufficient privileges to complete the operation.\r\n\r\nStatus: 403 (Forbidden)\r\nErrorCode: Authorization_RequestDenied\r\nDate: 2026-06-02T02:16:16\r\n\r\nHeaders:\r\nCache-Control                 : no-cache\r\nVary                          : Accept-Encoding\r\nStrict-Transport-Security     : max-age=31536000\r\nrequest-id                    : 8d61a77c-8c1a-45e1-b95c-fc205c96615e\r\nclient-request-id             : 6396b7f4-5cc2-45d4-a741-6c04c188d710\r\nx-ms-ags-diagnostic           : {\"ServerInfo\":{\"DataCenter\":\"West US\",\"Slice\":\"E\",\"Ring\":\"4\",\"ScaleUnit\":\"006\",\"RoleInstance\":\"BY1PEPF0001DDEA\"}}\r\nx-ms-resource-unit            : 1\r\nDate                          : Tue, 02 Jun 2026 02:16:15 GMT\r\n\r\n; ",
+      "ApprovedBy": "Albert Jee - Administrator",
+      "ApprovalManifestHash": "25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48",
+      "ExecutedUtc": "2026-06-02T02:16:16.1237680Z"
+    },
+    {
+      "RunId": "632d1b4e-97a1-4228-abf8-fdcd3f9920bb",
+      "ActionId": "ACT-004",
+      "FindingId": "DEC-APP-005",
+      "ActionType": "RemoveExpiredApplicationCredential",
+      "ObjectId": "ce472608-cabf-468c-a816-c214e17cbb17",
+      "DisplayName": "PowerShelltoTeamsGraphAPI",
+      "TargetObjectId": "7ce1e898-6e40-4bba-9b27-aa085dd29ab0",
+      "BeforeState": "7ce1e898-6e40-4bba-9b27-aa085dd29ab0",
+      "AfterState": "",
+      "Outcome": "Executed",
+      "ErrorDetail": "",
+      "ApprovedBy": "Albert Jee - Administrator",
+      "ApprovalManifestHash": "25d0bb0ca4cba7c96923934be119711766577edd9b2b1cec35db49d2ac3dbe48",
+      "ExecutedUtc": "2026-06-02T02:16:26.1042803Z"
+    }
+  ]
+}

@@ -69,7 +69,7 @@ function New-DecomRev3CapabilityMatrix {
     return [PSCustomObject]@{
         SchemaVersion    = '3.3'
         GeneratedUtc     = (Get-Date).ToUniversalTime().ToString('o')
-        ToolVersion      = 'Rev3.5'
+        ToolVersion = 'Rev3.6'
         ExecutableActions = $actions
         PlanOnlyActions  = $planOnly
         DeferredActions  = $deferred
@@ -243,7 +243,7 @@ function Export-DecomRev34ProductionReadinessJson {
     )
 
     $readiness = [PSCustomObject]@{
-        SchemaVersion = '3.3'
+        SchemaVersion = '3.6'
         GeneratedUtc  = $Matrix.GeneratedUtc
         ToolVersion   = $Matrix.ToolVersion
         Rev3WriteSummary = @(
