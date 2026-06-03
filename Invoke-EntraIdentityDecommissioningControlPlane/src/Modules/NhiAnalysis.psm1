@@ -258,6 +258,24 @@ function Invoke-DecomNhiAnalysis {
         }
 
         try {
+            # P1-04: Calculate OAuth fields first
+            $tenantWideConsent = $false
+            $highRiskOAuthGrantCount = 0
+            foreach ($grant in @($nhiObject.RawOAuthGrants)) {
+                if ($grant.ConsentType -eq 'AllPrincipals') { $tenantWideConsent = $true }
+                $scopes = @()
+                if ($grant.Scope) { $scopes = @($grant.Scope -split '\s+') }
+                foreach ($scope in $scopes) {
+                    if ($scope -in $script:HighRiskDelegatedScopes) {
+                        $highRiskOAuthGrantCount++
+                        break
+                    }
+                }
+            }
+            $nhiObject | Add-Member -NotePropertyName TenantWideConsent -NotePropertyValue $tenantWideConsent -Force
+            $nhiObject | Add-Member -NotePropertyName HighRiskOAuthGrantCount -NotePropertyValue $highRiskOAuthGrantCount -Force
+
+            # Step 2 — NOW run classification and risk scoring
             # Get classification
             $classificationResult = Get-DecomNhiClassificationScore -NhiObject $nhiObject
 
@@ -267,25 +285,11 @@ function Invoke-DecomNhiAnalysis {
             # Determine severity from risk score
             $severity = Get-DecomNhiSeverityFromRiskScore -RiskScore $riskScore
 
-            # P1-04: Calculate TenantWideConsent and HighRiskOAuthGrantCount from RawOAuthGrants
-            $tenantWideConsent = $false
-            $highRiskOAuthGrantCount = 0
-            $riskScoreMayBeUnderstated = $false
-            $coverageLimitations = @()
+            # P1-03: Preserve discovery coverage flags — do NOT reset to false/@()
+            $riskScoreMayBeUnderstated = [bool]$nhiObject.RiskScoreMayBeUnderstated
+            $coverageLimitations = @($nhiObject.CoverageLimitations)
 
-            foreach ($grant in @($nhiObject.RawOAuthGrants)) {
-                if ($grant.ConsentType -eq 'AllPrincipals') { $tenantWideConsent = $true }
-                $scopes = @()
-                if ($grant.Scope) { $scopes = @($grant.Scope -split '\s+') }
-                foreach ($scope in $scopes) {
-                    if ($scope -match '\.(All|Send)$' -or $scope -match 'FullControl' -or $scope -eq 'offline_access') {
-                        $highRiskOAuthGrantCount++
-                        break
-                    }
-                }
-            }
-
-            # P1-03: Mark permission scoring as partial when GUID resolution unavailable
+            # Then append analysis-level limitations
             if (-not $nhiObject.HighRiskPermissionCount) {
                 $riskScoreMayBeUnderstated = $true
                 $coverageLimitations += 'Application role display-name resolution unavailable — permission risk may be understated'

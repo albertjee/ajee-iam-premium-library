@@ -166,12 +166,12 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.5 current baseline:** 1068 tests across all Rev3 modules
+- **Rev3.5 current baseline:** 1073 tests across all Rev3 modules (P1 fixes + new test coverage)
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Detailed
   ```
-- Must show 0 failures — 1068 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures — 1073 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 

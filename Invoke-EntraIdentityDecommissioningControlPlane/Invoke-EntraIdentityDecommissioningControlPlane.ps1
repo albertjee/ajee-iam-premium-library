@@ -413,7 +413,8 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     # Generate governance findings
     $nhiGovFindings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects $nhiAnalyzed -Context $Context
     $Findings       = @($Findings) + @($nhiGovFindings)
-    Write-DecomOk "NHI governance pack generation complete"
+    $Summary  = Get-DecomFindingSummary -Findings $Findings
+    Write-DecomOk "NHI findings merged — total findings now $($Summary.Total)"
 }
 
 # Baseline comparison if -BaselinePath provided

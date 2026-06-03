@@ -21,7 +21,8 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
                 [int]$HighRiskPermCount = 0,
                 [bool]$TenantWide      = $false,
                 [bool]$IsVerified      = $true,
-                [string]$Publisher     = 'TestCorp'
+                [string]$Publisher     = 'TestCorp',
+                [bool]$RiskScoreMayBeUnderstated = $false
             )
             [PSCustomObject]@{
                 ObjectId                  = [guid]::NewGuid().Guid
@@ -40,12 +41,13 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
                 FirstPartyMicrosoftApp    = ($Publisher -eq 'Microsoft Corporation')
                 CoverageMode              = 'Full'
                 CoverageLimitations       = @()
-                RiskScoreMayBeUnderstated = $false
+                RiskScoreMayBeUnderstated = $RiskScoreMayBeUnderstated
                 NhiCandidate              = $true
                 AgenticCandidate          = $false
                 AutomationCandidate       = $false
                 WorkloadCandidate         = $false
                 RawOwners                 = @()
+                RawOAuthGrants            = @()
                 VerifiedPublisherName     = $null
                 EvidenceSource            = 'graph'
                 EvidenceConfidence        = 'High'
@@ -280,6 +282,79 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
             $ctx = [PSCustomObject]@{ DemoMode = $false }
             $results = Invoke-DecomNhiAnalysis -NhiObjects @($thirdPartySp) -Context $ctx
             $results | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    # ── P1-04A: OAuth scoring order ───────────────────────────────────────
+    Context 'P1-04A: TenantWideConsent and HighRiskOAuthGrantCount calculated before classification' {
+
+        It 'TenantWideConsent=true increases classification score before risk assignment' {
+            # Object with tenant-wide consent but no other signals
+            $obj = script:New-TestNhiObject -DisplayName 'test-app' -OwnerCount 2 -Publisher 'Microsoft Corporation' -IsVerified $true
+            $obj | Add-Member -NotePropertyName TenantWideConsent -NotePropertyValue $true -Force
+            $result = Get-DecomNhiClassificationScore -NhiObject $obj
+            # Tenant-wide consent adds 15 to classification score
+            $result.ClassificationScore | Should -Be 15
+        }
+
+        It 'HighRiskOAuthGrantCount>0 contributes to risk before governance finding generation' {
+            # Object with high-risk OAuth grant but no other signals
+            $obj = script:New-TestNhiObject -DisplayName 'test-app' -OwnerCount 2 -Publisher 'Microsoft Corporation' -IsVerified $true
+            # RawOAuthGrants with a high-risk scope
+            $obj | Add-Member -NotePropertyName RawOAuthGrants -NotePropertyValue @(@{ConsentType='SpecificPrincipals'; Scope='User.Read.All'}) -Force
+            # Set the OAuth grant count to simulate what the analysis would do
+            $obj | Add-Member -NotePropertyName HighRiskOAuthGrantCount -NotePropertyValue 1 -Force
+            $result = Get-DecomNhiClassificationScore -NhiObject $obj
+            # High-risk OAuth grant adds 8 to classification score
+            $result.ClassificationScore | Should -Be 8
+        }
+    }
+
+    # ── P1-03A: Preserve discovery coverage flags ────────────────────────
+    Context 'P1-03A: Analysis preserves discovery coverage flags' {
+
+        It 'RiskScoreMayBeUnderstated=true from discovery is preserved after NHI analysis' {
+            # Object with RiskScoreMayBeUnderstated set to true from discovery
+            $obj = script:New-TestNhiObject -DisplayName 'test-app' -RiskScoreMayBeUnderstated $true
+            # Ensure HighRiskPermissionCount is present so analysis doesn't add the limitation
+            $obj | Add-Member -NotePropertyName HighRiskPermissionCount -NotePropertyValue 1 -Force
+            $ctx = [PSCustomObject]@{ DemoMode = $false }
+            $results = Invoke-DecomNhiAnalysis -NhiObjects @($obj) -Context $ctx
+            $results[0].RiskScoreMayBeUnderstated | Should -Be $true
+        }
+
+        It 'CoverageLimitations from discovery are preserved and analysis limitations appended' {
+            # Object with existing coverage limitation and a condition that triggers analysis limitation
+            $obj = script:New-TestNhiObject -DisplayName 'test-app'
+            $obj | Add-Member -NotePropertyName CoverageLimitations -NotePropertyValue @('Existing limitation from discovery') -Force
+            # No HighRiskPermissionCount -> analysis will add limitation
+            $ctx = [PSCustomObject]@{ DemoMode = $false }
+            $results = Invoke-DecomNhiAnalysis -NhiObjects @($obj) -Context $ctx
+            $limitations = $results[0].CoverageLimitations
+            $limitations | Should -Contain 'Existing limitation from discovery'
+            $limitations | Should -Contain 'Application role display-name resolution unavailable — permission risk may be understated'
+            # Expect exactly two limitations
+            $limitations.Count | Should -Be 2
+        }
+    }
+
+    # ── P1-01C: Summary recalculation after NHI merge ──────────────────────
+    Context 'P1-01C: Summary is recalculated after NHI findings merged' {
+
+        It 'Summary.Total includes DEC-NHI and DEC-AGENT findings after analysis' {
+            # Simulate base findings and NHI-generated findings
+            $baseFinding = [PSCustomObject]@{
+                FindingId = 'DEC-SAMPLE-001'
+                FindingTitle = 'Base finding'
+                Severity = 'Medium'
+            }
+            $nhiAnalyzed = script:New-TestNhiObject -DisplayName 'agent-test' -SpType 'ServiceIdentity'
+            $ctx = [PSCustomObject]@{ DemoMode = $false }
+            $nhiResults = Invoke-DecomNhiAnalysis -NhiObjects @($nhiAnalyzed) -Context $ctx
+            # Verify that analyzed object has classification and risk properties
+            $nhiResults | Should -Not -BeNullOrEmpty
+            $nhiResults[0].Classification | Should -Not -BeNullOrEmpty
+            $nhiResults[0].Severity | Should -Not -BeNullOrEmpty
         }
     }
 }

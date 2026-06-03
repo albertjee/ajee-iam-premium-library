@@ -10,7 +10,7 @@ $script:HighRiskAppPermissions = @(
 
 $script:HighRiskDelegatedScopes = @(
     'Directory.AccessAsUser.All', 'Directory.ReadWrite.All', 'Application.ReadWrite.All',
-    'AppRoleAssignment.ReadWrite.All', 'User.ReadWrite.All', 'Group.ReadWrite.All',
+    'AppRoleAssignment.ReadWrite.All', 'User.Read.All', 'User.ReadWrite.All', 'Group.ReadWrite.All',
     'Mail.ReadWrite', 'Mail.Send', 'Files.ReadWrite.All', 'Sites.FullControl.All', 'offline_access'
 )
 

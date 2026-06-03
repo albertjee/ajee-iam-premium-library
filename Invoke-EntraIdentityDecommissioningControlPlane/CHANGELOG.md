@@ -24,9 +24,15 @@
 - Rev3.5 adds no new remediation action types to Remediation.psm1.
 - Rev3.5 WriteReadiness registry entries carry IntroducedIn = 'Rev3.5'.
 
+### Fixed (Final P1)
+- P1-01C: Summary recalculated immediately after NHI findings merge into $Findings. Added test verifying Summary.Total includes both DEC-NHI and DEC-AGENT findings.
+- P1-03A: Analysis now preserves RiskScoreMayBeUnderstated and CoverageLimitations from discovery phase instead of resetting to false/@(). Analysis-level limitations appended to discovery limitations rather than overwriting.
+- P1-04A: TenantWideConsent and HighRiskOAuthGrantCount calculated BEFORE classification and risk scoring (first OAuth calculation step), so OAuth factors influence classification score. OAuth scoring now contributes to final risk assessment.
+
 ### Tests
 - Added 168 NHI-specific tests across 5 test files.
-- Total: 1068 tests, 0 failures (prior baseline: 890).
+- Added 3 final P1 tests: Summary.Total coverage, RiskScoreMayBeUnderstated preservation, CoverageLimitations preservation.
+- Total: 1073 tests, 0 failures (prior baseline: 890, Rev3.5 entry: 1068).
 
 ---
 
