@@ -40,5 +40,3 @@ function Get-DecomExpectedMajorMinor {
     #>
     return '3.6'
 }
-
-Export-ModuleMember -Function Get-DecomExpectedToolVersion, Get-DecomExpectedSchemaVersion, Get-DecomExpectedMajorMinor

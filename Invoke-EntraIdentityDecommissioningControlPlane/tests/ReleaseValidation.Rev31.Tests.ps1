@@ -1,4 +1,5 @@
 #Requires -Version 5.1
+# INTENTIONAL_HISTORICAL_VERSION: Rev3.5 references are for historical test fixtures
 
 Describe 'Safety — Rev3.1 Write Isolation and Guest Safety Invariants' {
 

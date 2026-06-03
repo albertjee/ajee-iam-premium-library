@@ -228,7 +228,7 @@ function Export-DecomRedactionReportJson {
     )
 
     $report = [ordered]@{
-        SchemaVersion      = '3.4'
+        SchemaVersion      = '3.6'
         ToolVersion        = $ToolVersion
         RunId              = $RunId
         GeneratedUtc       = (Get-Date).ToUniversalTime().ToString('o')
@@ -293,7 +293,7 @@ function Export-DecomRedactionReportMarkdown {
     $lines = @(
         '# Redaction Report',
         '',
-        "**SchemaVersion:** 3.4  ",
+        "**SchemaVersion:** 3.6  ",
         "**ToolVersion:** $ToolVersion  ",
         "**RunId:** $RunId  ",
         "**GeneratedUtc:** $generatedUtc  ",

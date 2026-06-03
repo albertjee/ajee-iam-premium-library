@@ -38,7 +38,7 @@ function New-DecomEvidenceBundle {
     )
 
     $bundle = [ordered]@{
-        SchemaVersion   = '3.4'
+        SchemaVersion   = '3.6'
         ToolVersion     = $Context.ToolVersion
         RunId           = $RunId
         BundleId        = $BundleId
@@ -254,7 +254,7 @@ function Export-DecomEvidenceHashManifest {
     try {
         # Build hash manifest object
         $hashManifest = [ordered]@{
-            SchemaVersion   = '3.4'
+            SchemaVersion   = '3.6'
             ToolVersion     = $Bundle.ToolVersion
             RunId           = $Bundle.RunId
             GeneratedUtc    = $Bundle.GeneratedUtc

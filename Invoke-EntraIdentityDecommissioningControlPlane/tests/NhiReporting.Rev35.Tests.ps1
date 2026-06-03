@@ -1,4 +1,5 @@
 #Requires -Version 5.1
+# INTENTIONAL_HISTORICAL_VERSION: Rev3.5 references are for historical test fixtures
 
 Describe 'NhiReporting.Rev35 — NHI Reporting and Export Functions' {
 

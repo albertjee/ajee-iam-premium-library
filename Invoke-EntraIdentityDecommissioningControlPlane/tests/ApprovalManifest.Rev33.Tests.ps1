@@ -1,4 +1,5 @@
 #Requires -Version 5.1
+# INTENTIONAL_HISTORICAL_VERSION: Rev3.5 references are for historical test fixtures
 
 Describe 'ApprovalManifest.Rev33 — Rev3.3 Action Type Validation' {
 

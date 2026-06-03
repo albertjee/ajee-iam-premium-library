@@ -48,13 +48,14 @@ Describe 'VersionHygiene.Rev36 — Version consistency and anti-drift' {
             'Traceability.psm1'
         )
 
-        foreach ($module in $outputModules) {
-            It "$module SchemaVersion = '3.6'" {
-                $path = Join-Path $script:ModulesPath $module
-                if (Test-Path $path) {
-                    $content = Get-Content $path -Raw
-                    $content | Should -Match "SchemaVersion\s*=\s*'3\.6'"
-                }
+        $testCases = $outputModules | ForEach-Object { @{ ModuleName = $_ } }
+
+        It "<ModuleName> SchemaVersion = '3.6'" -TestCases $testCases {
+            param($ModuleName)
+            $path = Join-Path $script:ModulesPath $ModuleName
+            if (Test-Path $path) {
+                $content = Get-Content $path -Raw
+                $content | Should -Match "SchemaVersion\s*=\s*'3\.6'"
             }
         }
     }

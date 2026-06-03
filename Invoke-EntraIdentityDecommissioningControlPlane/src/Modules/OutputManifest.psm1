@@ -28,7 +28,7 @@ function New-DecomOutputManifest {
     )
 
     $manifest = [ordered]@{
-        SchemaVersion   = '3.4'
+        SchemaVersion   = '3.6'
         ToolVersion     = $Context.ToolVersion
         RunId           = $RunId
         GeneratedUtc    = (Get-Date).ToUniversalTime().ToString('o')
@@ -264,8 +264,8 @@ function Test-DecomOutputManifest {
 
     try {
         # Check schema version
-        if ($Manifest.SchemaVersion -ne '3.4') {
-            $errors += "Invalid SchemaVersion: expected '3.4', got '$($Manifest.SchemaVersion)'"
+        if ($Manifest.SchemaVersion -ne '3.6') {
+            $errors += "Invalid SchemaVersion: expected '3.6', got '$($Manifest.SchemaVersion)'"
         }
 
         # Check tool version

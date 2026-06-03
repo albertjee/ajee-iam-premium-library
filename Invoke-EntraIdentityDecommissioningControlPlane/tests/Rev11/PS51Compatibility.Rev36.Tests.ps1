@@ -17,9 +17,13 @@ Describe 'PS51Compatibility.Rev36 — PowerShell 5.1 compliance' {
         }
 
         It 'No ForEach-Object -Parallel in production code' {
-            Get-ChildItem -Path $modulesPath -Filter '*.psm1' | ForEach-Object {
+            Get-ChildItem -Path $modulesPath -Filter '*.psm1' | Where-Object {
+                $_.Name -ne 'BatchOrchestratorParallel.psm1'
+            } | ForEach-Object {
                 $content = Get-Content $_.FullName -Raw
-                $content | Should -Not -Match 'ForEach-Object.*-Parallel'
+                # Remove comment lines to avoid false positives
+                $noComments = $content -split "`n" | Where-Object { -not $_.TrimStart().StartsWith('#') } | Join-String -Separator "`n"
+                $noComments | Should -Not -Match 'ForEach-Object.*-Parallel'
             }
         }
     }

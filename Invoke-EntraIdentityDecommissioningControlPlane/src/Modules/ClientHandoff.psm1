@@ -164,7 +164,7 @@ function New-DecomClientHandoffPackage {
     }
 
     $package = [pscustomobject]@{
-        SchemaVersion            = '3.4'
+        SchemaVersion            = '3.6'
         ToolVersion              = $Context.ToolVersion
         RunId                    = $RunId
         PackageId                = [guid]::NewGuid().ToString()

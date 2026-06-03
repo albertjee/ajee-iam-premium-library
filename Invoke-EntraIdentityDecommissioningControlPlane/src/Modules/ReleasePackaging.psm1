@@ -167,7 +167,7 @@ function Write-DecomReleasePackageManifest {
     if ($Context.PSObject.Properties['RunId']) { $sourceRunId = $Context.RunId }
 
     $manifest = [PSCustomObject]@{
-        SchemaVersion              = '3.4'
+        SchemaVersion              = '3.6'
         PackageId                  = [guid]::NewGuid().ToString()
         ToolVersion                = $Context.ToolVersion
         GeneratedUtc               = (Get-Date).ToUniversalTime().ToString('o')
