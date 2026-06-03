@@ -12,14 +12,14 @@ Describe 'Rev35Readiness' {
 
     # ── Export-DecomRev35ReadinessJson ───────────────────────────────────────
 
-    It 'Rev3.5 readiness JSON exported — valid JSON, SchemaVersion 3.4, NhiDetectorsImplemented false' {
+    It 'Rev3.5 readiness JSON exported — valid JSON, SchemaVersion 3.6, NhiDetectorsImplemented false' {
         $report = New-DecomRev35ReadinessReport
         $temp   = [System.IO.Path]::GetTempFileName()
         try {
             Export-DecomRev35ReadinessJson -Report $report -Path $temp
             $json = Get-Content $temp -Raw | ConvertFrom-Json
             $json | Should -Not -BeNullOrEmpty
-            $json.SchemaVersion          | Should -Be '3.4'
+            $json.SchemaVersion          | Should -Be '3.6'
             $json.NhiDetectorsImplemented | Should -Be $false
         } finally {
             Remove-Item $temp -Force -ErrorAction SilentlyContinue

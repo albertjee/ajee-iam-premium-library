@@ -64,12 +64,12 @@ Describe 'Rev3CapabilityMatrix.Rev33 — Capability Matrix and Rev3.4 Readiness 
 
     Context 'New-DecomRev3CapabilityMatrix model content' {
 
-        It 'Matrix SchemaVersion is 3.3' {
-            $script:Matrix.SchemaVersion | Should -Be '3.3'
+        It 'Matrix SchemaVersion is 3.6' {
+            $script:Matrix.SchemaVersion | Should -Be '3.6'
         }
 
-        It 'Matrix ToolVersion is Rev3.5' {
-            $script:Matrix.ToolVersion | Should -Be 'Rev3.5'
+        It 'Matrix ToolVersion is Rev3.6' {
+            $script:Matrix.ToolVersion | Should -Be 'Rev3.6'
         }
 
         It 'Matrix includes ExecutableActions' {
@@ -165,10 +165,10 @@ Describe 'Rev3CapabilityMatrix.Rev33 — Capability Matrix and Rev3.4 Readiness 
             { Get-Content $path -Raw | ConvertFrom-Json } | Should -Not -Throw
         }
 
-        It 'Exported matrix JSON SchemaVersion is 3.3' {
+        It 'Exported matrix JSON SchemaVersion is 3.6' {
             $path = Join-Path $script:testDir 'rev3-remediation-capability-matrix-test.json'
             $json = Get-Content $path -Raw | ConvertFrom-Json
-            $json.SchemaVersion | Should -Be '3.3'
+            $json.SchemaVersion | Should -Be '3.6'
         }
     }
 

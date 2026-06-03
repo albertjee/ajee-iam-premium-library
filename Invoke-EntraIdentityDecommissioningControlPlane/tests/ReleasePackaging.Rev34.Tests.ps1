@@ -36,7 +36,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         }
 
         $script:context = [PSCustomObject]@{
-            ToolVersion  = 'Rev3.4'
+            ToolVersion  = 'Rev3.6'
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -109,8 +109,8 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
     It 'Release package manifest includes correct SchemaVersion and ToolVersion' {
         $manifestPath = Join-Path $script:releaseRevDir 'release-package-manifest.json'
         $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-        $manifest.SchemaVersion | Should -Be '3.4'
-        $manifest.ToolVersion   | Should -Be 'Rev3.4'
+        $manifest.SchemaVersion | Should -Be '3.6'
+        $manifest.ToolVersion   | Should -Be 'Rev3.6'
     }
 
     It 'Release package manifest reports no missing required artifacts' {
@@ -129,7 +129,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         try {
             Push-Location $fakeRoot
             $ctx = [PSCustomObject]@{
-                ToolVersion  = 'Rev3.4'
+                ToolVersion  = 'Rev3.6'
                 OutputPath   = $fakeRoot
                 ClientName   = 'TestClient'
                 EngagementId = 'test-eng'
@@ -202,7 +202,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         try {
             Push-Location $fakeRoot
             $ctx = [PSCustomObject]@{
-                ToolVersion  = 'Rev3.4'
+                ToolVersion  = 'Rev3.6'
                 OutputPath   = $fakeRoot
                 ClientName   = 'TestClient'
                 EngagementId = 'test-eng'

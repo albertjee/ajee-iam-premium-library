@@ -218,9 +218,9 @@ F001,Identity,High,alice@contoso.com,aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb
         $p    = New-DecomRedactionProfile -ProfileName ClientSafe
         $temp = [System.IO.Path]::GetTempFileName()
         try {
-            Export-DecomRedactionReportJson -Profile $p -Path $temp -RunId 'run-001' -ToolVersion 'Rev3.4' -RedactedFileCount 3
+            Export-DecomRedactionReportJson -Profile $p -Path $temp -RunId 'run-001' -ToolVersion 'Rev3.6' -RedactedFileCount 3
             $json = Get-Content $temp -Raw | ConvertFrom-Json
-            $json.SchemaVersion     | Should -Be '3.4'
+            $json.SchemaVersion     | Should -Be '3.6'
             $json.ProfileName       | Should -Be 'ClientSafe'
             $json.RunId             | Should -Be 'run-001'
             $json.RedactedFileCount | Should -Be 3
@@ -235,7 +235,7 @@ F001,Identity,High,alice@contoso.com,aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb
         $null = Invoke-DecomRedaction -InputString 'alice@contoso.com' -Profile $p
         $temp = [System.IO.Path]::GetTempFileName()
         try {
-            Export-DecomRedactionReportJson -Profile $p -Path $temp -RunId 'r1' -ToolVersion 'Rev3.4'
+            Export-DecomRedactionReportJson -Profile $p -Path $temp -RunId 'r1' -ToolVersion 'Rev3.6'
             $json = Get-Content $temp -Raw | ConvertFrom-Json
             $json.TokenCount | Should -Be 1
         } finally {
@@ -249,7 +249,7 @@ F001,Identity,High,alice@contoso.com,aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb
         $p    = New-DecomRedactionProfile -ProfileName PublicDemo
         $temp = [System.IO.Path]::GetTempFileName()
         try {
-            Export-DecomRedactionReportMarkdown -Profile $p -Path $temp -RunId 'run-md-001' -ToolVersion 'Rev3.4' -RedactedFileCount 2
+            Export-DecomRedactionReportMarkdown -Profile $p -Path $temp -RunId 'run-md-001' -ToolVersion 'Rev3.6' -RedactedFileCount 2
             $content = Get-Content $temp -Raw
             $content | Should -Match '# Redaction Report'
             $content | Should -Match 'SchemaVersion'

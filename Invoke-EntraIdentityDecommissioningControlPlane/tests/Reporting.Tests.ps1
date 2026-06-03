@@ -274,11 +274,11 @@ Describe 'Rev1.1 Reporting Tests' {
     }
 
     Context 'Rev2.2 reporting coverage' {
-        It 'JSON export SchemaVersion is 3.4' {
+        It 'JSON export SchemaVersion is 3.6' {
             $path = Join-Path $TestDrive 'rev24-schema.json'
             Export-DecomAssessmentJson -Findings $script:TestFindings -Path $path -Context $script:TestContext
             $json = Get-Content $path -Raw | ConvertFrom-Json
-            $json.SchemaVersion | Should -Be '3.4'
+            $json.SchemaVersion | Should -Be '3.6'
         }
 
         It 'HTML renders without null crash for Rev2.2 PIM finding' {

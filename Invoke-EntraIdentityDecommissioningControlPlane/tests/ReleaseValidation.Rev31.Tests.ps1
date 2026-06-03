@@ -65,7 +65,7 @@ Describe 'Safety — Rev3.1 Write Isolation and Guest Safety Invariants' {
 
     It 'Entry point ToolVersion is Rev3.5' {
         $content = Get-Content $script:EntryPointPath -Raw
-        $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.5'"
+        $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.6'"
     }
 
     It 'Entry point write scopes include GroupMember.ReadWrite.All' {

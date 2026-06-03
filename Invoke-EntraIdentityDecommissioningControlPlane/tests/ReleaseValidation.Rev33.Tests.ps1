@@ -42,9 +42,9 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
 
     # ── Item 1-2: Entry point and version checks ──
 
-    It 'Entry point ToolVersion is Rev3.5' {
+    It 'Entry point ToolVersion is Rev3.6' {
         $content = Get-Content $script:EntryPoint -Raw
-        $content | Should -Match '\$script:ToolVersion\s*=\s*[''"]Rev3\.5[''"]'
+        $content | Should -Match '\$script:ToolVersion\s*=\s*[''"]Rev3\.6[''"]'
     }
 
     It 'ReleaseValidation.psm1 source references Rev3.2 (backward compat case)' {

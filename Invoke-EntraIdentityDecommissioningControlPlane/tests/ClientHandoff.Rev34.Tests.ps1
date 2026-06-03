@@ -11,7 +11,7 @@ Describe 'ClientHandoff' {
 
         # Shared context used across tests
         $script:TestContext = [pscustomobject]@{
-            ToolVersion  = 'Rev3.4'
+            ToolVersion  = 'Rev3.6'
             EngagementId = 'eng-test-001'
             ClientName   = 'Test Client'
             TenantId     = 'tenant-test-001'
@@ -20,7 +20,7 @@ Describe 'ClientHandoff' {
 
     # ── New-DecomClientHandoffPackage / Export-DecomClientHandoffManifestJson ──
 
-    It 'Client handoff manifest exported — JSON valid and SchemaVersion is 3.4' {
+    It 'Client handoff manifest exported — JSON valid and SchemaVersion is 3.6' {
         $pkg  = New-DecomClientHandoffPackage `
             -Context     $script:TestContext `
             -RunId       'run-ch-001' `
@@ -31,7 +31,7 @@ Describe 'ClientHandoff' {
             Export-DecomClientHandoffManifestJson -Package $pkg -Path $temp
             $json = Get-Content $temp -Raw | ConvertFrom-Json
             $json | Should -Not -BeNullOrEmpty
-            $json.SchemaVersion | Should -Be '3.4'
+            $json.SchemaVersion | Should -Be '3.6'
         } finally {
             Remove-Item $temp -Force -ErrorAction SilentlyContinue
         }
