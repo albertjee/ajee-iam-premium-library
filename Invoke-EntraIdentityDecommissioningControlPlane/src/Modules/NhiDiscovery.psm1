@@ -1,3 +1,5 @@
+#Requires -Version 5.1
+
 $script:HighRiskAppPermissions = @(
     'Directory.ReadWrite.All', 'Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All',
     'RoleManagement.ReadWrite.Directory', 'PrivilegedAccess.ReadWrite.AzureAD',
@@ -30,13 +32,11 @@ function Get-DecomNhiApplications {
 
 function Get-DecomNhiOwners {
     param([string]$ObjectId, [string]$ObjectType = 'ServicePrincipal')
-    try {
-        if ($ObjectType -eq 'Application') {
-            Get-MgApplicationOwner -ApplicationId $ObjectId -ErrorAction Stop
-        } else {
-            Get-MgServicePrincipalOwner -ServicePrincipalId $ObjectId -ErrorAction Stop
-        }
-    } catch { return @() }
+    if ($ObjectType -eq 'Application') {
+        Get-MgApplicationOwner -ApplicationId $ObjectId -ErrorAction Stop
+    } else {
+        Get-MgServicePrincipalOwner -ServicePrincipalId $ObjectId -ErrorAction Stop
+    }
 }
 
 function Get-DecomNhiCredentials {
@@ -49,16 +49,12 @@ function Get-DecomNhiCredentials {
 
 function Get-DecomNhiAppRoleAssignments {
     param([string]$ServicePrincipalId)
-    try {
-        Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ServicePrincipalId -ErrorAction Stop
-    } catch { return @() }
+    Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ServicePrincipalId -ErrorAction Stop
 }
 
 function Get-DecomNhiOAuthGrants {
     param([string]$ServicePrincipalId)
-    try {
-        Get-MgServicePrincipalOauth2PermissionGrant -ServicePrincipalId $ServicePrincipalId -ErrorAction Stop
-    } catch { return @() }
+    Get-MgServicePrincipalOauth2PermissionGrant -ServicePrincipalId $ServicePrincipalId -ErrorAction Stop
 }
 
 function Get-DecomNhiPublisherVerification {
@@ -167,6 +163,9 @@ function Invoke-DecomNhiDiscovery {
     Write-DecomInfo "Processing $($servicePrincipals.Count) service principals..."
     foreach ($sp in $servicePrincipals) {
         try {
+            $riskUnderstated = $false
+            $coverageNotes   = @()
+
             # In DemoMode, use pre-populated synthetic data fields; in real mode, call Graph
             if ($Context.DemoMode -and ($sp.PSObject.Properties.Name -contains 'Owners')) {
                 $owners             = if ($sp.Owners)             { $sp.Owners }             else { @() }
@@ -174,10 +173,31 @@ function Invoke-DecomNhiDiscovery {
                 $appRoleAssignments = if ($sp.AppRoleAssignments) { $sp.AppRoleAssignments } else { @() }
                 $oauthGrants        = if ($sp.OAuthGrants)        { $sp.OAuthGrants }        else { @() }
             } else {
-                $owners             = Get-DecomNhiOwners -ObjectId $sp.Id -ObjectType 'ServicePrincipal'
-                $credentials        = Get-DecomNhiCredentials -ServicePrincipalOrApp $sp
-                $appRoleAssignments = Get-DecomNhiAppRoleAssignments -ServicePrincipalId $sp.Id
-                $oauthGrants        = Get-DecomNhiOAuthGrants -ServicePrincipalId $sp.Id
+                try {
+                    $owners = @(Get-DecomNhiOwners -ObjectId $sp.Id -ObjectType 'ServicePrincipal')
+                } catch {
+                    $owners = @()
+                    $riskUnderstated = $true
+                    $coverageNotes += 'Owner data unavailable'
+                }
+
+                $credentials = Get-DecomNhiCredentials -ServicePrincipalOrApp $sp
+
+                try {
+                    $appRoleAssignments = @(Get-DecomNhiAppRoleAssignments -ServicePrincipalId $sp.Id)
+                } catch {
+                    $appRoleAssignments = @()
+                    $riskUnderstated = $true
+                    $coverageNotes += 'App role assignment data unavailable'
+                }
+
+                try {
+                    $oauthGrants = @(Get-DecomNhiOAuthGrants -ServicePrincipalId $sp.Id)
+                } catch {
+                    $oauthGrants = @()
+                    $riskUnderstated = $true
+                    $coverageNotes += 'OAuth grant data unavailable'
+                }
             }
             $highRiskPermissions = Get-DecomNhiHighRiskPermissions -AppRoleAssignments $appRoleAssignments -OAuthGrants $oauthGrants
             $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $sp.PublisherName -VerifiedPublisher $sp.VerifiedPublisher
@@ -227,8 +247,8 @@ function Invoke-DecomNhiDiscovery {
                 RiskScore = 0  # Will be calculated in analysis
                 Severity = 'Informational'
                 CoverageMode = 'Full'
-                CoverageLimitations = @()
-                RiskScoreMayBeUnderstated = $false
+                CoverageLimitations = $coverageNotes
+                RiskScoreMayBeUnderstated = $riskUnderstated
                 EvidenceSource = 'graph'
                 EvidenceConfidence = 'High'
 

@@ -805,6 +805,62 @@ if ($GenerateEvidenceBundle -or $GenerateRedactedPackage -or $GenerateTraceabili
     } catch { Write-DecomWarn "Output manifest skipped: $_" }
 }
 
+# ── Rev3.5 NHI Governance Pack ────────────────────────────────────────────────
+
+if ($GenerateNhiGovernancePack) {
+    try {
+        Write-DecomInfo "Generating NHI governance pack..."
+
+        # Discover NHI inventory
+        $nhiInventory = Invoke-DecomNhiDiscovery -Context $Context
+
+        # Analyze NHI objects
+        $nhiAnalyzed = Invoke-DecomNhiAnalysis -NhiInventory $nhiInventory -Context $Context
+
+        # Generate governance findings
+        $nhiGovernanceFindings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects $nhiAnalyzed -Context $Context
+
+        # Generate NHI reporting outputs (writes nhi-* files to $Context.OutputPath = $RunFolder)
+        Invoke-DecomNhiReporting -NhiInventory $nhiAnalyzed -NhiGovernanceFindings $nhiGovernanceFindings -Context $Context
+
+        Write-DecomOk "NHI governance pack generation complete"
+
+        # Register NHI outputs in OutputManifest and EvidenceBundle
+        $nhiOutputFiles = Get-ChildItem -Path $RunFolder -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'nhi-*' -or $_.Name -like '*-nhi-*' }
+
+        if ($nhiOutputFiles.Count -gt 0) {
+            try {
+                Import-Module (Join-Path $script:ModulesPath 'OutputManifest.psm1') -Force -DisableNameChecking -ErrorAction Stop
+                $nhiOm = New-DecomOutputManifest -Context $Context -RunId $hardeningRunId -OutputRoot $RunFolder
+                foreach ($f in $nhiOutputFiles) {
+                    $nhiOm = Add-DecomOutputManifestItem -Manifest $nhiOm `
+                        -FilePath $f.FullName -Category 'Assessment' -Sensitivity 'Confidential'
+                }
+                $nhiOmPath = Join-Path $RunFolder "nhi-output-manifest-$hardeningTimestamp.json"
+                Export-DecomOutputManifestJson -Manifest $nhiOm -Path $nhiOmPath
+                Write-DecomOk "NHI output manifest: $nhiOmPath"
+            } catch { Write-DecomWarn "NHI output manifest skipped: $_" }
+
+            try {
+                Import-Module (Join-Path $script:ModulesPath 'EvidenceBundle.psm1') -Force -DisableNameChecking -ErrorAction Stop
+                $nhiEb = New-DecomEvidenceBundle -Context $Context -RunId $hardeningRunId `
+                    -BundleId ([guid]::NewGuid().ToString()) `
+                    -SourceOutputPath $RunFolder `
+                    -BundleOutputPath (Join-Path $RunFolder 'nhi-evidence-bundle')
+                New-Item -ItemType Directory -Path $nhiEb.BundleOutputPath -Force | Out-Null
+                foreach ($f in $nhiOutputFiles) {
+                    $nhiEb = Add-DecomEvidenceBundleFile -Bundle $nhiEb `
+                        -FilePath $f.FullName -Category 'NHI'
+                }
+                $nhiEbManifestPath = Join-Path $nhiEb.BundleOutputPath "nhi-evidence-bundle-manifest-$hardeningTimestamp.json"
+                Export-DecomEvidenceBundleManifestJson -Bundle $nhiEb -Path $nhiEbManifestPath
+                Write-DecomOk "NHI evidence bundle: $nhiEbManifestPath"
+            } catch { Write-DecomWarn "NHI evidence bundle skipped: $_" }
+        }
+    } catch { Write-DecomWarn "NHI governance pack skipped: $_" }
+}
+
 Write-Host ''
 Write-Host ('=' * 64) -ForegroundColor DarkCyan
 Write-Host '  Assessment complete.' -ForegroundColor Cyan

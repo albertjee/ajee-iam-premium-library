@@ -256,4 +256,30 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
             $spResults | ForEach-Object { $_.NhiCandidate | Should -Be $true }
         }
     }
+
+    # ── Microsoft first-party exclusion ───────────────────────────────────────
+
+    Context 'Microsoft first-party SPN exclusion' {
+
+        It 'Microsoft first-party SPN does not generate DEC-NHI findings' {
+            $msftSp = script:New-TestNhiObject -DisplayName 'Microsoft Graph' -Publisher 'Microsoft Corporation'
+            $ctx = [PSCustomObject]@{ DemoMode = $false }
+            $results = Invoke-DecomNhiAnalysis -NhiObjects @($msftSp) -Context $ctx
+            $results | Should -BeNullOrEmpty
+        }
+
+        It 'Microsoft first-party SPN does not generate DEC-AGENT findings' {
+            $msftAgent = script:New-TestNhiObject -DisplayName 'Azure AI Foundry' -Publisher 'Microsoft Corporation'
+            $ctx = [PSCustomObject]@{ DemoMode = $false }
+            $results = Invoke-DecomNhiAnalysis -NhiObjects @($msftAgent) -Context $ctx
+            $results | Should -BeNullOrEmpty
+        }
+
+        It 'Non-Microsoft SPN generates NHI findings when criteria met' {
+            $thirdPartySp = script:New-TestNhiObject -DisplayName 'copilot-hr-agent' -Publisher 'Contoso Corp'
+            $ctx = [PSCustomObject]@{ DemoMode = $false }
+            $results = Invoke-DecomNhiAnalysis -NhiObjects @($thirdPartySp) -Context $ctx
+            $results | Should -Not -BeNullOrEmpty
+        }
+    }
 }

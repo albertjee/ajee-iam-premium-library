@@ -165,4 +165,85 @@ Describe 'NhiDiscovery.Rev35 — NHI Discovery Module' {
             $result.Count | Should -Be 0
         }
     }
+
+    # ── PS5.1 requirement ─────────────────────────────────────────────────────
+
+    Context 'Module PS version requirement' {
+
+        It 'NhiDiscovery module declares PS5.1 requirement' {
+            $content = Get-Content (Join-Path $script:ModulesPath 'NhiDiscovery.psm1') -Raw
+            $content | Should -Match '#Requires -Version 5\.1'
+        }
+    }
+
+    # ── RiskScoreMayBeUnderstated flag ────────────────────────────────────────
+
+    Context 'RiskScoreMayBeUnderstated coverage flag' {
+
+        It 'RiskScoreMayBeUnderstated is true when OAuth grant collection fails' {
+            # Mock Get-MgServicePrincipalOauth2PermissionGrant to throw
+            Mock Get-MgServicePrincipalOauth2PermissionGrant { throw 'Insufficient privileges' } -ModuleName NhiDiscovery
+
+            $sp = [PSCustomObject]@{
+                Id = 'sp-test-001'; AppId = 'app-001'; DisplayName = 'test-sp'
+                ServicePrincipalType = 'Application'; PublisherName = 'TestCorp'
+                VerifiedPublisher = $null; AccountEnabled = $true; Tags = @()
+                AppOwnerOrganizationId = 'tenant-001'
+                KeyCredentials = @(); PasswordCredentials = @()
+            }
+            Mock Get-MgServicePrincipal { @($sp) } -ModuleName NhiDiscovery
+            Mock Get-MgApplication { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOwner { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalAppRoleAssignment { @() } -ModuleName NhiDiscovery
+
+            $ctx = [PSCustomObject]@{ DemoMode = $false; OutputPath = $env:TEMP }
+            $results = Invoke-DecomNhiDiscovery -Context $ctx
+            $results | Where-Object { $_.DisplayName -eq 'test-sp' } |
+                Select-Object -ExpandProperty RiskScoreMayBeUnderstated |
+                Should -Be $true
+        }
+
+        It 'RiskScoreMayBeUnderstated is true when app role assignment collection fails' {
+            Mock Get-MgServicePrincipalAppRoleAssignment { throw 'Insufficient privileges' } -ModuleName NhiDiscovery
+
+            $sp = [PSCustomObject]@{
+                Id = 'sp-test-002'; AppId = 'app-002'; DisplayName = 'test-sp-approle'
+                ServicePrincipalType = 'Application'; PublisherName = 'TestCorp'
+                VerifiedPublisher = $null; AccountEnabled = $true; Tags = @()
+                AppOwnerOrganizationId = 'tenant-001'
+                KeyCredentials = @(); PasswordCredentials = @()
+            }
+            Mock Get-MgServicePrincipal { @($sp) } -ModuleName NhiDiscovery
+            Mock Get-MgApplication { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOwner { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOauth2PermissionGrant { @() } -ModuleName NhiDiscovery
+
+            $ctx = [PSCustomObject]@{ DemoMode = $false; OutputPath = $env:TEMP }
+            $results = Invoke-DecomNhiDiscovery -Context $ctx
+            $results | Where-Object { $_.DisplayName -eq 'test-sp-approle' } |
+                Select-Object -ExpandProperty RiskScoreMayBeUnderstated |
+                Should -Be $true
+        }
+
+        It 'RiskScoreMayBeUnderstated is false when all evidence collected successfully' {
+            $sp = [PSCustomObject]@{
+                Id = 'sp-test-003'; AppId = 'app-003'; DisplayName = 'test-sp-clean'
+                ServicePrincipalType = 'Application'; PublisherName = 'TestCorp'
+                VerifiedPublisher = $null; AccountEnabled = $true; Tags = @()
+                AppOwnerOrganizationId = 'tenant-001'
+                KeyCredentials = @(); PasswordCredentials = @()
+            }
+            Mock Get-MgServicePrincipal { @($sp) } -ModuleName NhiDiscovery
+            Mock Get-MgApplication { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOwner { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalAppRoleAssignment { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOauth2PermissionGrant { @() } -ModuleName NhiDiscovery
+
+            $ctx = [PSCustomObject]@{ DemoMode = $false; OutputPath = $env:TEMP }
+            $results = Invoke-DecomNhiDiscovery -Context $ctx
+            $results | Where-Object { $_.DisplayName -eq 'test-sp-clean' } |
+                Select-Object -ExpandProperty RiskScoreMayBeUnderstated |
+                Should -Be $false
+        }
+    }
 }

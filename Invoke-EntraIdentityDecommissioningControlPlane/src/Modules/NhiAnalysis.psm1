@@ -251,6 +251,12 @@ function Invoke-DecomNhiAnalysis {
     $analyzedObjects = @()
 
     foreach ($nhiObject in $NhiObjects) {
+        # Skip Microsoft first-party SPNs entirely
+        if ($nhiObject.FirstPartyMicrosoftApp -eq $true) {
+            Write-Verbose "Excluded Microsoft first-party SPN '$($nhiObject.DisplayName)' (reason: MicrosoftFirstParty)"
+            continue
+        }
+
         try {
             # Get classification
             $classificationResult = Get-DecomNhiClassificationScore -NhiObject $nhiObject
