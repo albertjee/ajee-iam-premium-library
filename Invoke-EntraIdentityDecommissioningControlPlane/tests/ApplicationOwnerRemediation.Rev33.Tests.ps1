@@ -14,7 +14,7 @@ Describe 'ApplicationOwnerRemediation.Rev33 — Application Owner Governance Pac
         New-Item -ItemType Directory -Path $script:testDir -Force | Out-Null
 
         $script:Context = @{
-            ToolVersion  = 'Rev3.3'
+            ToolVersion  = 'Rev3.5'
             ClientName   = 'TestClient'
             EngagementId = 'ENG-33-AO'
             Assessor     = 'TestAssessor'

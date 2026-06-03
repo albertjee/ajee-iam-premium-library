@@ -1,0 +1,294 @@
+#Requires -Version 5.1
+
+# NHI Classification Constants
+$script:NhiClassificationPatterns = @(
+    @{ Pattern = 'serviceprincipaltype'; Value = 'ServiceIdentity'; Score = 50; Confidence = 'High'; Category = 'ServicePrincipalType = ServiceIdentity' },
+    @{ Pattern = 'agent|copilot|openai|azureai|foundry|llm|gpt'; Value = $true; Score = 35; Confidence = 'Medium'; Category = 'Agent/Automation Naming Pattern' },
+    @{ Pattern = 'automation|workflow|orchestrator|runner|bot'; Value = $true; Score = 25; Confidence = 'Medium'; Category = 'Automation Naming Pattern' },
+    @{ Pattern = 'svc|service|daemon|worker|sync|scheduler|job'; Value = $true; Score = 15; Confidence = 'Low'; Category = 'Service/Worker Naming Pattern' }
+)
+
+$script:NhiFirstPartyMicrosoftPatterns = @(
+    'Microsoft Corporation'
+)
+
+function Get-DecomNhiClassificationScore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$NhiObject
+    )
+
+    $score = 0
+    $signals = @()
+    $confidenceLevels = @()
+
+    # Check ServicePrincipalType = ServiceIdentity
+    if ($NhiObject.ServicePrincipalType -eq 'ServiceIdentity') {
+        $score += 50
+        $signals += 'ServicePrincipalType = ServiceIdentity'
+        $confidenceLevels += 'High'
+    }
+
+    # Check naming patterns
+    $displayNameLower = $NhiObject.DisplayName.ToLower()
+    foreach ($pattern in $script:NhiClassificationPatterns) {
+        if ($pattern.Pattern -eq 'serviceprincipaltype') {
+            # Already checked above
+            continue
+        }
+
+        if ($displayNameLower -match $pattern.Pattern) {
+            $score += $pattern.Score
+            $signals += $pattern.Category
+            $confidenceLevels += $pattern.Confidence
+        }
+    }
+
+    # Check credential-bearing app
+    if ($NhiObject.CredentialCount -gt 0) {
+        $score += 10
+        $signals += 'Credential-bearing app'
+        $confidenceLevels += 'Low'
+    }
+
+    # Check high-risk Graph permissions
+    if ($NhiObject.HighRiskPermissionCount -gt 0) {
+        $score += 15
+        $signals += 'High-risk Graph application permission'
+        $confidenceLevels += 'Medium'
+    }
+
+    # Check tenant-wide consent
+    if ($NhiObject.TenantWideConsent) {
+        $score += 15
+        $signals += 'Tenant-wide AllPrincipals consent'
+        $confidenceLevels += 'Medium'
+    }
+
+    # Check ownership gaps
+    if ($NhiObject.OwnerCount -eq 0) {
+        $score += 15
+        $signals += 'No owner'
+        $confidenceLevels += 'Medium'
+    } elseif ($NhiObject.OwnerCount -eq 1) {
+        $score += 8
+        $signals += 'Single owner'
+        $confidenceLevels += 'Low'
+    }
+
+    # Check verified publisher missing
+    if (-not $NhiObject.IsVerifiedPublisher) {
+        $score += 8
+        $signals += 'Verified publisher missing'
+        $confidenceLevels += 'Low'
+    }
+
+    # Check external publisher
+    if ($NhiObject.PublisherName -and $NhiObject.PublisherName -notin $script:NhiFirstPartyMicrosoftPatterns) {
+        $score += 10
+        $signals += 'External publisher'
+        $confidenceLevels += 'Low'
+    }
+
+    # Check OAuth delegated grant present
+    if ($NhiObject.HighRiskOAuthGrantCount -gt 0) {
+        $score += 8
+        $signals += 'High-risk delegated OAuth grant present'
+        $confidenceLevels += 'Low'
+    }
+
+    # Determine final classification and confidence
+    $classification = 'Unclassified'
+    $finalConfidence = 'Unknown'
+
+    if ($NhiObject.ObjectType -eq 'ServicePrincipal') {
+        if ($NhiObject.ServicePrincipalType -eq 'ServiceIdentity') {
+            $classification = 'NativeServiceIdentity'
+        } elseif ($score -ge 50) {
+            $classification = 'LikelyAIAgent'
+        } elseif ($score -ge 30) {
+            $classification = 'LikelyAIAgent'
+        } elseif ($score -ge 15) {
+            $classification = 'LikelyAutomation'
+        } else {
+            $classification = 'UnclassifiedServicePrincipal'
+        }
+    } else {
+        # For Applications
+        if ($score -ge 50) {
+            $classification = 'LikelyAIAgent'
+        } elseif ($score -ge 30) {
+            $classification = 'LikelyAIAgent'
+        } elseif ($score -ge 15) {
+            $classification = 'LikelyAutomation'
+        } else {
+            $classification = 'UnclassifiedApplication'
+        }
+    }
+
+    # Determine confidence based on score bands
+    if ($score -ge 50) {
+        $finalConfidence = 'High'
+    } elseif ($score -ge 30) {
+        $finalConfidence = 'Medium'
+    } elseif ($score -ge 15) {
+        $finalConfidence = 'Low'
+    } else {
+        $finalConfidence = 'Unknown'
+    }
+
+    return [PSCustomObject]@{
+        ClassificationScore = $score
+        Classification = $classification
+        ClassificationConfidence = $finalConfidence
+        ClassificationSignals = $signals
+    }
+}
+
+function Get-DecomNhiRiskScore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$NhiObject,
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$ClassificationResult
+    )
+
+    # Base risk score from classification
+    $baseScore = $ClassificationResult.ClassificationScore
+
+    # Risk factors that increase score
+    $riskScore = $baseScore
+
+    # Ensure score stays within bounds
+    if ($riskScore -lt 0) { $riskScore = 0 }
+    if ($riskScore -gt 100) { $riskScore = 100 }
+
+    return [int]$riskScore
+}
+
+function Get-DecomNhiSeverityFromRiskScore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$RiskScore
+    )
+
+    if ($RiskScore -ge 85) { return 'Critical' }
+    if ($RiskScore -ge 70) { return 'High' }
+    if ($RiskScore -ge 44) { return 'Medium' }
+    if ($RiskScore -ge 15) { return 'Low' }
+    return 'Informational'
+}
+
+function Get-DecomNhiRemediationMode {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FindingId,
+        [string]$Classification,
+        [bool]$ExactTargetAvailable
+    )
+
+    # Map finding IDs to remediation modes based on build prompt
+    switch ($FindingId) {
+        'DEC-NHI-001' { return 'InformationOnly' }
+        'DEC-NHI-002' {
+            if ($ExactTargetAvailable) { return 'ManualApprovalRequired' }
+            else { return 'InformationOnly' }
+        }
+        'DEC-NHI-003' {
+            if ($ExactTargetAvailable) { return 'ManualApprovalRequired' }
+            else { return 'InformationOnly' }
+        }
+        'DEC-NHI-004' {
+            if ($ExactTargetAvailable) { return 'ManualApprovalRequired' }
+            else { return 'InformationOnly' }
+        }
+        'DEC-NHI-005' {
+            if ($ExactTargetAvailable) { return 'ManualApprovalRequired' }
+            else { return 'InformationOnly' }
+        }
+        'DEC-NHI-006' { return 'InformationOnly' }  # or PlanOnly
+        'DEC-NHI-007' { return 'InformationOnly' }
+        'DEC-NHI-008' { return 'InformationOnly' }
+        'DEC-NHI-009' { return 'InformationOnly' }
+        'DEC-NHI-010' { return 'InformationOnly' }
+        'DEC-NHI-011' { return 'InformationOnly' }
+        'DEC-NHI-012' {
+            if ($ExactTargetAvailable) { return 'ManualApprovalRequired' }
+            else { return 'InformationOnly' }
+        }
+        'DEC-AGENT-001' { return 'InformationOnly' }
+        'DEC-AGENT-002' { return 'InformationOnly' }
+        'DEC-AGENT-003' {
+            if ($ExactTargetAvailable) { return 'ManualApprovalRequired' }
+            else { return 'InformationOnly' }
+        }
+        'DEC-AGENT-004' { return 'InformationOnly' }
+        'DEC-AGENT-005' { return 'InformationOnly' }
+        'DEC-AGENT-006' {
+            if ($ExactTargetAvailable) { return 'ManualApprovalRequired' }
+            else { return 'InformationOnly' }
+        }
+        'DEC-AGENT-007' { return 'InformationOnly' }
+        default { return 'InformationOnly' }
+    }
+}
+
+function Invoke-DecomNhiAnalysis {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject[]]$NhiObjects,
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$Context
+    )
+
+    Write-DecomInfo "Starting NHI analysis for $($NhiObjects.Count) objects..."
+
+    $analyzedObjects = @()
+
+    foreach ($nhiObject in $NhiObjects) {
+        try {
+            # Get classification
+            $classificationResult = Get-DecomNhiClassificationScore -NhiObject $nhiObject
+
+            # Calculate risk score
+            $riskScore = Get-DecomNhiRiskScore -NhiObject $nhiObject -ClassificationResult $classificationResult
+
+            # Determine severity from risk score
+            $severity = Get-DecomNhiSeverityFromRiskScore -RiskScore $riskScore
+
+            # Determine if this is an NHI or agentic candidate
+            $isNhiCandidate = $nhiObject.ObjectType -in @('ServicePrincipal', 'Application')
+            $isAgenticCandidate = $classificationResult.Classification -in @('NativeServiceIdentity', 'LikelyAIAgent', 'LikelyAutomation')
+            $isAutomationCandidate = $classificationResult.Classification -eq 'LikelyAutomation'
+            $isWorkloadCandidate = $false  # To be determined by additional logic
+
+            # Update NHI object with analysis results
+            $analyzedObject = $nhiObject | Add-Member -NotePropertyName 'ClassificationScore' -NotePropertyValue $classificationResult.ClassificationScore -Force -PassThru |
+                Add-Member -NotePropertyName 'Classification' -NotePropertyValue $classificationResult.Classification -Force -PassThru |
+                Add-Member -NotePropertyName 'ClassificationConfidence' -NotePropertyValue $classificationResult.ClassificationConfidence -Force -PassThru |
+                Add-Member -NotePropertyName 'ClassificationSignals' -NotePropertyValue $classificationResult.ClassificationSignals -Force -PassThru |
+                Add-Member -NotePropertyName 'NhiCandidate' -NotePropertyValue $isNhiCandidate -Force -PassThru |
+                Add-Member -NotePropertyName 'AgenticCandidate' -NotePropertyValue $isAgenticCandidate -Force -PassThru |
+                Add-Member -NotePropertyName 'AutomationCandidate' -NotePropertyValue $isAutomationCandidate -Force -PassThru |
+                Add-Member -NotePropertyName 'WorkloadCandidate' -NotePropertyValue $isWorkloadCandidate -Force -PassThru |
+                Add-Member -NotePropertyName 'RiskScore' -NotePropertyValue $riskScore -Force -PassThru |
+                Add-Member -NotePropertyName 'Severity' -NotePropertyValue $severity -Force -PassThru
+
+            $analyzedObjects += $analyzedObject
+        } catch {
+            Write-Warning "Failed to analyze NHI object $($nhiObject.DisplayName): $_"
+            # Add the object anyway with default values to avoid breaking the pipeline
+            $analyzedObjects += $nhiObject
+        }
+    }
+
+    Write-DecomOk "NHI analysis complete — $($analyzedObjects.Count) object(s) analyzed"
+    return $analyzedObjects
+}
+
+Export-ModuleMember -Function Invoke-DecomNhiAnalysis, Get-DecomNhiClassificationScore, Get-DecomNhiRiskScore, Get-DecomNhiSeverityFromRiskScore, Get-DecomNhiRemediationMode

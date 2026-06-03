@@ -41,9 +41,9 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
 
     # ── Item 1-2: Entry point and version checks ──
 
-    It 'Entry point ToolVersion is Rev3.4' {
+    It 'Entry point ToolVersion is Rev3.5' {
         $content = Get-Content $script:EntryPoint -Raw
-        $content | Should -Match '\$script:ToolVersion\s*=\s*[''"]Rev3\.4[''"]'
+        $content | Should -Match '\$script:ToolVersion\s*=\s*[''"]Rev3\.5[''"]'
     }
 
     It 'ReleaseValidation.psm1 source references Rev3.2 (backward compat case)' {
@@ -171,7 +171,8 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
 
     It 'No Policy.ReadWrite.* scope appears in any operational module' {
         # Rev3CapabilityMatrix.psm1 documents it as deferred-reason text; ReleaseValidation.psm1 and WriteReadiness.psm1 reference it as forbidden/deferred scope documentation
-        $excluded = @('Rev3CapabilityMatrix.psm1', 'ReleaseValidation.psm1', 'WriteReadiness.psm1')
+        # NhiDiscovery.psm1 defines Policy.ReadWrite.All as a high-risk permission to detect, not as a scope to request
+        $excluded = @('Rev3CapabilityMatrix.psm1', 'ReleaseValidation.psm1', 'WriteReadiness.psm1', 'NhiDiscovery.psm1')
         $files = Get-ChildItem (Join-Path $script:ModulesPath '*.psm1') | Where-Object { $_.Name -notin $excluded }
         foreach ($f in $files) {
             $content = Get-Content $f.FullName -Raw

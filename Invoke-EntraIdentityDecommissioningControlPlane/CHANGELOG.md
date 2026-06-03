@@ -1,5 +1,28 @@
 # Changelog
 
+## Rev3.5 — NHI / Agentic Identity Audit and Governance Expansion (2026-06-02)
+
+### Added
+- `NhiDiscovery.psm1`: Non-Human Identity discovery and risk scoring — identifies service principals, application registrations, and agentic identity patterns via Microsoft Graph read-only API. Emits findings in DEC-NHI-001..012 and DEC-AGENT-001..007 namespaces.
+- `NhiAnalysis.psm1`: NHI classification engine — scores and classifies NHI objects as LikelyAIAgent (≥50 or ≥30 with agent signals), LikelyAutomation (≥15), or Unclassified. Scoring factors: ServiceIdentity (+50), agent pattern (+35), automation (+25), service/worker (+15), credential (+10), high-risk permission (+15), tenant-wide consent (+15), no owner (+15), single owner (+8), unverified publisher (+8), external publisher (+10). Severity mapping: Critical≥85, High≥70, Medium≥44, Low≥15, Informational<15.
+- `NhiGovernance.psm1`: NHI governance remediation planning — generates governance findings, exception registers, and remediation plan items. ManualApprovalRequired for critical NHI findings; PlanOnly for agentic identity posture items.
+- `NhiReporting.psm1`: NHI reporting outputs — executive summary (JSON), detailed findings (JSON), exception register (CSV), governance report (Markdown). All outputs are read-only.
+- 5 NHI test suites: `NhiAnalysis.Rev35.Tests.ps1`, `NhiDiscovery.Rev35.Tests.ps1`, `NhiGovernance.Rev35.Tests.ps1`, `NhiReporting.Rev35.Tests.ps1`, `NhiSafety.Rev35.Tests.ps1`.
+
+### Safety
+- Rev3.5 adds zero new write scopes. All 4 NHI modules are strictly read-only.
+- No Remove-Mg, Update-Mg, Set-Mg, New-Mg, or Invoke-MgGraphRequest in any NHI module.
+- No connect-scope requests for Application.ReadWrite, RoleManagement.ReadWrite, EntitlementManagement.ReadWrite, or Policy.ReadWrite in NHI modules.
+- NHI findings are discovery/posture outputs only — no tenant modifications.
+- Rev3.5 adds no new remediation action types to Remediation.psm1.
+- Rev3.5 WriteReadiness registry entries carry IntroducedIn = 'Rev3.5'.
+
+### Tests
+- Added 168 NHI-specific tests across 5 test files.
+- Total: 1058 tests, 0 failures (prior baseline: 890).
+
+---
+
 ## Rev3.4 P1 — Entry Point Wiring Fixes and Test Harness Correctness (2026-06-02)
 
 ### Fixed

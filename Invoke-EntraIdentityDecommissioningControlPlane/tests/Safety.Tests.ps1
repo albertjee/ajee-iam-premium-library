@@ -565,9 +565,9 @@ Describe 'Rev2.4 Safety Tests' {
             $posB    | Should -BeLessThan $posConn
         }
 
-        It 'ToolVersion is Rev3.4 in entry point' {
+        It 'ToolVersion is Rev3.5 in entry point' {
             $content = Get-Content $script:epPath24 -Raw
-            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.4'"
+            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.5'"
         }
     }
 

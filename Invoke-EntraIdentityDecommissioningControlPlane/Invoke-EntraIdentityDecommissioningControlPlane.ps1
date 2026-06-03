@@ -36,11 +36,14 @@ param(
     [switch]$GenerateApprovalDiff,
     [switch]$GenerateTraceabilityReport,
     [switch]$GenerateClientHandoff,
-    [switch]$GenerateRev35Readiness
+    [switch]$GenerateRev35Readiness,
+
+    # Rev3.5 NHI / Agentic Identity output flags
+    [switch]$GenerateNhiGovernancePack
 )
 
 # Tool version — update this single constant each release
-$script:ToolVersion = 'Rev3.4'
+$script:ToolVersion = 'Rev3.5'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -86,6 +89,10 @@ $modulesToLoad = @(
     'ReleasePackaging'
     'GuestGovernance'
     'Rev3CapabilityMatrix'
+    'NhiDiscovery'
+    'NhiAnalysis'
+    'NhiGovernance'
+    'NhiReporting'
 )
 
 foreach ($mod in $modulesToLoad) {
@@ -607,6 +614,7 @@ if ($DemoMode) {
     $GenerateApprovalDiff       = $true
     $GenerateRedactedPackage    = $true
     $GenerateEvidenceBundle     = $true
+    $GenerateNhiGovernancePack  = $true
 }
 
 # ── Rev3.4 Hardening Outputs ──────────────────────────────────────────────────

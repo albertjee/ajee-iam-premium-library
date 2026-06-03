@@ -67,8 +67,8 @@ Describe 'Rev3CapabilityMatrix.Rev33 — Capability Matrix and Rev3.4 Readiness 
             $script:Matrix.SchemaVersion | Should -Be '3.3'
         }
 
-        It 'Matrix ToolVersion is Rev3.3' {
-            $script:Matrix.ToolVersion | Should -Be 'Rev3.3'
+        It 'Matrix ToolVersion is Rev3.5' {
+            $script:Matrix.ToolVersion | Should -Be 'Rev3.5'
         }
 
         It 'Matrix includes ExecutableActions' {

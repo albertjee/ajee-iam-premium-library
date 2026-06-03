@@ -14,7 +14,7 @@ Describe 'CaExclusionRemediation.Rev33 — CA Exclusion Governance Pack Exports'
         New-Item -ItemType Directory -Path $script:testDir -Force | Out-Null
 
         $script:Context = @{
-            ToolVersion  = 'Rev3.3'
+            ToolVersion  = 'Rev3.5'
             ClientName   = 'TestClient'
             EngagementId = 'ENG-33-CAE'
             Assessor     = 'TestAssessor'

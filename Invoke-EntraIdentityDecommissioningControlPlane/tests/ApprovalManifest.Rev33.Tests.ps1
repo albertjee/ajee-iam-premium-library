@@ -40,7 +40,7 @@ Describe 'ApprovalManifest.Rev33 — Rev3.3 Action Type Validation' {
             $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actions
             $manifest = [ordered]@{
                 SchemaVersion       = '3.3'
-                ToolVersion         = 'Rev3.3'
+                ToolVersion         = 'Rev3.5'
                 GeneratedUtc        = (Get-Date).ToUniversalTime().ToString('o')
                 EngagementId        = 'ENG-33-AM'
                 ClientName          = 'TestClient'
