@@ -1,5 +1,38 @@
 # Changelog
 
+## Rev3.6 — Output Consistency, Version Hygiene, and Validation Expansion (2026-06-03)
+
+### Added
+- `Add-DecomCoverageLimitation`: NhiAnalysis helper for deduplicating coverage limitations and preserving discovery flags during analysis phase.
+- 8 Rev3.6 validation test suites (37 tests total):
+  - `VersionHygiene.Rev36.Tests.ps1`: Version consistency, historical version markers.
+  - `PS51Compatibility.Rev36.Tests.ps1`: PS5.1 parser compliance, no PS7-only syntax.
+  - `HtmlEncoding.Rev36.Tests.ps1`: Dynamic value HTML encoding in reports.
+  - `WarningHygiene.Rev36.Tests.ps1`: Silent catch block elimination, error capture.
+  - `CoverageLimitations.Rev36.Tests.ps1`: Limitation deduplication, RiskScoreMayBeUnderstated semantics.
+  - `NhiPipelineState.Rev36.Tests.ps1`: NHI pipeline state caching, single-run guarantee.
+  - `OutputManifestEvidenceCleanup.Rev36.Tests.ps1`: Manifest recursion prevention, file deduplication.
+  - `RedactionCleanup.Rev36.Tests.ps1`: Redaction module structure, error handling.
+- `TestVersionContext.ps1`: Centralized version expectation helper (single source of truth for test assertions).
+
+### Changed
+- SchemaVersion bumped to '3.6' in 12 output modules (ApprovalDiff, ApprovalManifest, ClientHandoff, EvidenceBundle, OutputManifest, Redaction, ReplayValidation, Reporting, Rev35Readiness, Rev3CapabilityMatrix, Traceability, ReleasePackaging).
+- Entry point ToolVersion updated to 'Rev3.6'.
+- Executive pack context SchemaVersion updated to '3.6'.
+
+### Fixed
+- Version hygiene: Test files with historical version references (Rev3.5 fixtures) now marked with INTENTIONAL_HISTORICAL_VERSION to prevent drift detection.
+- NHI pipeline state: Introduced caching variables ($NhiInventory, $NhiAnalyzed, $NhiGovernanceFindings, $NhiPipelineRan) to prevent duplicate NHI discovery/analysis runs on resume.
+- Output manifest deduplication: Added Get-DecomOutputFilesForManifest helper to prevent self-recursion and duplicate file entries via hashtable-based path tracking.
+- Redaction module: Replaced silent catch blocks with Write-DecomWarn error capture and exclusion of redacted folder from file enumeration (added check: $_.FullName -notmatch '\\redacted\\').
+- Pester test patterns: Fixed foreach variable capture issue in VersionHygiene test by using -TestCases parameter for dynamic test generation.
+
+### Safety
+- Rev3.6 adds zero new write scopes. All changes are output consistency and validation improvements.
+- No new remediation action types or API permissions.
+
+---
+
 ## Rev3.5 — NHI / Agentic Identity Audit and Governance Expansion (2026-06-02)
 
 ### Added
