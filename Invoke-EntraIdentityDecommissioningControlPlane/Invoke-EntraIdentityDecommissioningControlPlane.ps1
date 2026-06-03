@@ -770,8 +770,12 @@ if ($GenerateRedactedPackage) {
         $redactedDir = Join-Path $RunFolder 'redacted'
         New-Item -ItemType Directory -Path $redactedDir -Force | Out-Null
         $redactedCount = 0
+        $redactionErrors = @()
 
-        Get-ChildItem -Path $RunFolder -File | Where-Object { $_.Extension -in @('.json','.csv','.md','.html') } |
+        Get-ChildItem -Path $RunFolder -File | Where-Object {
+            $_.Extension -in @('.json','.csv','.md','.html') -and
+            $_.FullName -notmatch '\\redacted\\'
+        } |
             ForEach-Object {
                 try {
                     $raw = Get-Content $_.FullName -Raw -ErrorAction Stop
@@ -779,7 +783,10 @@ if ($GenerateRedactedPackage) {
                     $target = Join-Path $redactedDir $_.Name
                     Set-Content -Path $target -Value $redacted -Encoding UTF8
                     $redactedCount++
-                } catch { }
+                } catch {
+                    Write-DecomWarn "Redaction failed for $($_.FullName): $($_.Exception.Message)"
+                    $redactionErrors += @{ File = $_.FullName; Error = $_.Exception.Message }
+                }
             }
 
         $rdPath = Join-Path $RunFolder "redaction-report-$hardeningTimestamp.json"

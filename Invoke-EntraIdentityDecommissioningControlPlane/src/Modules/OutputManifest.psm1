@@ -420,3 +420,48 @@ function Test-DecomOutputManifest {
         }
     }
 }
+
+function Get-DecomOutputFilesForManifest {
+    <#
+    .SYNOPSIS
+    Enumerates files for manifest inclusion with de-duplication.
+    .DESCRIPTION
+    Safely enumerates output folder files for manifest inclusion, preventing:
+    - Duplicate file entries by FullPath
+    - Self-recursion (excluding manifest being written)
+    - Recursion into temp/redacted folders
+    .PARAMETER RunFolder
+    Root output folder to enumerate.
+    .PARAMETER ExcludeFolders
+    Folders to exclude from enumeration (e.g. 'redacted', 'temp').
+    .PARAMETER ExcludeFiles
+    Files to exclude by FullPath.
+    .RETURNS
+    Array of file objects sorted by path, deduplicated.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RunFolder,
+        [string[]]$ExcludeFolders = @('redacted', 'temp'),
+        [string[]]$ExcludeFiles = @()
+    )
+
+    $seenPaths = @{}
+    $result = @()
+
+    Get-ChildItem -Path $RunFolder -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Extension -in @('.json','.csv','.html','.md') -and
+            $_.FullName -notin $ExcludeFiles -and
+            -not ($ExcludeFolders | Where-Object { $_.FullName -match "\\$_\\" })
+        } |
+        ForEach-Object {
+            if (-not $seenPaths.ContainsKey($_.FullName)) {
+                $seenPaths[$_.FullName] = $true
+                $result += $_
+            }
+        }
+
+    return @($result | Sort-Object FullPath)
+}
