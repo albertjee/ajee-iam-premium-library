@@ -9,6 +9,13 @@
 - `NhiReporting.psm1`: NHI reporting outputs — executive summary (JSON), detailed findings (JSON), exception register (CSV), governance report (Markdown). All outputs are read-only.
 - 5 NHI test suites: `NhiAnalysis.Rev35.Tests.ps1`, `NhiDiscovery.Rev35.Tests.ps1`, `NhiGovernance.Rev35.Tests.ps1`, `NhiReporting.Rev35.Tests.ps1`, `NhiSafety.Rev35.Tests.ps1`.
 
+### Fixed (P1)
+- P1-01A: Entry point second NHI governance block called `Invoke-DecomNhiAnalysis -NhiInventory` (wrong parameter name); changed to `-NhiObjects`.
+- P1-01B: NHI pipeline now runs BEFORE standard exports in main assessment flow, merging NHI governance findings into main Findings array so NHI findings appear in CSV/JSON/HTML standard exports.
+- P1-03: NhiAnalysis marks `RiskScoreMayBeUnderstated = $true` and logs `CoverageLimitations` when `HighRiskPermissionCount` is unavailable (GUID resolution failed), indicating permission risk may be understated.
+- P1-04: NhiAnalysis now calculates `TenantWideConsent` and `HighRiskOAuthGrantCount` from `RawOAuthGrants` array instead of leaving as null. `TenantWideConsent = $true` when any grant has `ConsentType = 'AllPrincipals'`. `HighRiskOAuthGrantCount` increments for grants with scopes matching high-risk pattern (`.All`, `.Send`, `FullControl`, `offline_access`).
+- P1-05: NhiReporting replaced PS7-only `??` null-coalescing operator with PS5.1-compatible `if ($var) { $var } else { 'default' }`. Replaced overclaiming language "comprehensive analysis of ...discovered" with "read-only assessment of Entra-visible NHI candidates using heuristic classification. Coverage is limited to Entra-visible signals only."
+
 ### Safety
 - Rev3.5 adds zero new write scopes. All 4 NHI modules are strictly read-only.
 - No Remove-Mg, Update-Mg, Set-Mg, New-Mg, or Invoke-MgGraphRequest in any NHI module.
@@ -19,7 +26,7 @@
 
 ### Tests
 - Added 168 NHI-specific tests across 5 test files.
-- Total: 1058 tests, 0 failures (prior baseline: 890).
+- Total: 1068 tests, 0 failures (prior baseline: 890).
 
 ---
 

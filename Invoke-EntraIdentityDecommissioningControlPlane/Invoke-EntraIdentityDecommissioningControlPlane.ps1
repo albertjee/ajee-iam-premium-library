@@ -401,6 +401,21 @@ $Findings = Invoke-DecomAnalysis -Findings $Findings
 $Summary  = Get-DecomFindingSummary -Findings $Findings
 Write-DecomOk "Analysis complete"
 
+if ($GenerateNhiGovernancePack -or $DemoMode) {
+    Write-DecomInfo "Generating NHI governance pack..."
+
+    # Discover NHI inventory
+    $nhiInventory = Invoke-DecomNhiDiscovery -Context $Context -DemoMode:$DemoMode
+
+    # Analyze NHI objects
+    $nhiAnalyzed = Invoke-DecomNhiAnalysis -NhiObjects $nhiInventory -Context $Context
+
+    # Generate governance findings
+    $nhiGovFindings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects $nhiAnalyzed -Context $Context
+    $Findings       = @($Findings) + @($nhiGovFindings)
+    Write-DecomOk "NHI governance pack generation complete"
+}
+
 # Baseline comparison if -BaselinePath provided
 $BaselineComparison = $null
 $BaselineSummary    = $null
@@ -815,7 +830,7 @@ if ($GenerateNhiGovernancePack) {
         $nhiInventory = Invoke-DecomNhiDiscovery -Context $Context
 
         # Analyze NHI objects
-        $nhiAnalyzed = Invoke-DecomNhiAnalysis -NhiInventory $nhiInventory -Context $Context
+        $nhiAnalyzed = Invoke-DecomNhiAnalysis -NhiObjects $nhiInventory -Context $Context
 
         # Generate governance findings
         $nhiGovernanceFindings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects $nhiAnalyzed -Context $Context

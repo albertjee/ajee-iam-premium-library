@@ -267,6 +267,30 @@ function Invoke-DecomNhiAnalysis {
             # Determine severity from risk score
             $severity = Get-DecomNhiSeverityFromRiskScore -RiskScore $riskScore
 
+            # P1-04: Calculate TenantWideConsent and HighRiskOAuthGrantCount from RawOAuthGrants
+            $tenantWideConsent = $false
+            $highRiskOAuthGrantCount = 0
+            $riskScoreMayBeUnderstated = $false
+            $coverageLimitations = @()
+
+            foreach ($grant in @($nhiObject.RawOAuthGrants)) {
+                if ($grant.ConsentType -eq 'AllPrincipals') { $tenantWideConsent = $true }
+                $scopes = @()
+                if ($grant.Scope) { $scopes = @($grant.Scope -split '\s+') }
+                foreach ($scope in $scopes) {
+                    if ($scope -match '\.(All|Send)$' -or $scope -match 'FullControl' -or $scope -eq 'offline_access') {
+                        $highRiskOAuthGrantCount++
+                        break
+                    }
+                }
+            }
+
+            # P1-03: Mark permission scoring as partial when GUID resolution unavailable
+            if (-not $nhiObject.HighRiskPermissionCount) {
+                $riskScoreMayBeUnderstated = $true
+                $coverageLimitations += 'Application role display-name resolution unavailable — permission risk may be understated'
+            }
+
             # Determine if this is an NHI or agentic candidate
             $isNhiCandidate = $nhiObject.ObjectType -in @('ServicePrincipal', 'Application')
             $isAgenticCandidate = $classificationResult.Classification -in @('NativeServiceIdentity', 'LikelyAIAgent', 'LikelyAutomation')
@@ -283,7 +307,11 @@ function Invoke-DecomNhiAnalysis {
                 Add-Member -NotePropertyName 'AutomationCandidate' -NotePropertyValue $isAutomationCandidate -Force -PassThru |
                 Add-Member -NotePropertyName 'WorkloadCandidate' -NotePropertyValue $isWorkloadCandidate -Force -PassThru |
                 Add-Member -NotePropertyName 'RiskScore' -NotePropertyValue $riskScore -Force -PassThru |
-                Add-Member -NotePropertyName 'Severity' -NotePropertyValue $severity -Force -PassThru
+                Add-Member -NotePropertyName 'Severity' -NotePropertyValue $severity -Force -PassThru |
+                Add-Member -NotePropertyName 'TenantWideConsent' -NotePropertyValue $tenantWideConsent -Force -PassThru |
+                Add-Member -NotePropertyName 'HighRiskOAuthGrantCount' -NotePropertyValue $highRiskOAuthGrantCount -Force -PassThru |
+                Add-Member -NotePropertyName 'RiskScoreMayBeUnderstated' -NotePropertyValue $riskScoreMayBeUnderstated -Force -PassThru |
+                Add-Member -NotePropertyName 'CoverageLimitations' -NotePropertyValue $coverageLimitations -Force -PassThru
 
             $analyzedObjects += $analyzedObject
         } catch {

@@ -274,11 +274,11 @@ function Invoke-DecomNhiGenerateExecutiveSummary {
 # NHI Executive Summary Report
 
 **Generated:** $(Get-Date -Format u)
-**Context:** $($Context.EnvironmentName ?? 'Unknown')
+**Context:** $(if ($Context.EnvironmentName) { $Context.EnvironmentName } else { 'Unknown' })
 
 ## Executive Overview
 
-This report provides a comprehensive analysis of Non-Human Identities (NHIs) and agentic identities discovered in the tenant. The assessment identifies potential security risks and provides recommendations for improving identity governance.
+This report provides a read-only assessment of Entra-visible NHI candidates and agentic identity indicators using heuristic classification. Coverage is limited to Entra-visible signals only.
 
 ## Key Metrics
 
@@ -525,7 +525,7 @@ function Invoke-DecomNhiGenerateAgenticReviewPacket {
 # Agentic Identity Review Packet
 
 **Generated:** $(Get-Date -Format u)
-**Context:** $($Context.EnvironmentName ?? 'Unknown')
+**Context:** $(if ($Context.EnvironmentName) { $Context.EnvironmentName } else { 'Unknown' })
 
 ## Overview
 
@@ -626,7 +626,7 @@ function Invoke-DecomNhiGenerateRev4WriteReadinessReport {
 # Rev4 NHI Write-Readiness Assessment Report
 
 **Generated:** $(Get-Date -Format u)
-**Context:** $($Context.EnvironmentName ?? 'Unknown')
+**Context:** $(if ($Context.EnvironmentName) { $Context.EnvironmentName } else { 'Unknown' })
 **Assessment Type:** Read-only discovery and analysis (Rev3.5)
 **Target State:** Prepared for Rev4 write-enabled remediation
 
