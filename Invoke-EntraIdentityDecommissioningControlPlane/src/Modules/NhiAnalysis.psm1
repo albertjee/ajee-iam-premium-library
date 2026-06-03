@@ -329,4 +329,66 @@ function Invoke-DecomNhiAnalysis {
     return $analyzedObjects
 }
 
-Export-ModuleMember -Function Invoke-DecomNhiAnalysis, Get-DecomNhiClassificationScore, Get-DecomNhiRiskScore, Get-DecomNhiSeverityFromRiskScore, Get-DecomNhiRemediationMode
+function Add-DecomCoverageLimitation {
+    <#
+    .SYNOPSIS
+    Adds a coverage limitation to an NHI analysis result with deduplication.
+    .DESCRIPTION
+    Appends a coverage limitation to an analyzed NHI object, preventing duplicates
+    and preserving discovery flags (WasDiscovered, IsAgentIdentity, etc.) during
+    the analysis phase.
+    .PARAMETER AnalyzedObject
+    The NHI object with RiskScore and analysis results.
+    .PARAMETER LimitationType
+    Type of limitation (e.g., 'RiskScoreMayBeUnderstated', 'DiscoveryIncomplete').
+    .PARAMETER Reason
+    Human-readable reason for the limitation.
+    .PARAMETER Severity
+    Severity level ('Info', 'Warning', 'Critical').
+    .RETURNS
+    Updated AnalyzedObject with limitation added (if not duplicate).
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$AnalyzedObject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$LimitationType,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Reason,
+
+        [ValidateSet('Info','Warning','Critical')]
+        [string]$Severity = 'Warning'
+    )
+
+    if (-not $AnalyzedObject.CoverageLimitations) {
+        $AnalyzedObject | Add-Member -NotePropertyName CoverageLimitations -NotePropertyValue @() -Force
+    }
+
+    $limitationHash = "$LimitationType`:$Reason"
+    # Check for unique limitation (prevent duplicates)
+    $unique = $true
+    foreach ($limitation in $AnalyzedObject.CoverageLimitations) {
+        $existingHash = "$($limitation.Type):$($limitation.Reason)"
+        if ($existingHash -eq $limitationHash) {
+            $unique = $false
+            break
+        }
+    }
+
+    if ($unique) {
+        $limitation = [pscustomobject]@{
+            Type      = $LimitationType
+            Reason    = $Reason
+            Severity  = $Severity
+            AddedUtc  = (Get-Date).ToUniversalTime().ToString('o')
+        }
+        $AnalyzedObject.CoverageLimitations += $limitation
+    }
+
+    return $AnalyzedObject
+}
+
+Export-ModuleMember -Function Invoke-DecomNhiAnalysis, Get-DecomNhiClassificationScore, Get-DecomNhiRiskScore, Get-DecomNhiSeverityFromRiskScore, Get-DecomNhiRemediationMode, Add-DecomCoverageLimitation
