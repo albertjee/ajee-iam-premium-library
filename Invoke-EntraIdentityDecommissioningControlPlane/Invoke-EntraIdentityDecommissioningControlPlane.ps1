@@ -392,6 +392,12 @@ if (-not $DemoMode -and $Mode -in @('Assessment','WhatIfRemediation','ExportPlan
     }
 }
 
+# Initialize NHI pipeline state caching (prevent duplicate execution)
+$NhiInventory = @()
+$NhiAnalyzed = @()
+$NhiGovernanceFindings = @()
+$NhiPipelineRan = $false
+
 Write-DecomInfo "Starting discovery..."
 $Findings = Invoke-DecomAssessmentDiscovery -Context $Context -DemoMode:$DemoMode
 Write-DecomOk "Discovery complete — $($Findings.Count) raw finding(s)"
@@ -405,15 +411,16 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     Write-DecomInfo "Generating NHI governance pack..."
 
     # Discover NHI inventory
-    $nhiInventory = Invoke-DecomNhiDiscovery -Context $Context -DemoMode:$DemoMode
+    $NhiInventory = Invoke-DecomNhiDiscovery -Context $Context -DemoMode:$DemoMode
 
     # Analyze NHI objects
-    $nhiAnalyzed = Invoke-DecomNhiAnalysis -NhiObjects $nhiInventory -Context $Context
+    $NhiAnalyzed = Invoke-DecomNhiAnalysis -NhiObjects $NhiInventory -Context $Context
 
     # Generate governance findings
-    $nhiGovFindings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects $nhiAnalyzed -Context $Context
-    $Findings       = @($Findings) + @($nhiGovFindings)
+    $NhiGovernanceFindings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects $NhiAnalyzed -Context $Context
+    $Findings       = @($Findings) + @($NhiGovernanceFindings)
     $Summary  = Get-DecomFindingSummary -Findings $Findings
+    $NhiPipelineRan = $true
     Write-DecomOk "NHI findings merged — total findings now $($Summary.Total)"
 }
 
@@ -827,19 +834,17 @@ if ($GenerateNhiGovernancePack) {
     try {
         Write-DecomInfo "Generating NHI governance pack..."
 
-        # Discover NHI inventory
-        $nhiInventory = Invoke-DecomNhiDiscovery -Context $Context
+        # Use cached NHI pipeline state if already ran, otherwise generate warning
+        if (-not $NhiPipelineRan) {
+            Write-DecomWarn "NHI reporting requested but NHI pipeline did not run; generating empty NHI pack with coverage warning."
+            # Do not re-run discovery/analysis/governance; just exit
+        } else {
+            # Generate NHI reporting outputs using cached state (writes nhi-* files to $Context.OutputPath = $RunFolder)
+            Invoke-DecomNhiReporting -NhiInventory $NhiAnalyzed -NhiGovernanceFindings $NhiGovernanceFindings -Context $Context
+            Write-DecomOk "NHI governance pack generation complete"
+        }
 
-        # Analyze NHI objects
-        $nhiAnalyzed = Invoke-DecomNhiAnalysis -NhiObjects $nhiInventory -Context $Context
-
-        # Generate governance findings
-        $nhiGovernanceFindings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects $nhiAnalyzed -Context $Context
-
-        # Generate NHI reporting outputs (writes nhi-* files to $Context.OutputPath = $RunFolder)
-        Invoke-DecomNhiReporting -NhiInventory $nhiAnalyzed -NhiGovernanceFindings $nhiGovernanceFindings -Context $Context
-
-        Write-DecomOk "NHI governance pack generation complete"
+        if ($NhiPipelineRan) {
 
         # Register NHI outputs in OutputManifest and EvidenceBundle
         $nhiOutputFiles = Get-ChildItem -Path $RunFolder -File -ErrorAction SilentlyContinue |
@@ -873,6 +878,7 @@ if ($GenerateNhiGovernancePack) {
                 Export-DecomEvidenceBundleManifestJson -Bundle $nhiEb -Path $nhiEbManifestPath
                 Write-DecomOk "NHI evidence bundle: $nhiEbManifestPath"
             } catch { Write-DecomWarn "NHI evidence bundle skipped: $_" }
+        }
         }
     } catch { Write-DecomWarn "NHI governance pack skipped: $_" }
 }
