@@ -9,12 +9,14 @@ Describe 'ReleaseValidation.psm1' {
         Remove-Module Utilities -Force -ErrorAction SilentlyContinue
         Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'ReleaseValidation.psm1') -Force -DisableNameChecking
+        # Import test version context helper
+        . (Join-Path $PSScriptRoot '..\tests\Rev11\TestVersionContext.ps1')
 
         $script:testOutputDir = Join-Path $env:TEMP 'Decom-RV-Test'
         New-Item -ItemType Directory -Path $script:testOutputDir -Force | Out-Null
 
         $script:context = [PSCustomObject]@{
-            ToolVersion  = 'Rev3.5'
+            ToolVersion  = (Get-DecomExpectedToolVersion)
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'

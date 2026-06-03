@@ -421,14 +421,14 @@ Describe 'ReplayValidation' {
     # ────────────────────────────────────────────────────────────────────────────
     # Structural / output shape tests
     # ────────────────────────────────────────────────────────────────────────────
-    It 'Invoke-DecomReplayValidation returns SchemaVersion 3.4' {
+    It 'Invoke-DecomReplayValidation returns SchemaVersion 3.6' {
         $result = Invoke-DecomReplayValidation -RunId 'run-schema-check'
-        $result.SchemaVersion | Should -Be '3.4'
+        $result.SchemaVersion | Should -Be '3.6'
     }
 
-    It 'Invoke-DecomReplayValidation returns ToolVersion Rev3.4' {
+    It 'Invoke-DecomReplayValidation returns ToolVersion Rev3.6' {
         $result = Invoke-DecomReplayValidation -RunId 'run-tool-check'
-        $result.ToolVersion | Should -Be 'Rev3.4'
+        $result.ToolVersion | Should -Be 'Rev3.6'
     }
 
     It 'Replay validation with no artifacts returns Passed=false' {
@@ -454,7 +454,7 @@ Describe 'ReplayValidation' {
 
             Test-Path $jsonPath | Should -Be $true
             $content = Get-Content $jsonPath -Raw | ConvertFrom-Json
-            $content.SchemaVersion | Should -Be '3.4'
+            $content.SchemaVersion | Should -Be '3.6'
             $content.RunId         | Should -Be 'run-export-test'
         } finally {
             Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue

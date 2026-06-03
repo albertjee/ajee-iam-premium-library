@@ -242,9 +242,9 @@ Describe 'RemediationPlan.Rev33 — WhatIf Generation for AddApplicationOwner an
             $action.TargetType | Should -Be 'DirectoryObjectOwner'
         }
 
-        It 'WhatIf manifest SchemaVersion is 3.3' {
+        It 'WhatIf manifest SchemaVersion is 3.6' {
             $manifest = Get-Content $script:Plan001WithOwner -Raw | ConvertFrom-Json
-            $manifest.SchemaVersion | Should -Be '3.3'
+            $manifest.SchemaVersion | Should -Be '3.6'
         }
 
         # ── Item 18: DEC-APP-001 WITHOUT NewOwnerObjectId remains plan-only ──

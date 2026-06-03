@@ -306,7 +306,7 @@ function Get-DecomSchemaContract {
         }
         'EvidenceBundleManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'RunId', 'BundleId', 'GeneratedUtc',
                     'SourceOutputPath', 'BundleOutputPath', 'FileCount', 'TotalBytes', 'Files'
@@ -316,7 +316,7 @@ function Get-DecomSchemaContract {
         }
         'EvidenceHashManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc', 'Hashes'
                 )
@@ -325,7 +325,7 @@ function Get-DecomSchemaContract {
         }
         'RedactionReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'RunId', 'ProfileName', 'TokenCount', 'RedactedFileCount', 'GeneratedUtc'
                 )
@@ -334,7 +334,7 @@ function Get-DecomSchemaContract {
         }
         'ReplayValidationReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
                     'OverallPassed', 'Checks'
@@ -344,7 +344,7 @@ function Get-DecomSchemaContract {
         }
         'ApprovalDiffReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
                     'Passed', 'DiffItems', 'Summary'
@@ -354,7 +354,7 @@ function Get-DecomSchemaContract {
         }
         'TraceabilityReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
                     'Entries', 'Summary'
@@ -364,7 +364,7 @@ function Get-DecomSchemaContract {
         }
         'ClientHandoffManifest' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
                     'EngagementId', 'ClientName', 'ValidationStatus',
@@ -375,7 +375,7 @@ function Get-DecomSchemaContract {
         }
         'Rev35ReadinessReport' {
             return [PSCustomObject]@{
-                SchemaVersion = '3.4'
+                SchemaVersion = '3.6'
                 RequiredFields = @(
                     'SchemaVersion', 'ToolVersion', 'RunId', 'GeneratedUtc',
                     'ReadinessScore', 'NhiDetectorsImplemented', 'AgentIdentityDetectorsImplemented',

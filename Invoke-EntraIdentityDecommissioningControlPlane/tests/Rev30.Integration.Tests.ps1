@@ -134,7 +134,7 @@ Describe 'Rev3.0 Integration — WriteReadiness Scope Consistency' {
         }
     }
 
-    It 'WhatIf action plan generated with empty findings has SchemaVersion 3.3 (current tool version)' {
+    It 'WhatIf action plan generated with empty findings has SchemaVersion 3.6 (current tool version)' {
         $script:ModulesPath = Join-Path $PSScriptRoot '..\src\Modules'
         foreach ($m in @('Utilities','ApprovalManifest')) {
             Remove-Module $m -Force -ErrorAction SilentlyContinue
@@ -155,7 +155,7 @@ Describe 'Rev3.0 Integration — WriteReadiness Scope Consistency' {
 
             Test-Path $planPath | Should -Be $true
             $plan = Get-Content $planPath -Raw | ConvertFrom-Json
-            $plan.SchemaVersion | Should -Be '3.3'
+            $plan.SchemaVersion | Should -Be '3.6'
         } finally {
             if (Test-Path $testDir) { Remove-Item $testDir -Recurse -Force }
             foreach ($m in @('ApprovalManifest','Utilities')) {

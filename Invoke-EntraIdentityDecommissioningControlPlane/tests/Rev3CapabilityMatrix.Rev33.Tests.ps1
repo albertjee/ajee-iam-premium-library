@@ -10,6 +10,8 @@ Describe 'Rev3CapabilityMatrix.Rev33 — Capability Matrix and Rev3.4 Readiness 
         }
         Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1')             -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'Rev3CapabilityMatrix.psm1')  -Force -DisableNameChecking
+        # Import test version context helper
+        . (Join-Path $PSScriptRoot '..\tests\Rev11\TestVersionContext.ps1')
 
         $script:testDir = Join-Path $env:TEMP "Decom-Rev33-Matrix-$(([guid]::NewGuid().Guid))"
         New-Item -ItemType Directory -Path $script:testDir -Force | Out-Null
@@ -64,12 +66,12 @@ Describe 'Rev3CapabilityMatrix.Rev33 — Capability Matrix and Rev3.4 Readiness 
 
     Context 'New-DecomRev3CapabilityMatrix model content' {
 
-        It 'Matrix SchemaVersion is 3.6' {
-            $script:Matrix.SchemaVersion | Should -Be '3.6'
+        It 'Matrix SchemaVersion is current' {
+            $script:Matrix.SchemaVersion | Should -Be (Get-DecomExpectedSchemaVersion)
         }
 
-        It 'Matrix ToolVersion is Rev3.6' {
-            $script:Matrix.ToolVersion | Should -Be 'Rev3.6'
+        It 'Matrix ToolVersion is current' {
+            $script:Matrix.ToolVersion | Should -Be (Get-DecomExpectedToolVersion)
         }
 
         It 'Matrix includes ExecutableActions' {
@@ -165,10 +167,10 @@ Describe 'Rev3CapabilityMatrix.Rev33 — Capability Matrix and Rev3.4 Readiness 
             { Get-Content $path -Raw | ConvertFrom-Json } | Should -Not -Throw
         }
 
-        It 'Exported matrix JSON SchemaVersion is 3.6' {
+        It 'Exported matrix JSON SchemaVersion is current' {
             $path = Join-Path $script:testDir 'rev3-remediation-capability-matrix-test.json'
             $json = Get-Content $path -Raw | ConvertFrom-Json
-            $json.SchemaVersion | Should -Be '3.6'
+            $json.SchemaVersion | Should -Be (Get-DecomExpectedSchemaVersion)
         }
     }
 

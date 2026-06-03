@@ -48,7 +48,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         New-DecomReleasePackage -Context $script:context -OutputPath $script:releaseDir -RequireHardeningArtifacts
         Pop-Location
 
-        $script:releaseRevDir = Join-Path $script:releaseDir 'Rev3.4'
+        $script:releaseRevDir = Join-Path $script:releaseDir 'Rev3.6'
     }
 
     AfterAll {
@@ -57,7 +57,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         Remove-Module ReleasePackaging,Utilities -Force -ErrorAction SilentlyContinue
     }
 
-    It 'Release package directory is Rev3.4' {
+    It 'Release package directory is Rev3.6' {
         Test-Path $script:releaseRevDir | Should -Be $true
     }
 
