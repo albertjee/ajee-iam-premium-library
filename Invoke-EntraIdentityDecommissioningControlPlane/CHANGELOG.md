@@ -26,6 +26,12 @@
 - Output manifest deduplication: Added Get-DecomOutputFilesForManifest helper to prevent self-recursion and duplicate file entries via hashtable-based path tracking.
 - Redaction module: Replaced silent catch blocks with Write-DecomWarn error capture and exclusion of redacted folder from file enumeration (added check: $_.FullName -notmatch '\\redacted\\').
 - Pester test patterns: Fixed foreach variable capture issue in VersionHygiene test by using -TestCases parameter for dynamic test generation.
+- Milestone 9: WarningHygiene module and 26 validation tests for silent catch block detection and error hygiene.
+- Milestone 10: HtmlEncoding module with HTML-safe value encoding in reports (34 tests).
+- WriteReadiness module: Added missing Utilities.psm1 import to enable Write-DecomOk output functions.
+- ReleaseValidation module: Updated version check from Rev3.5 to Rev3.6 (surgical update to 7 locations + compatibility array).
+- SchemaContracts AllowedValues: Updated OutputManifest schema contract to accept both '3.4' and '3.6' (historical compatibility + current version).
+- Test infrastructure: Updated ReleaseValidation.Rev25.Tests.ps1 and ReleaseValidation.Rev31.Tests.ps1 version assertions to validate Rev3.6.
 
 ### Safety
 - Rev3.6 adds zero new write scopes. All changes are output consistency and validation improvements.

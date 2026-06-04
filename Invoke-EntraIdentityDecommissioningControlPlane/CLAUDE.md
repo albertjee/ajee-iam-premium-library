@@ -166,12 +166,12 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.6 current baseline:** 1136 tests across all Rev3 modules (37 validation suites + WarningHygiene 26 tests)
+- **Rev3.6 current baseline:** 1170 tests across all Rev3 modules (HtmlEncoding 34 tests, WarningHygiene 26 tests, WriteReadiness, plus all schema validation suites)
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Detailed
   ```
-- Must show 0 failures — 1136 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures — 1170 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 
