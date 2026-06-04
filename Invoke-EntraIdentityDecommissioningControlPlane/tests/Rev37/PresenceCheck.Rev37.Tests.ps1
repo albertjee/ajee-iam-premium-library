@@ -1,6 +1,6 @@
 #Requires -Modules Pester
 
-Describe 'PresenceCheck.Rev37 — Remediation Unknown Presence State' {
+Describe 'PresenceCheck.Rev37 - Remediation Unknown Presence State' {
 
     BeforeAll {
         $script:ModPath = Join-Path $PSScriptRoot '../../src/Modules'

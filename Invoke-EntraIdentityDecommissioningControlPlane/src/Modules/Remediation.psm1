@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 
 function Confirm-DecomActionTargetValid {
     # Validates that approved target still exists and belongs to the approved object.
@@ -28,7 +28,7 @@ function Confirm-DecomActionTargetValid {
                             $result.InvalidTargets.Add("$groupId : user no longer member (already removed or state changed)")
                         }
                     } catch {
-                        $result.ValidationErrors.Add("$groupId : membership check failed — $_")
+                        $result.ValidationErrors.Add("$groupId : membership check failed - $_")
                         $result.Valid = $false
                     }
                 }
@@ -57,11 +57,11 @@ function Confirm-DecomActionTargetValid {
                         if ($null -eq $assignment) {
                             $result.InvalidTargets.Add("$roleAssignmentId : assignment not found (already removed or state changed)")
                         } elseif ($assignment.PrincipalId -ne $objectId) {
-                            $result.InvalidTargets.Add("$roleAssignmentId : PrincipalId MISMATCH — approved ObjectId=$objectId but assignment PrincipalId=$($assignment.PrincipalId) — BLOCKED")
+                            $result.InvalidTargets.Add("$roleAssignmentId : PrincipalId MISMATCH - approved ObjectId=$objectId but assignment PrincipalId=$($assignment.PrincipalId) - BLOCKED")
                             $result.Valid = $false
                         }
                     } catch {
-                        $result.ValidationErrors.Add("$roleAssignmentId : role assignment check failed — $_")
+                        $result.ValidationErrors.Add("$roleAssignmentId : role assignment check failed - $_")
                         $result.Valid = $false
                     }
                 }
@@ -90,17 +90,17 @@ function Confirm-DecomActionTargetValid {
                             }
                             if (-not $targetId) {
                                 $result.ValidationErrors.Add(
-                                    "$assignmentId : TargetId could not be resolved from assignment object — BLOCKED")
+                                    "$assignmentId : TargetId could not be resolved from assignment object - BLOCKED")
                                 $result.Valid = $false
                             } elseif ($targetId -ne $objectId) {
                                 $result.ValidationErrors.Add(
-                                    "$assignmentId : TargetId MISMATCH — approved ObjectId=$objectId " +
-                                    "but assignment TargetId=$targetId — BLOCKED")
+                                    "$assignmentId : TargetId MISMATCH - approved ObjectId=$objectId " +
+                                    "but assignment TargetId=$targetId - BLOCKED")
                                 $result.Valid = $false
                             }
                         }
                     } catch {
-                        $result.ValidationErrors.Add("$assignmentId : assignment check failed — $_")
+                        $result.ValidationErrors.Add("$assignmentId : assignment check failed - $_")
                         $result.Valid = $false
                     }
                 }
@@ -115,11 +115,11 @@ function Confirm-DecomActionTargetValid {
                         if ($null -eq $schedule) {
                             $result.InvalidTargets.Add("$scheduleId : eligible schedule not found (already removed or state changed)")
                         } elseif ($schedule.PrincipalId -ne $objectId) {
-                            $result.InvalidTargets.Add("$scheduleId : PrincipalId MISMATCH — approved ObjectId=$objectId but schedule PrincipalId=$($schedule.PrincipalId) — BLOCKED")
+                            $result.InvalidTargets.Add("$scheduleId : PrincipalId MISMATCH - approved ObjectId=$objectId but schedule PrincipalId=$($schedule.PrincipalId) - BLOCKED")
                             $result.Valid = $false
                         }
                     } catch {
-                        $result.ValidationErrors.Add("$scheduleId : eligible schedule check failed — $_")
+                        $result.ValidationErrors.Add("$scheduleId : eligible schedule check failed - $_")
                         $result.Valid = $false
                     }
                 }
@@ -142,7 +142,7 @@ function Confirm-DecomActionTargetValid {
                             $result.InvalidTargets.Add("$groupId : guest no longer member (already removed or state changed)")
                         }
                     } catch {
-                        $result.ValidationErrors.Add("$groupId : group membership check failed — $_")
+                        $result.ValidationErrors.Add("$groupId : group membership check failed - $_")
                         $result.Valid = $false
                     }
                 }
@@ -164,7 +164,7 @@ function Confirm-DecomActionTargetValid {
                         if ($null -eq $assignment) {
                             $result.InvalidTargets.Add("$assignmentId : assignment not found (already revoked or state changed)")
                         } elseif ($assignment.PrincipalId -and $assignment.PrincipalId -ne $objectId) {
-                            $result.ValidationErrors.Add("$assignmentId : PrincipalId MISMATCH — approved ObjectId=$objectId but assignment PrincipalId=$($assignment.PrincipalId) — BLOCKED")
+                            $result.ValidationErrors.Add("$assignmentId : PrincipalId MISMATCH - approved ObjectId=$objectId but assignment PrincipalId=$($assignment.PrincipalId) - BLOCKED")
                             $result.Valid = $false
                         }
                     }
@@ -185,13 +185,13 @@ function Confirm-DecomActionTargetValid {
                     break
                 }
                 if ($null -eq $app) {
-                    $result.InvalidTargets.Add("$objectId : application not found — stale target")
+                    $result.InvalidTargets.Add("$objectId : application not found - stale target")
                     break
                 }
 
                 $approvedObjectType = [string]$Action.ObjectType
                 if ($approvedObjectType -and $approvedObjectType -ne '' -and $approvedObjectType -ne 'Application') {
-                    $result.ValidationErrors.Add("ObjectType MISMATCH — approved=$approvedObjectType but RemoveExpiredApplicationCredential requires Application — BLOCKED")
+                    $result.ValidationErrors.Add("ObjectType MISMATCH - approved=$approvedObjectType but RemoveExpiredApplicationCredential requires Application - BLOCKED")
                     $result.Valid = $false
                     break
                 }
@@ -210,25 +210,25 @@ function Confirm-DecomActionTargetValid {
                     $credSource = if ($pwdCred.Count -gt 0) { 'PasswordCredential' } else { 'KeyCredential' }
 
                     if ($approvedCredType -and $approvedCredType -ne '' -and $approvedCredType -ne $credSource) {
-                        $result.ValidationErrors.Add("$keyId : CredentialType MISMATCH — approved=$approvedCredType but actual=$credSource — BLOCKED")
+                        $result.ValidationErrors.Add("$keyId : CredentialType MISMATCH - approved=$approvedCredType but actual=$credSource - BLOCKED")
                         $result.Valid = $false
                         break
                     }
                     if ($null -eq $cred.EndDateTime) {
-                        $result.ValidationErrors.Add("$keyId : EndDateTime is null — cannot confirm expired — BLOCKED")
+                        $result.ValidationErrors.Add("$keyId : EndDateTime is null - cannot confirm expired - BLOCKED")
                         $result.Valid = $false
                         break
                     }
                     $endDt = $cred.EndDateTime
                     if ($endDt -isnot [datetime]) {
                         try { $endDt = [datetime]::Parse([string]$endDt) } catch {
-                            $result.ValidationErrors.Add("$keyId : EndDateTime cannot be parsed — BLOCKED")
+                            $result.ValidationErrors.Add("$keyId : EndDateTime cannot be parsed - BLOCKED")
                             $result.Valid = $false
                             break
                         }
                     }
                     if ($endDt.ToUniversalTime() -ge $now) {
-                        $result.ValidationErrors.Add("$keyId : credential is NOT expired (EndDateTime=$($endDt.ToUniversalTime().ToString('o'))) — BLOCKED")
+                        $result.ValidationErrors.Add("$keyId : credential is NOT expired (EndDateTime=$($endDt.ToUniversalTime().ToString('o'))) - BLOCKED")
                         $result.Valid = $false
                         break
                     }
@@ -237,13 +237,13 @@ function Confirm-DecomActionTargetValid {
             'AddApplicationOwner' {
                 $newOwnerObjId = [string]$Action.NewOwnerObjectId
                 if (-not $newOwnerObjId -or $newOwnerObjId -eq '') {
-                    $result.ValidationErrors.Add("NewOwnerObjectId is missing — BLOCKED")
+                    $result.ValidationErrors.Add("NewOwnerObjectId is missing - BLOCKED")
                     $result.Valid = $false
                     break
                 }
                 $objType = [string]$Action.ObjectType
                 if ($objType -notin @('Application','ServicePrincipal','')) {
-                    $result.ValidationErrors.Add("ObjectType '$objType' is not Application or ServicePrincipal — BLOCKED")
+                    $result.ValidationErrors.Add("ObjectType '$objType' is not Application or ServicePrincipal - BLOCKED")
                     $result.Valid = $false
                     break
                 }
@@ -252,7 +252,7 @@ function Confirm-DecomActionTargetValid {
                     if ($objType -eq 'ServicePrincipal') {
                         $spn = Get-MgServicePrincipal -ServicePrincipalId $objectId -Property 'Id,DisplayName' -ErrorAction Stop
                         if ($null -eq $spn) {
-                            $result.ValidationErrors.Add("ServicePrincipal $objectId not found — BLOCKED")
+                            $result.ValidationErrors.Add("ServicePrincipal $objectId not found - BLOCKED")
                             $result.Valid = $false
                             break
                         }
@@ -265,7 +265,7 @@ function Confirm-DecomActionTargetValid {
                     } else {
                         $app = Get-MgApplication -ApplicationId $objectId -Property 'Id,DisplayName' -ErrorAction Stop
                         if ($null -eq $app) {
-                            $result.ValidationErrors.Add("Application $objectId not found — BLOCKED")
+                            $result.ValidationErrors.Add("Application $objectId not found - BLOCKED")
                             $result.Valid = $false
                             break
                         }
@@ -285,7 +285,7 @@ function Confirm-DecomActionTargetValid {
                 try {
                     $ownerObj = Get-MgDirectoryObject -DirectoryObjectId $newOwnerObjId -ErrorAction Stop
                     if ($null -eq $ownerObj) {
-                        $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId not found — BLOCKED")
+                        $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId not found - BLOCKED")
                         $result.Valid = $false
                         break
                     }
@@ -299,20 +299,20 @@ function Confirm-DecomActionTargetValid {
                     $ownerUser = Get-MgUser -UserId $newOwnerObjId -Property 'Id,AccountEnabled,UserType' -ErrorAction Stop
                     if ($null -ne $ownerUser) {
                         if ($ownerUser.AccountEnabled -eq $false) {
-                            $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId is disabled (AccountEnabled=false) — BLOCKED")
+                            $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId is disabled (AccountEnabled=false) - BLOCKED")
                             $result.Valid = $false
                             break
                         }
                         $allowGuest = if ($null -ne $Action.AllowGuestOwner) { [bool]$Action.AllowGuestOwner } else { $false }
                         if ($ownerUser.UserType -eq 'Guest' -and -not $allowGuest) {
-                            $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId is a Guest and AllowGuestOwner is not true — BLOCKED")
+                            $result.ValidationErrors.Add("NewOwnerObjectId $newOwnerObjId is a Guest and AllowGuestOwner is not true - BLOCKED")
                             $result.Valid = $false
                             break
                         }
                     }
                 } catch {
                     if ($Action.NewOwnerType -eq 'User') {
-                        $result.ValidationErrors.Add("NewOwnerType=User but user read failed for $newOwnerObjId — BLOCKED: $_")
+                        $result.ValidationErrors.Add("NewOwnerType=User but user read failed for $newOwnerObjId - BLOCKED: $_")
                         $result.Valid = $false
                         break
                     }
@@ -324,28 +324,28 @@ function Confirm-DecomActionTargetValid {
                 $principalId = if ($Action.ExcludedPrincipalId) { [string]$Action.ExcludedPrincipalId } else { $objectId }
                 $policyId    = [string]$Action.PolicyId
                 if (-not $policyId -or $policyId -eq '') {
-                    $result.ValidationErrors.Add("PolicyId missing — BLOCKED")
+                    $result.ValidationErrors.Add("PolicyId missing - BLOCKED")
                     $result.Valid = $false
                     break
                 }
                 if (-not $groupId -or $groupId -eq '') {
-                    $result.ValidationErrors.Add("ExclusionGroupId missing — BLOCKED")
+                    $result.ValidationErrors.Add("ExclusionGroupId missing - BLOCKED")
                     $result.Valid = $false
                     break
                 }
                 if (-not $principalId -or $principalId -eq '') {
-                    $result.ValidationErrors.Add("ExcludedPrincipalId missing — BLOCKED")
+                    $result.ValidationErrors.Add("ExcludedPrincipalId missing - BLOCKED")
                     $result.Valid = $false
                     break
                 }
                 # Safety: check EmergencyAccessIndicator and BreakGlassIndicator
                 if ($Action.EmergencyAccessIndicator -eq $true) {
-                    $result.ValidationErrors.Add("EmergencyAccessIndicator=true — BLOCKED")
+                    $result.ValidationErrors.Add("EmergencyAccessIndicator=true - BLOCKED")
                     $result.Valid = $false
                     break
                 }
                 if ($Action.BreakGlassIndicator -eq $true) {
-                    $result.ValidationErrors.Add("BreakGlassIndicator=true — BLOCKED")
+                    $result.ValidationErrors.Add("BreakGlassIndicator=true - BLOCKED")
                     $result.Valid = $false
                     break
                 }
@@ -353,7 +353,7 @@ function Confirm-DecomActionTargetValid {
                 try {
                     $policy = Get-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $policyId -ErrorAction Stop
                     if ($null -eq $policy) {
-                        $result.ValidationErrors.Add("CA policy $policyId not found — BLOCKED")
+                        $result.ValidationErrors.Add("CA policy $policyId not found - BLOCKED")
                         $result.Valid = $false
                         break
                     }
@@ -462,7 +462,7 @@ function Confirm-DecomGuestIdentity {
         }
         $result.UserType = [string]$user.UserType
         if ($result.UserType -ne 'Guest') {
-            $result.ErrorDetail = "UserType is '$($result.UserType)' not Guest — blocked to prevent non-guest write"
+            $result.ErrorDetail = "UserType is '$($result.UserType)' not Guest - blocked to prevent non-guest write"
             return $result
         }
         $result.Valid = $true
@@ -500,7 +500,7 @@ function Invoke-DecomRemediation {
 
         $errorDetail = ''
 
-        # Gate C: ProtectedObject — absolute block, no override
+        # Gate C: ProtectedObject - absolute block, no override
         if ($action.ProtectedObject -eq $true) {
             Add-DecomExecutionAction `
                 -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
@@ -521,7 +521,7 @@ function Invoke-DecomRemediation {
             continue
         }
 
-        # Gate C: ManualApprovalRequired — prompt unless NonInteractive is authorized
+        # Gate C: ManualApprovalRequired - prompt unless NonInteractive is authorized
         if (($script:ManualApprovalFindingIds -contains $findingId) -and (-not $AllowNonInteractive)) {
             $response = Read-Host "Execute action $actionId ($actionType) on '$displayName'? [y/n]"
             if ($response -notmatch '^[yY]') {
@@ -534,14 +534,14 @@ function Invoke-DecomRemediation {
             }
         }
 
-        # Target revalidation — confirm every target still exists and belongs to the approved object
+        # Target revalidation - confirm every target still exists and belongs to the approved object
         Write-DecomInfo "Revalidating targets for $actionId..."
         $revalidation = Confirm-DecomActionTargetValid -Action $action
 
         if (-not $revalidation.Valid) {
             $blockDetail = "Target revalidation FAILED: " +
                            (($revalidation.ValidationErrors + $revalidation.InvalidTargets) -join '; ')
-            Write-Host "[BLOCKED]   $actionId $findingId — $displayName : $blockDetail" -ForegroundColor Red
+            Write-Host "[BLOCKED]   $actionId $findingId - $displayName : $blockDetail" -ForegroundColor Red
             Add-DecomExecutionAction `
                 -ExecutionLog $ExecutionLog -ActionId $actionId -FindingId $findingId `
                 -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
@@ -723,7 +723,7 @@ function Invoke-DecomRemediation {
             }
 
             'RemoveExpiredApplicationCredential' {
-                # Read application — block if read fails
+                # Read application - block if read fails
                 $app = $null
                 try {
                     $app = Get-MgApplication -ApplicationId $objectId -ErrorAction Stop
@@ -742,7 +742,7 @@ function Invoke-DecomRemediation {
                         -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
                         -Outcome 'Blocked' -TargetObjectIds $targetIds `
                         -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
-                        -ErrorDetail "Application $objectId not found — stale target"
+                        -ErrorDetail "Application $objectId not found - stale target"
                     continue
                 }
 
@@ -752,7 +752,7 @@ function Invoke-DecomRemediation {
                     $keyCred = @($app.KeyCredentials  | Where-Object { $_.KeyId -and [string]$_.KeyId -eq $keyId })
 
                     if ($pwdCred.Count -eq 0 -and $keyCred.Count -eq 0) {
-                        # Credential already removed — Skipped, not Failed
+                        # Credential already removed - Skipped, not Failed
                         continue
                     }
 
@@ -790,7 +790,7 @@ function Invoke-DecomRemediation {
                         -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
                         -Outcome 'Blocked' -TargetObjectIds $targetIds `
                         -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
-                        -ErrorDetail "NewOwnerObjectId missing — BLOCKED"
+                        -ErrorDetail "NewOwnerObjectId missing - BLOCKED"
                     continue
                 }
                 $odataRef = "https://graph.microsoft.com/v1.0/directoryObjects/$newOwnerObjId"
@@ -835,7 +835,7 @@ function Invoke-DecomRemediation {
                         -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
                         -Outcome 'Blocked' -TargetObjectIds $targetIds `
                         -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
-                        -ErrorDetail "ExclusionGroupId or ExcludedPrincipalId missing — BLOCKED"
+                        -ErrorDetail "ExclusionGroupId or ExcludedPrincipalId missing - BLOCKED"
                     continue
                 }
                 # Safety re-check at execution time
@@ -845,7 +845,7 @@ function Invoke-DecomRemediation {
                         -ObjectId $objectId -DisplayName $displayName -ActionType $actionType `
                         -Outcome 'Blocked' -TargetObjectIds $targetIds `
                         -TargetsBefore $beforeState.PresentTargetIds -TargetsAfter @() `
-                        -ErrorDetail "EmergencyAccess/BreakGlass indicator — BLOCKED at execution time"
+                        -ErrorDetail "EmergencyAccess/BreakGlass indicator - BLOCKED at execution time"
                     continue
                 }
                 try {

@@ -1,6 +1,6 @@
 #Requires -Modules Pester
 
-Describe 'SourceIntegrity.Rev37 — Unicode and Mojibake Detection' {
+Describe 'SourceIntegrity.Rev37 - Unicode and Mojibake Detection' {
 
     Context 'CLASS 2 corruption detection' {
 
@@ -43,7 +43,7 @@ Describe 'SourceIntegrity.Rev37 — Unicode and Mojibake Detection' {
                                 }
                                 $lineNum = $crlfCount + 1
                                 $patternHex = $pattern | ForEach-Object { '0x{0:X2}' -f $_ } | Join-String -Separator ' '
-                                $violations += "$($file.FullName):$lineNum — Mojibake: $patternHex"
+                                $violations += "$($file.FullName):$lineNum - Mojibake: $patternHex"
                             }
                         }
                     }
@@ -77,7 +77,7 @@ Describe 'SourceIntegrity.Rev37 — Unicode and Mojibake Detection' {
                         if ([char]0xFFFD -in $line.ToCharArray()) {
                             $commentPos = $line.IndexOf('#')
                             if ($commentPos -eq -1 -or $line.Substring(0, $commentPos).Contains([char]0xFFFD)) {
-                                $violations += "$($file.FullName):$($lineNum + 1) — U+FFFD replacement character"
+                                $violations += "$($file.FullName):$($lineNum + 1) - U+FFFD replacement character"
                             }
                         }
                     }
@@ -111,7 +111,7 @@ Describe 'SourceIntegrity.Rev37 — Unicode and Mojibake Detection' {
                         if ([char]0x00A0 -in $line.ToCharArray()) {
                             $commentPos = $line.IndexOf('#')
                             if ($commentPos -eq -1 -or $line.Substring(0, $commentPos).Contains([char]0x00A0)) {
-                                $violations += "$($file.FullName):$($lineNum + 1) — U+00A0 non-breaking space"
+                                $violations += "$($file.FullName):$($lineNum + 1) - U+00A0 non-breaking space"
                             }
                         }
                     }
@@ -152,7 +152,7 @@ Describe 'SourceIntegrity.Rev37 — Unicode and Mojibake Detection' {
 
                             foreach ($sq in $smartQuotes) {
                                 if ($codeSection.Contains($sq)) {
-                                    $violations += "$($file.FullName):$($lineNum + 1) — Smart quote U+$('{0:X4}' -f [int][char]$sq)"
+                                    $violations += "$($file.FullName):$($lineNum + 1) - Smart quote U+$('{0:X4}' -f [int][char]$sq)"
                                     break
                                 }
                             }
