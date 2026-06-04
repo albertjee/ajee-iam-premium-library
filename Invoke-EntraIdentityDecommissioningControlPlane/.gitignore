@@ -1,0 +1,11 @@
+out/
+*.txt
+pester-*.txt
+gate3-*.txt
+failures-*.txt
+fail-*.txt
+SESSION-SUMMARY-*.md
+QA-PACKAGE-*.md
+corruption-scan.txt
+parse_errors.txt
+pester-verbose.log
