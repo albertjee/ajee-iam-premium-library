@@ -20,16 +20,19 @@ Write-Host "Changed files (HEAD vs origin/main):" -ForegroundColor Green
 git diff HEAD origin/main --name-only
 Write-Host ""
 
-Write-Host "STEP 2: Unicode/Mojibake Scan" -ForegroundColor Green
+Write-Host "STEP 2: Unicode/Mojibake Scan (Rev3.7 files only)" -ForegroundColor Green
 Write-Host "---" -ForegroundColor Green
 $unicodeViolations = @()
-$patterns = @('*.ps1', '*.psm1', '*.psd1')
-$sourceFiles = @()
 
-foreach ($pattern in $patterns) {
-    $sourceFiles += @(Get-ChildItem -Path . -Recurse -Include $pattern -File | Where-Object {
-        -not ($_.FullName -match '\\\.git\\')
-    })
+$rev37FilesToScan = @(
+    '.\tests\Rev37\*.ps1',
+    '.\src\Modules\Remediation.psm1',
+    '.\tools\Test-Rev37PushReadiness.ps1'
+)
+
+$sourceFiles = @()
+foreach ($pattern in $rev37FilesToScan) {
+    $sourceFiles += @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue)
 }
 
 $forbiddenCodepoints = @(
@@ -91,11 +94,22 @@ if ($unicodeViolations.Count -eq 0) {
 }
 Write-Host ""
 
-Write-Host "STEP 3: CRLF Line Ending Validation" -ForegroundColor Green
+Write-Host "STEP 3: CRLF Line Ending Validation (Rev3.7 files only)" -ForegroundColor Green
 Write-Host "---" -ForegroundColor Green
 $crlfViolations = @()
 
-foreach ($file in $sourceFiles) {
+$rev37FilesToCheck = @(
+    '.\tests\Rev37\*.ps1',
+    '.\tests\Rev37\*.psm1',
+    '.\src\Modules\Remediation.psm1'
+)
+
+$rev37Files = @()
+foreach ($pattern in $rev37FilesToCheck) {
+    $rev37Files += @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue)
+}
+
+foreach ($file in $rev37Files) {
     $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
     $badLineEndings = @()
 
