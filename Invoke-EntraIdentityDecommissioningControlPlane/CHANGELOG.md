@@ -1,5 +1,60 @@
 # Changelog
 
+## Rev3.7 — Polishing, Determinism, and Safety Hardening (2026-06-04)
+
+### M16 - Output Manifest Determinism
+- Fixed intermittent test failure in OutputManifest.Rev34.Tests.ps1 ("Output manifest includes redacted files").
+- Ensured redacted file is generated deterministically, registered in manifest, and discoverable by test.
+- OutputManifest verification documentation added.
+
+### M17 - Remediation Presence-Check Unknown State
+- Enhanced Remediation.psm1 (lines ~928, 940, 951) to distinguish three presence-check states:
+  - `ConfirmedPresent`: Graph read succeeded, target exists
+  - `ConfirmedAbsent`: Graph read succeeded, target absent
+  - `Unknown`: Graph read failed, error sanitized in output
+- Affected actions: `RemoveGroupMembership`, `RevokeAppRoleAssignment`, `RemoveDirectoryRoleAssignment`
+- Silent read-failure-as-absence behavior removed; Unknown state now visible in output and remediation readiness.
+- Added 9 new tests covering all three states per action type.
+
+### M18 - Source Integrity Gates
+- **M18a - Unicode/Mojibake Scanner**: Created `tests/Rev37/SourceIntegrity.Rev37.Tests.ps1`
+  - Blocks U+FFFD (replacement char), U+2010–U+2015 (Unicode dashes), U+00A0 (NBSP), smart quotes, mojibake byte sequences
+  - Reports exact file and line number for offending source
+  - 4 new tests validating scanner coverage
+- **M18b - CRLF Validation**: Added `tests/Rev37/LineEndings.Rev37.Tests.ps1`
+  - Validates CRLF in all .ps1, .psm1, .psd1 files
+  - Detection-only; no auto-rewrite during test execution
+- **M18c - Git Attributes**: Added `.gitattributes` to enforce CRLF on future commits
+  - Applied to: *.ps1, *.psm1, *.psd1, *.md, *.json, *.csv
+
+### M19 - Push Readiness Harness
+- Created `tools/Test-Rev37PushReadiness.ps1` (non-mutating pre-push validation)
+- Includes: git status, git diff HEAD origin/main, Unicode/mojibake scan, CRLF scan, AST parse of all source, import smoke tests
+- Switches: `-RunPester` (optional) to execute full Pester suite
+- Exit code 0 on all checks pass; non-zero on failure
+- Reports changed files clearly; no repo state mutation
+
+### M20 - Documentation Polish
+- Updated CLAUDE.md:
+  - Canonical test count: 1165 → 1179
+  - Current revision: Rev3.6 → Rev3.7
+  - Added Section 13 (Rev3.7 Source Integrity Rules): Unicode blocking, mojibake detection, CRLF preservation, Gate 1 inline pwsh rule
+  - Added Section 14 (Final Validation Standards): raw output requirement, git diff verbatim reporting
+- Updated CHANGELOG.md with Rev3.7 summary
+- Added `docs/Rev3.7-ReleaseNotes.md`: purpose, what changed, validation environment, final test result, known issues
+
+### Tests
+- Total: 1179 tests, 0 failures
+- Added tests: 9 (M17 presence-check), 4 (M18a source integrity), included in suite baseline
+
+### Safety
+- Rev3.7 adds zero new write scopes. All changes are determinism, safety hardening, and documentation.
+- No new remediation action types.
+- No new tenant modification behavior.
+- All source integrity gates are read-only validation.
+
+---
+
 ## Rev3.6 — Output Consistency, Version Hygiene, and Validation Expansion (2026-06-03)
 
 ### Added

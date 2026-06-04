@@ -88,7 +88,7 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 **Project name:** Entra Identity Decommissioning Control Plane
 **Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`
 **Primary language:** PowerShell 7+
-**Current revision:** Rev3.6
+**Current revision:** Rev3.7
 **Push policy:** Albert pushes manually
 
 ---
@@ -168,12 +168,12 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.6 current baseline:** 1165 tests across all Rev3 modules (HtmlEncoding 34 tests, WarningHygiene 26 tests, WriteReadiness, plus all schema validation suites; PS51Compatibility removed)
+- **Rev3.7 current baseline:** 1179 tests across all Rev3 modules (includes M16–M20 determinism, presence-check Unknown state, source integrity gates, push readiness harness, and documentation polish; 14 new tests added)
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Detailed
   ```
-- Must show 0 failures — 1165 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures — 1179 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 
@@ -183,7 +183,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 1165 tests passing |
+| Tests | 0 failures, ≥ 1179 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 
@@ -211,7 +211,71 @@ This ensures all Write-Decom* functions are available when modules are imported 
 
 When writing files programmatically, use `[System.IO.File]::WriteAllText()` with explicit UTF-8 encoding:
 ```powershell
-[System.IO.File]::WriteAllText('<path>', $content, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText('<path>', $content, [System.Text.UTF8Encoding]::new($false))
+```
+
+Or for line arrays:
+```powershell
+[System.IO.File]::WriteAllLines('<path>', $lines, [System.Text.UTF8Encoding]::new($false))
 ```
 
 Remove any legacy Windows PowerShell 5.1 BOM requirements from generated files.
+
+---
+
+## 13. Rev3.7 Source Integrity Rules
+
+**No corrupt Unicode or mojibake in executable source.** Do not introduce these characters in any .ps1, .psm1, or .psd1 file:
+
+```text
+U+FFFD  replacement character
+U+2010–U+2015  Unicode dash characters (em dash, en dash, hyphen, etc.)
+U+2212  mathematical minus sign
+U+00A0  non-breaking space
+U+2018, U+2019, U+201C, U+201D  smart quotes
+UTF-8 mojibake byte sequences: 0xC3 0xA2 0xC2 0x80 0xC2 0x94 (em dash artifact)
+                               0xC3 0xA2 0xC2 0x80 0xC2 0x93 (en dash artifact)
+```
+
+Use plain ASCII hyphens (-), normal ASCII quotation marks ("), and standard ASCII spaces only. Do NOT place em dashes, en dashes, or non-ASCII characters inside inline catch block comments — this breaks module loading under pwsh:
+
+```powershell
+# WRONG - em dash in catch comment breaks module loading
+} catch { $null = $null # Silenced: failure treated – as absent }
+
+# CORRECT - plain ASCII hyphen only or no comment
+} catch { $null = $null }
+} catch { $null = $null # Silenced: failure treated - as absent }
+```
+
+**Preserve CRLF line endings.** All source files (.ps1, .psm1, .psd1) use CRLF (Windows line endings). Do not convert to LF.
+
+**Gate 1 validation rule.** Gate 1 parse checks must use inline `pwsh -Command`, never `pwsh -File`. File-based parsing produces false errors in this repo.
+
+```powershell
+# CORRECT
+pwsh -Command { [System.Management.Automation.Language.Parser]::ParseFile(...) }
+
+# WRONG - do not use
+pwsh -File .\parse-check.ps1
+```
+
+---
+
+## 14. Final Validation Standards
+
+**All verification output must be raw command output, not Claude Code summaries.**
+
+When reporting Gate results:
+- Show the exact output from `Invoke-Pester` (Tests Passed/Failed line verbatim)
+- Show exact `git diff --name-only` output for each milestone
+- Show exact parse error output if any
+- Never report "Tests should pass" or "Probably working" — only verified outcomes
+
+Before completing any milestone:
+```powershell
+git diff --name-only
+git status --short
+```
+
+Report these outputs verbatim. Do not summarize them.
