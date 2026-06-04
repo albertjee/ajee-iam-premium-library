@@ -63,7 +63,7 @@ Describe 'Safety — Rev3.1 Write Isolation and Guest Safety Invariants' {
         }
     }
 
-    It 'Entry point ToolVersion is Rev3.5' {
+    It 'Entry point ToolVersion is Rev3.6' {
         $content = Get-Content $script:EntryPointPath -Raw
         $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev3\.6'"
     }
@@ -98,13 +98,13 @@ Describe 'ReleaseValidation.psm1 — Rev3.1 Validation Checks' {
         }
     }
 
-    It 'ReleaseValidation checks that ToolVersion is Rev3.5' {
+    It 'ReleaseValidation checks that ToolVersion is Rev3.6' {
         # Run validation with wrong ToolVersion to confirm the check exists
         $result = Invoke-DecomReleaseValidation -ToolVersion 'Rev3.0' -EntryPointPath `
             (Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1') `
             -ModulesPath $script:ModulesPath
         $result.Valid | Should -Be $false
-        ($result.Errors | Where-Object { $_ -match 'Rev3\.5' }) | Should -Not -BeNullOrEmpty
+        ($result.Errors | Where-Object { $_ -match 'Rev3\.6' }) | Should -Not -BeNullOrEmpty
     }
 
     It 'ReleaseValidation RemoveGuestGroupMembership is in executable write scope' {
