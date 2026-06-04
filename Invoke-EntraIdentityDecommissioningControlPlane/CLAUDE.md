@@ -85,10 +85,10 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 
 ## 6. PROJECT CONTEXT
 
-**Project name:** Entra Identity Decommissioning Control Plane — Rev1.3 Application Ownership Drift
+**Project name:** Entra Identity Decommissioning Control Plane
 **Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`
-**Primary language:** PowerShell 5.1+
-**Current revision:** Rev1.3
+**Primary language:** PowerShell 7+
+**Current revision:** Rev3.6
 **Push policy:** Albert pushes manually
 
 ---
@@ -183,8 +183,8 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 35 tests passing |
-| Git | Only Rev1.x new files in diff — frozen files untouched |
+| Tests | 0 failures, ≥ 1165 tests passing |
+| Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 
 If any row fails — it is not done.
