@@ -4,6 +4,8 @@ pester-*.txt
 gate3-*.txt
 failures-*.txt
 fail-*.txt
+test-output.txt
+test-summary.txt
 SESSION-SUMMARY-*.md
 QA-PACKAGE-*.md
 Rev3.6-build-prompt-v1.1.md
