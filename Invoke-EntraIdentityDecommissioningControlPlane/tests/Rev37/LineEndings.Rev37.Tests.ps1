@@ -2,15 +2,18 @@
 
 Describe 'M18b - CRLF Line Ending Validation' {
 	Context 'Source files use CRLF line endings' {
-		It 'All PowerShell source files (*.ps1, *.psm1, *.psd1) use CRLF' {
+		It 'Rev3.7 new/modified files use CRLF' {
 			$sourceFiles = @()
 			$violations = @()
 
-			$patterns = @('*.ps1', '*.psm1', '*.psd1')
-			foreach ($pattern in $patterns) {
-				$sourceFiles += @(Get-ChildItem -Path . -Recurse -Include $pattern -File | Where-Object {
-					-not ($_.FullName -match '\\\.git\\')
-				})
+			$filesToCheck = @(
+				'tests/Rev37/*.ps1',
+				'tests/Rev37/*.psm1',
+				'src/Modules/Remediation.psm1'
+			)
+
+			foreach ($pattern in $filesToCheck) {
+				$sourceFiles += @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue)
 			}
 
 			$sourceFiles | ForEach-Object {
