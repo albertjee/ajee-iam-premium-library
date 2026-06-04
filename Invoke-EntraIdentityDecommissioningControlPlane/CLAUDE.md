@@ -21,6 +21,8 @@ I am an architect-level technical practitioner. I hold myself and my tools to ex
 
 **Every file modification requires all three gates before declaring done. No exceptions.**
 
+**All gates must use `pwsh` (PowerShell 7+). `powershell.exe` (Windows PowerShell 5.1) is not supported.**
+
 ### Gate 1 — Syntax / Parse
 
 ```powershell
@@ -166,12 +168,12 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.6 current baseline:** 1170 tests across all Rev3 modules (HtmlEncoding 34 tests, WarningHygiene 26 tests, WriteReadiness, plus all schema validation suites)
+- **Rev3.6 current baseline:** 1165 tests across all Rev3 modules (HtmlEncoding 34 tests, WarningHygiene 26 tests, WriteReadiness, plus all schema validation suites; PS51Compatibility removed)
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Detailed
   ```
-- Must show 0 failures — 1170 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures — 1165 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 
@@ -200,3 +202,16 @@ Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChec
 **Critical:** Never substitute `Write-Warning` as a fallback — it breaks output consistency with the rest of the assessment engine. If Utilities is not available, fail with an explicit error.
 
 This ensures all Write-Decom* functions are available when modules are imported independently (e.g., during testing) or loaded by the entry point.
+
+---
+
+## 12. UTF-8 Encoding Standard
+
+**All PowerShell files must use UTF-8 without BOM (Byte Order Mark).** PowerShell 7+ (`pwsh`) reads UTF-8 without BOM natively. Do NOT add a BOM — the UTF-8 signature is not required and causes issues with some tools.
+
+When writing files programmatically, use `[System.IO.File]::WriteAllText()` with explicit UTF-8 encoding:
+```powershell
+[System.IO.File]::WriteAllText('<path>', $content, [System.Text.Encoding]::UTF8)
+```
+
+Remove any legacy Windows PowerShell 5.1 BOM requirements from generated files.
