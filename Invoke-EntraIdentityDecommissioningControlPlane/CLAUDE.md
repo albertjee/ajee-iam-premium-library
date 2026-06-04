@@ -166,12 +166,12 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.6 current baseline:** 1110 tests across all Rev3 modules (37 new validation suites)
+- **Rev3.6 current baseline:** 1136 tests across all Rev3 modules (37 validation suites + WarningHygiene 26 tests)
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Detailed
   ```
-- Must show 0 failures — 1110 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures — 1136 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 
@@ -186,3 +186,17 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 
 If any row fails — it is not done.
+
+---
+
+## 11. Utilities Module Import Rule
+
+Any new module that calls `Write-DecomWarn`, `Write-DecomLog`, or any `Write-Decom*` function must import `Utilities.psm1` using this pattern:
+
+```powershell
+Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
+```
+
+**Critical:** Never substitute `Write-Warning` as a fallback — it breaks output consistency with the rest of the assessment engine. If Utilities is not available, fail with an explicit error.
+
+This ensures all Write-Decom* functions are available when modules are imported independently (e.g., during testing) or loaded by the entry point.
