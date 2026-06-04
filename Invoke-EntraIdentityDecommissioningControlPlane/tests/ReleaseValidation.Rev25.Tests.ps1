@@ -88,7 +88,7 @@ Describe 'ReleaseValidation.psm1' {
             $files = Get-ChildItem -Path $script:testOutputDir -Filter 'release-validation-report-*.json'
             $json  = Get-Content $files[0].FullName -Raw | ConvertFrom-Json
             $json.SchemaVersion | Should -Be '3.0'
-            $json.ToolVersion   | Should -Be 'Rev3.5'
+            $json.ToolVersion   | Should -Be 'Rev3.6'
         }
 
         It 'Release validation creates Markdown report' {

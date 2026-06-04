@@ -299,7 +299,7 @@ function Get-DecomSchemaContract {
                     Summary = 'object'
                 }
                 AllowedValues = @{
-                    SchemaVersion = @('3.4')
+                    SchemaVersion = @('3.4','3.6')
                 }
                 Description = 'Output manifest cataloguing all run output files with hashes and sensitivity classifications'
             }
