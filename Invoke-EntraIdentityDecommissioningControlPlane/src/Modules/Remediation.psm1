@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 
 function Confirm-DecomActionTargetValid {
     # Validates that approved target still exists and belongs to the approved object.
@@ -925,7 +925,7 @@ function Get-DecomTargetState {
                     if ($null -ne ($members | Where-Object { $_.Id -eq $objectId })) {
                         $present.Add($groupId)
                     }
-                } catch { }
+                } catch { $null = $null }
             }
         }
 
@@ -937,7 +937,7 @@ function Get-DecomTargetState {
                         $present.Add($assignmentId)
                     }
                 }
-            } catch { }
+            } catch { $null = $null }
         }
 
         'RemoveDirectoryRoleAssignment' {
@@ -948,7 +948,7 @@ function Get-DecomTargetState {
                     if ($null -ne $a) {
                         $present.Add($roleAssignmentId)
                     }
-                } catch { }
+                } catch { $null = $null }
             }
         }
 

@@ -449,7 +449,7 @@ function Resolve-DecomExecutableTargets {
                             $endDt = [datetime]::Parse($endDateRaw, [System.Globalization.CultureInfo]::InvariantCulture,
                                 [System.Globalization.DateTimeStyles]::RoundtripKind)
                             $expired = ($endDt.ToUniversalTime() -lt [datetime]::UtcNow)
-                        } catch { }
+                        } catch { $null = $null }
                     }
                     if (-not $expired) {
                         $result.ErrorDetail = 'Credential is not expired at WhatIf generation time — only expired credentials may generate executable actions'

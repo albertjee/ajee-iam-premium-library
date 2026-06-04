@@ -1,4 +1,4 @@
-$script:ProtectedPatterns = @(
+﻿$script:ProtectedPatterns = @(
     'breakglass','break-glass','emergency','sync',
     'aadconnect','cloudsync','svc-','service-'
 )
@@ -2104,7 +2104,7 @@ function Invoke-DecomAssessmentDiscovery {
                         if ($dec.ReviewedDateTime) {
                             $reviewResult.LastDecisionUtc = [datetime]$dec.ReviewedDateTime
                         }
-                    } catch { }
+                    } catch { $null = $null }
                     break
                 }
             }
@@ -2213,7 +2213,7 @@ function Invoke-DecomAssessmentDiscovery {
                     $pimReviewFound = $true
                     try {
                         if ($dec.ReviewedDateTime) { $pimLastDecision = [datetime]$dec.ReviewedDateTime }
-                    } catch { }
+                    } catch { $null = $null }
                     break
                 }
             }
@@ -2297,7 +2297,7 @@ function Invoke-DecomAssessmentDiscovery {
         $emDefForAP = $false
         foreach ($def in $arDefinitions) {
             $scopeQuery = ''
-            try { if ($def.Scope -and $def.Scope.Query) { $scopeQuery = $def.Scope.Query } } catch { }
+            try { if ($def.Scope -and $def.Scope.Query) { $scopeQuery = $def.Scope.Query } } catch { $null = $null }
             if ($scopeQuery -match 'entitlementManagement|accessPackage') {
                 $emDefForAP = $true
                 break
@@ -2344,7 +2344,7 @@ function Invoke-DecomAssessmentDiscovery {
                     if ($decVal -notin @('notreviewed','')) { $apDecisionComplete = $true }
                     try {
                         if ($dec.ReviewedDateTime) { $apLastDecision = [datetime]$dec.ReviewedDateTime }
-                    } catch { }
+                    } catch { $null = $null }
                     break
                 }
             }
@@ -2411,7 +2411,7 @@ function Invoke-DecomAssessmentDiscovery {
         $matchedDef = $null
         foreach ($def in $arDefinitions) {
             $scopeQuery = ''
-            try { if ($def.Scope -and $def.Scope.Query) { $scopeQuery = $def.Scope.Query } } catch { }
+            try { if ($def.Scope -and $def.Scope.Query) { $scopeQuery = $def.Scope.Query } } catch { $null = $null }
             if ($scopeQuery.Contains($caGroupId)) {
                 $matchedDef = $def
                 break
@@ -2453,7 +2453,7 @@ function Invoke-DecomAssessmentDiscovery {
             $hasRecentInstance = $false
             foreach ($inst in $defInstances) {
                 $instEnd = $null
-                try { if ($inst.EndDateTime) { $instEnd = [datetime]$inst.EndDateTime } } catch { }
+                try { if ($inst.EndDateTime) { $instEnd = [datetime]$inst.EndDateTime } } catch { $null = $null }
                 if ($null -ne $instEnd -and $instEnd -ge $caStaleThreshold90) {
                     $hasRecentInstance = $true
                     break
@@ -2470,7 +2470,7 @@ function Invoke-DecomAssessmentDiscovery {
                                 $ie = [datetime]$inst.EndDateTime
                                 if ($null -eq $lastInstEnd -or $ie -gt $lastInstEnd) { $lastInstEnd = $ie }
                             }
-                        } catch { }
+                        } catch { $null = $null }
                     }
                     $lastStr = if ($null -ne $lastInstEnd) { $lastInstEnd.ToString('yyyy-MM-dd') } else { 'unknown' }
                     $findings.Add((New-DecomFinding `
