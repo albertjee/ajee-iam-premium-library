@@ -907,14 +907,16 @@ function Invoke-DecomRemediation {
 
 function Get-DecomTargetState {
     # P1-04: returns structured result so after-state query failures are not silently treated as Executed.
+    # M17: adds per-target PresenceCheckStatus (ConfirmedPresent, ConfirmedAbsent, Unknown)
     param([object]$Action)
 
-    $actionType     = [string]$Action.ActionType
-    $objectId       = [string]$Action.ObjectId
-    $targetIds      = @($Action.TargetObjectIds)
-    $present        = [System.Collections.Generic.List[string]]::new()
-    $querySucceeded = $true
-    $queryError     = ''
+    $actionType       = [string]$Action.ActionType
+    $objectId         = [string]$Action.ObjectId
+    $targetIds        = @($Action.TargetObjectIds)
+    $present          = [System.Collections.Generic.List[string]]::new()
+    $querySucceeded   = $true
+    $queryError       = ''
+    $presenceByTarget = [System.Collections.Generic.List[object]]::new()
 
     switch ($actionType) {
 
@@ -924,31 +926,88 @@ function Get-DecomTargetState {
                     $members = @(Get-MgGroupMember -GroupId $groupId -All -ErrorAction Stop)
                     if ($null -ne ($members | Where-Object { $_.Id -eq $objectId })) {
                         $present.Add($groupId)
+                        $presenceByTarget.Add([pscustomobject]@{
+                            TargetId = $groupId
+                            PresenceCheckStatus = 'ConfirmedPresent'
+                            PresenceCheckError = $null
+                        })
+                    } else {
+                        $presenceByTarget.Add([pscustomobject]@{
+                            TargetId = $groupId
+                            PresenceCheckStatus = 'ConfirmedAbsent'
+                            PresenceCheckError = $null
+                        })
                     }
-                } catch { $null = $null }
+                } catch {
+                    $querySucceeded = $false
+                    $queryError += "Group $groupId member re-query failed: $_; "
+                    $presenceByTarget.Add([pscustomobject]@{
+                        TargetId = $groupId
+                        PresenceCheckStatus = 'Unknown'
+                        PresenceCheckError = $_.Exception.Message
+                    })
+                }
             }
         }
 
         'RevokeAppRoleAssignment' {
-            try {
-                $allAssignments = @(Get-MgUserAppRoleAssignment -UserId $objectId -All -ErrorAction Stop)
-                foreach ($assignmentId in $targetIds) {
+            foreach ($assignmentId in $targetIds) {
+                try {
+                    $allAssignments = @(Get-MgUserAppRoleAssignment -UserId $objectId -All -ErrorAction Stop)
                     if ($null -ne ($allAssignments | Where-Object { $_.Id -eq $assignmentId })) {
                         $present.Add($assignmentId)
+                        $presenceByTarget.Add([pscustomobject]@{
+                            TargetId = $assignmentId
+                            PresenceCheckStatus = 'ConfirmedPresent'
+                            PresenceCheckError = $null
+                        })
+                    } else {
+                        $presenceByTarget.Add([pscustomobject]@{
+                            TargetId = $assignmentId
+                            PresenceCheckStatus = 'ConfirmedAbsent'
+                            PresenceCheckError = $null
+                        })
                     }
+                } catch {
+                    $querySucceeded = $false
+                    $queryError += "Assignment $assignmentId re-query failed: $_; "
+                    $presenceByTarget.Add([pscustomobject]@{
+                        TargetId = $assignmentId
+                        PresenceCheckStatus = 'Unknown'
+                        PresenceCheckError = $_.Exception.Message
+                    })
                 }
-            } catch { $null = $null }
+            }
         }
 
         'RemoveDirectoryRoleAssignment' {
             foreach ($roleAssignmentId in $targetIds) {
                 try {
                     $a = Get-MgRoleManagementDirectoryRoleAssignment `
-                        -UnifiedRoleAssignmentId $roleAssignmentId -ErrorAction SilentlyContinue
+                        -UnifiedRoleAssignmentId $roleAssignmentId -ErrorAction Stop
                     if ($null -ne $a) {
                         $present.Add($roleAssignmentId)
+                        $presenceByTarget.Add([pscustomobject]@{
+                            TargetId = $roleAssignmentId
+                            PresenceCheckStatus = 'ConfirmedPresent'
+                            PresenceCheckError = $null
+                        })
+                    } else {
+                        $presenceByTarget.Add([pscustomobject]@{
+                            TargetId = $roleAssignmentId
+                            PresenceCheckStatus = 'ConfirmedAbsent'
+                            PresenceCheckError = $null
+                        })
                     }
-                } catch { $null = $null }
+                } catch {
+                    $querySucceeded = $false
+                    $queryError += "Role assignment $roleAssignmentId re-query failed: $_; "
+                    $presenceByTarget.Add([pscustomobject]@{
+                        TargetId = $roleAssignmentId
+                        PresenceCheckStatus = 'Unknown'
+                        PresenceCheckError = $_.Exception.Message
+                    })
+                }
             }
         }
 
@@ -1071,8 +1130,9 @@ function Get-DecomTargetState {
     }
 
     return [PSCustomObject]@{
-        QuerySucceeded   = $querySucceeded
-        PresentTargetIds = $present.ToArray()
-        ErrorDetail      = $queryError
+        QuerySucceeded              = $querySucceeded
+        PresentTargetIds            = $present.ToArray()
+        ErrorDetail                 = $queryError
+        PresenceCheckByTarget       = $presenceByTarget.ToArray()
     }
 }
