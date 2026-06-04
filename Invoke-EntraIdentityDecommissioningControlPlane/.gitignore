@@ -11,6 +11,8 @@ test-result.xml
 SESSION-SUMMARY-*.md
 QA-PACKAGE-*.md
 Rev3.6-build-prompt-v1.1.md
+BUILD-PROMPT-REV37-POLISHING-RELEASE-v1.2.md
 corruption-scan.txt
 parse_errors.txt
 pester-verbose.log
+src-listing.md
