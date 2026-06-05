@@ -1,5 +1,55 @@
 # Changelog
 
+## Rev3.8 — NHI Coverage Expansion (2026-06-05)
+
+### M21 - NhiCredential Module
+- Created `src/Modules/NhiCredential.psm1` implementing NHI-CRED-001 through NHI-CRED-005
+- Credential hygiene detectors: client secret detection, secret age thresholds (90/180 days), expired credential with active SP, credential expiry warning (30 days)
+- Threshold inclusivity: exactly 90 days fires NHI-CRED-002; exactly 180 days fires NHI-CRED-003 and suppresses NHI-CRED-002 for same credential
+- Created `tests/NhiCredential.Rev38.Tests.ps1` (18 tests)
+- Commit: `fix: Rev3.8 M21 - NhiCredential module, NHI-CRED-001 through 005`
+
+### M22 - NhiPermission Module
+- Created `src/Modules/NhiPermission.psm1` implementing NHI-PERM-001 through NHI-PERM-008
+- Permission and scope detectors: privilege sprawl (>10 units), moderate complexity (5-9 units), high-risk app roles, high-risk delegated scopes, AllPrincipals consent, combined AllPrincipals+high-risk, app role lookup failure, unresolved stale grants
+- Exact case-insensitive scope token matching (not substring); one finding per matching token
+- Created `tests/NhiPermission.Rev38.Tests.ps1` (24 tests)
+- Commit: `fix: Rev3.8 M22 - NhiPermission module, NHI-PERM-001 through 008`
+
+### M23 - NhiSignIn Module
+- Created `src/Modules/NhiSignIn.psm1` implementing NHI-SIGNIN-001 through NHI-SIGNIN-005
+- Sign-in activity detectors: stale thresholds (90/180/365 days), suppressive precedence (SIGNIN-003 > SIGNIN-002 > SIGNIN-001), absent sign-in record with active credentials, recent active SP with no owner, recent active SP with high-risk permission
+- Null/missing sign-in record: emits SIGNIN-003 with Confidence=Medium when SP has active credentials but no sign-in record
+- Created `tests/NhiSignIn.Rev38.Tests.ps1` (18 tests; co-committed with M22)
+- Commit: `fix: Rev3.8 M23 - NhiSignIn module, NHI-SIGNIN-001 through 005`
+
+### M24 - Integration Wiring
+- Added NhiCredential, NhiPermission, NhiSignIn to module import list in entry point
+- Invoked all three scans from entry point after NHI governance block
+- New findings flow through existing $Findings pipeline to CSV and JSON export
+- Entry point integration: no modifications to existing NHI governance or discovery modules
+- Commit: `feat: Rev3.8 M24 - integration wiring and Rev3.8 push readiness harness`
+
+### M25 - Documentation
+- Updated CLAUDE.md: Rev3.7 -> Rev3.8, canonical test count 1179 -> 1240
+- Updated CHANGELOG.md with Rev3.8 section
+
+### Tests
+- Total: 1240 tests, 0 failures
+- Added tests: 18 (NhiCredential), 24 (NhiPermission), 18 (NhiSignIn), 1 synthetic data test = 61 new tests
+
+### Safety
+- Rev3.8 expands NHI classification with 18 new finding IDs across credential, permission, and sign-in domains
+- No new Graph endpoints; all new finding functions accept pre-fetched data
+- NhiSignInScan and NhiCredentialScan handle absent sign-in data gracefully (empty hashtables)
+- No new remediation action types or write scopes
+
+### EntraNHIAudit Retirement
+- The 18 NHI finding IDs (NHI-CRED-001/002/003/004/005, NHI-PERM-001 through 008, NHI-SIGNIN-001 through 005) were ported from the retired EntraNHIAudit tool
+- Rev3.8 consolidates these findings into the decommissioning control plane with full test coverage and pipeline integration
+
+---
+
 ## Rev3.7 — Polishing, Determinism, and Safety Hardening (2026-06-04)
 
 ### M16 - Output Manifest Determinism

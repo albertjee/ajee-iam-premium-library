@@ -88,7 +88,7 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 **Project name:** Entra Identity Decommissioning Control Plane
 **Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`
 **Primary language:** PowerShell 7+
-**Current revision:** Rev3.7
+**Current revision:** Rev3.8
 **Push policy:** Albert pushes manually
 
 ---
@@ -168,12 +168,12 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.7 current baseline:** 1179 tests across all Rev3 modules (includes M16–M20 determinism, presence-check Unknown state, source integrity gates, push readiness harness, and documentation polish; 14 new tests added)
+- **Rev3.8 current baseline:** 1240 tests across all Rev3 modules (includes M21–M24 NHI coverage expansion: NhiCredential, NhiPermission, NhiSignIn modules; 61 new tests added)
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Detailed
   ```
-- Must show 0 failures — 1179 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures — 1240 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 
