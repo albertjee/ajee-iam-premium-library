@@ -82,6 +82,8 @@ Reports exact file path and line number for offending character.
 
 **Tests:** 4 new coverage tests.
 
+**Scope:** Source-integrity gates are intentionally scoped to Rev3.7 touched executable files (.ps1, .psm1, .psd1); documentation punctuation is not a blocking source-code violation unless mojibake or replacement characters (U+FFFD) are present.
+
 #### M18b — CRLF Validation Test
 **File:** `tests/Rev37/LineEndings.Rev37.Tests.ps1`
 
