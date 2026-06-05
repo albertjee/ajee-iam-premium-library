@@ -27,7 +27,7 @@ param(
     [switch]$GenerateReleasePackage,
     [string]$ReleasePackagePath = '.\release\Rev3.4',
 
-    # Rev3.4 hardening output flags (all default off — backward compatible)
+    # Rev3.4 hardening output flags (all default off - backward compatible)
     [switch]$GenerateEvidenceBundle,
     [switch]$GenerateRedactedPackage,
     [ValidateSet('ClientSafe','PublicDemo','Strict','Internal')]
@@ -42,7 +42,7 @@ param(
     [switch]$GenerateNhiGovernancePack
 )
 
-# Tool version — update this single constant each release
+# Tool version - update this single constant each release
 $script:ToolVersion = 'Rev3.6'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
@@ -146,7 +146,7 @@ $Context = [PSCustomObject]@{
     OutputPath   = $RunFolder
 }
 
-# SelfTest early exit — no Graph connection, no discovery, no remediation
+# SelfTest early exit - no Graph connection, no discovery, no remediation
 if ($SelfTest) {
     Write-DecomInfo "Running SelfTest / ReleaseValidation mode..."
     $selfTestResult = Invoke-DecomReleaseValidation -Context $Context
@@ -196,7 +196,7 @@ if ($Mode -eq 'ExecuteRemediation') {
     # Apply -ActionId filter FIRST so MaxActions check measures the filtered set
     if ($ActionId -and $ActionId.Count -gt 0) {
         $approvedActions = @($approvedActions | Where-Object { $ActionId -contains $_.ActionId })
-        Write-DecomInfo "ActionId filter applied — $($approvedActions.Count) action(s) selected."
+        Write-DecomInfo "ActionId filter applied - $($approvedActions.Count) action(s) selected."
     }
 
     # Apply -MaxActions guardrail against the (possibly filtered) set
@@ -406,7 +406,7 @@ $NhiPipelineRan = $false
 
 Write-DecomInfo "Starting discovery..."
 $Findings = Invoke-DecomAssessmentDiscovery -Context $Context -DemoMode:$DemoMode
-Write-DecomOk "Discovery complete — $($Findings.Count) raw finding(s)"
+Write-DecomOk "Discovery complete - $($Findings.Count) raw finding(s)"
 
 Write-DecomInfo "Running analysis..."
 $Findings = Invoke-DecomAnalysis -Findings $Findings
@@ -427,7 +427,7 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     $Findings       = @($Findings) + @($NhiGovernanceFindings)
     $Summary  = Get-DecomFindingSummary -Findings $Findings
     $NhiPipelineRan = $true
-    Write-DecomOk "NHI findings merged — total findings now $($Summary.Total)"
+    Write-DecomOk "NHI findings merged - total findings now $($Summary.Total)"
 
     # === Rev3.8 M24: NHI credential / permission / sign-in scans ===
     Write-DecomInfo "Running NHI credential, permission, and sign-in scans..."
@@ -460,7 +460,7 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
 
     $newNhiFindingCount = ($nhiCredentialFindings.Count + $nhiPermissionFindings.Count + $nhiSignInFindings.Count)
     $Summary  = Get-DecomFindingSummary -Findings $Findings
-    Write-DecomOk "NHI credential/permission/signIn scans complete — $newNhiFindingCount new findings added"
+    Write-DecomOk "NHI credential/permission/signIn scans complete - $newNhiFindingCount new findings added"
 
     # === Rev3.9 M29: NHI owner, publisher, and agent scans ===
     Write-DecomInfo "Running NHI owner, publisher, and agent scans..."
@@ -488,7 +488,7 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
 
     $newNhiFindingCount2 = ($nhiOwnerFindings.Count + $nhiPublisherFindings.Count + $nhiAgentFindings.Count)
     $Summary  = Get-DecomFindingSummary -Findings $Findings
-    Write-DecomOk "NHI owner/publisher/agent scans complete — $newNhiFindingCount2 new findings added"
+    Write-DecomOk "NHI owner/publisher/agent scans complete - $newNhiFindingCount2 new findings added"
 
 # Baseline comparison if -BaselinePath provided
 $BaselineComparison = $null
