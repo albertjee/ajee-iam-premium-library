@@ -64,41 +64,46 @@
 - Created `src/Modules/NhiPublisher.psm1` implementing NHI-PUB-001, NHI-PUB-002, NHI-REG-001
 - Publisher verification detectors: no verified publisher, verified publisher present, application registration age >= 365 days
 - Threshold inclusion: exactly 365 days fires NHI-REG-001
-- Created `tests/NhiPublisher.Rev39.Tests.ps1` (24 tests)
+- Created `tests/NhiPublisher.Rev39.Tests.ps1` (12 tests)
 - Commit: `fix: Rev3.9 M27 - NhiPublisher module, NHI-PUB-001/002, NHI-REG-001`
 
 ### M28 - NhiAgent Module (Alternative Implementation)
-- Created `src/Modules/NhiAgent.psm1` implementing NHI-AGENT-001, NHI-AGENT-002, NHI-AGENT-003
-- Entra role assignment detectors: SP has no Entra roles assigned, all roles are built-in, permanent role assignment without expiration
-- DEC-AGENT stubs (002/006/007) included as exported placeholder functions for API compatibility
-- Deviation Note: `NhiGovernance.psm1` is in the FROZEN list (CLAUDE.md Section 7) and could not be modified; NHI-AGENT findings implemented in standalone NhiAgent.psm1 instead
+- Created `src/Modules/NhiAgent.psm1` implementing NHI-AGENT-001, NHI-AGENT-002, NHI-AGENT-003 + DEC-AGENT-002/006/007
+- AI-agent identity detectors: name pattern matches (agent|copilot|assistant|bot|automation|workflow), blueprint-derived agent with no owner, blueprint-derived agent with high-risk permissions, AgenticCandidate with name pattern, AgenticCandidate with client secrets, unowned AgenticCandidate with high-risk permissions
+- DEC-AGENT findings (002/006/007) implemented in NhiAgent.psm1, not in frozen NhiGovernance.psm1
+- Deviation Note: `NhiGovernance.psm1` is in the FROZEN list (CLAUDE.md Section 7) and could not be modified; DEC-AGENT findings implemented in standalone NhiAgent.psm1 instead
 - Created `tests/NhiAgent.Rev39.Tests.ps1` (20 tests)
-- Commit: `fix: Rev3.9 M28 - NhiAgent module, NHI-AGENT-001/002/003`
+- Commit: `fix: Rev3.9 M28 - NhiAgent module, DEC-AGENT-002/006/007 + NHI-AGENT-001/002/003`
 
 ### M29 - Integration Wiring
-- Added NhiOwner and NhiPublisher scan invocations to entry point after NhiGovernance pipeline block
+- Added NhiOwner, NhiPublisher, and NhiAgent scan invocations to entry point after NhiGovernance pipeline block
+- Entry point modulesToLoad extended to include: NhiOwner, NhiPublisher, NhiAgent
 - Findings flow through existing `$Findings` pipeline to CSV/JSON export
 - Entry point integration: no modifications to existing NHI governance or discovery modules
-- Created `tools/Test-Rev39PushReadiness.ps1`: Unicode/mojibake scan, CRLF validation, AST parse, module smoke test, Pester discovery
-- Commit: `feat: Rev3.9 M29 - NhiOwner/NhiPublisher integration + push readiness harness`
+- Empty hashtable input: all three scanners return dormant findings when passed empty hashtable (OwnerLookupSucceeded=$false by default; NhiPublisher and NhiAgent blueprints map empty)
+- Created `tools/Test-Rev39PushReadiness.ps1`: module parse checks, import verification, full Pester suite
+- Commit: `fix: Rev3.9 M29 - integration wiring for NhiOwner, NhiPublisher, NhiAgent scans, 1291/1291 passing`
 
 ### M30 - Documentation
-- Updated CLAUDE.md: Rev3.8 -> Rev3.9, canonical test count 1240 -> 1260
-- Updated CHANGELOG.md with Rev3.9 section
+- Updated CLAUDE.md: Rev3.8 -> Rev3.9, canonical test count 1240 -> 1291
+- Created `docs/QA-PACKAGE-REV39-v1.md`: documented all Rev3.9 findings, integration notes, test results
+- Updated CHANGELOG.md entries for M26-M30
 
 ### Tests
-- Total: 1260 tests, 0 failures
-- Added tests: 19 (NhiOwner), 24 (NhiPublisher), 20 (NhiAgent) = 63 new tests
+- Total: 1291 tests, 0 failures
+- Added tests: 19 (NhiOwner), 12 (NhiPublisher), 20 (NhiAgent) = 51 new tests
 
 ### Safety
 - Rev3.9 adds NHI classification findings only — all modules are read-only
 - No new Graph endpoints; all new finding functions accept pre-fetched data
+- NhiAgent empty hashtable input returns dormant findings (OwnerCount/CredentialCount/HighRiskPermissionCount all zero when no data supplied)
 - NhiOwner handles absent owner data gracefully (suppresses per-SP findings when lookup failed)
 - No new remediation action types or write scopes
 
 ### EntraNHIAudit Retirement (Continued)
-- The 10 NHI finding IDs (NHI-OWNER-001/002/003/004/005/006, NHI-PUB-001/002, NHI-REG-001) were ported from the retired EntraNHIAudit tool
-- NHI-AGENT-001/002/003 add new Entra role assignment analysis not previously in EntraNHIAudit
+- The 9 NHI finding IDs (NHI-OWNER-001 through 006, NHI-PUB-001/002, NHI-REG-001) were ported from the retired EntraNHIAudit tool
+- NHI-AGENT-001/002/003 add new AI-agent identity analysis not previously in EntraNHIAudit
+- DEC-AGENT-002/006/007 extend the agentic candidate inventory with governance and credential risk signals
 
 ---
 
