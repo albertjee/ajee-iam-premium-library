@@ -96,6 +96,9 @@ $modulesToLoad = @(
     'NhiCredential'
     'NhiPermission'
     'NhiSignIn'
+    'NhiOwner'
+    'NhiPublisher'
+    'NhiAgent'
 )
 
 foreach ($mod in $modulesToLoad) {
@@ -458,6 +461,34 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     $newNhiFindingCount = ($nhiCredentialFindings.Count + $nhiPermissionFindings.Count + $nhiSignInFindings.Count)
     $Summary  = Get-DecomFindingSummary -Findings $Findings
     Write-DecomOk "NHI credential/permission/signIn scans complete — $newNhiFindingCount new findings added"
+
+    # === Rev3.9 M29: NHI owner, publisher, and agent scans ===
+    Write-DecomInfo "Running NHI owner, publisher, and agent scans..."
+
+    # Flatten raw SPs from NhiInventory for scan functions
+    $nhiScanSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawServicePrincipal })
+
+    $nhiOwnerFindings = @()
+    if ($nhiScanSps.Count -gt 0) {
+        $nhiOwnerFindings = Invoke-NhiOwnerScan -ServicePrincipals $nhiScanSps -OwnersByObjectId @{} -OwnerLookupSucceeded $false
+        if ($nhiOwnerFindings) { $Findings += $nhiOwnerFindings }
+    }
+
+    $nhiPublisherFindings = @()
+    if ($nhiScanSps.Count -gt 0) {
+        $nhiPublisherFindings = Invoke-NhiPublisherScan -ServicePrincipals $nhiScanSps -AppRegistrationByAppId @{} -TenantId ''
+        if ($nhiPublisherFindings) { $Findings += $nhiPublisherFindings }
+    }
+
+    $nhiAgentFindings = @()
+    if ($nhiScanSps.Count -gt 0) {
+        $nhiAgentFindings = Invoke-NhiAgentScan -ServicePrincipals $nhiScanSps -AgentBlueprintIdByObjectId @{}
+        if ($nhiAgentFindings) { $Findings += $nhiAgentFindings }
+    }
+
+    $newNhiFindingCount2 = ($nhiOwnerFindings.Count + $nhiPublisherFindings.Count + $nhiAgentFindings.Count)
+    $Summary  = Get-DecomFindingSummary -Findings $Findings
+    Write-DecomOk "NHI owner/publisher/agent scans complete — $newNhiFindingCount2 new findings added"
 
 # Baseline comparison if -BaselinePath provided
 $BaselineComparison = $null
