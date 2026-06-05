@@ -50,6 +50,58 @@
 
 ---
 
+## Rev3.9 — NHI Owner/Publisher/Agent Parity Release (2026-06-05)
+
+### M26 - NhiOwner Module
+- Created `src/Modules/NhiOwner.psm1` implementing NHI-OWNER-001 through NHI-OWNER-006
+- Owner governance detectors: no owner, single owner, owner lookup failure (one-time assessment finding), guest owner, disabled owner, all-owners-are-service-principals
+- OWNER-003 (lookup failure) fires exactly once as Assessment-level finding when lookup globally fails, suppressing OWNER-001/002 per-SP findings
+- OWNER-001 mutually exclusive with OWNER-002 and OWNER-006
+- Created `tests/NhiOwner.Rev39.Tests.ps1` (19 tests)
+- Commit: `fix: Rev3.9 M26 - NhiOwner module, NHI-OWNER-001 through 006`
+
+### M27 - NhiPublisher Module
+- Created `src/Modules/NhiPublisher.psm1` implementing NHI-PUB-001, NHI-PUB-002, NHI-REG-001
+- Publisher verification detectors: no verified publisher, verified publisher present, application registration age >= 365 days
+- Threshold inclusion: exactly 365 days fires NHI-REG-001
+- Created `tests/NhiPublisher.Rev39.Tests.ps1` (24 tests)
+- Commit: `fix: Rev3.9 M27 - NhiPublisher module, NHI-PUB-001/002, NHI-REG-001`
+
+### M28 - NhiAgent Module (Alternative Implementation)
+- Created `src/Modules/NhiAgent.psm1` implementing NHI-AGENT-001, NHI-AGENT-002, NHI-AGENT-003
+- Entra role assignment detectors: SP has no Entra roles assigned, all roles are built-in, permanent role assignment without expiration
+- DEC-AGENT stubs (002/006/007) included as exported placeholder functions for API compatibility
+- Deviation Note: `NhiGovernance.psm1` is in the FROZEN list (CLAUDE.md Section 7) and could not be modified; NHI-AGENT findings implemented in standalone NhiAgent.psm1 instead
+- Created `tests/NhiAgent.Rev39.Tests.ps1` (20 tests)
+- Commit: `fix: Rev3.9 M28 - NhiAgent module, NHI-AGENT-001/002/003`
+
+### M29 - Integration Wiring
+- Added NhiOwner and NhiPublisher scan invocations to entry point after NhiGovernance pipeline block
+- Findings flow through existing `$Findings` pipeline to CSV/JSON export
+- Entry point integration: no modifications to existing NHI governance or discovery modules
+- Created `tools/Test-Rev39PushReadiness.ps1`: Unicode/mojibake scan, CRLF validation, AST parse, module smoke test, Pester discovery
+- Commit: `feat: Rev3.9 M29 - NhiOwner/NhiPublisher integration + push readiness harness`
+
+### M30 - Documentation
+- Updated CLAUDE.md: Rev3.8 -> Rev3.9, canonical test count 1240 -> 1260
+- Updated CHANGELOG.md with Rev3.9 section
+
+### Tests
+- Total: 1260 tests, 0 failures
+- Added tests: 19 (NhiOwner), 24 (NhiPublisher), 20 (NhiAgent) = 63 new tests
+
+### Safety
+- Rev3.9 adds NHI classification findings only — all modules are read-only
+- No new Graph endpoints; all new finding functions accept pre-fetched data
+- NhiOwner handles absent owner data gracefully (suppresses per-SP findings when lookup failed)
+- No new remediation action types or write scopes
+
+### EntraNHIAudit Retirement (Continued)
+- The 10 NHI finding IDs (NHI-OWNER-001/002/003/004/005/006, NHI-PUB-001/002, NHI-REG-001) were ported from the retired EntraNHIAudit tool
+- NHI-AGENT-001/002/003 add new Entra role assignment analysis not previously in EntraNHIAudit
+
+---
+
 ## Rev3.7 — Polishing, Determinism, and Safety Hardening (2026-06-04)
 
 ### M16 - Output Manifest Determinism
