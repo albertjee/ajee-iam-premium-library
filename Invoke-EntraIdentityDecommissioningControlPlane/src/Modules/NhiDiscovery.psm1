@@ -89,6 +89,7 @@ function New-DecomNhiSyntheticData {
                 ServicePrincipalType = 'ServiceIdentity'; PublisherName = 'Contoso Corp'
                 VerifiedPublisher = $null; AccountEnabled = $true; Tags = @()
                 AppOwnerOrganizationId = 'tenant-001'
+                AdditionalProperties = @{}
                 Credentials = @()
                 Owners = @()
                 AppRoleAssignments = @()
@@ -99,9 +100,10 @@ function New-DecomNhiSyntheticData {
                 ServicePrincipalType = 'Application'; PublisherName = 'Contoso Corp'
                 VerifiedPublisher = $null; AccountEnabled = $true; Tags = @()
                 AppOwnerOrganizationId = 'tenant-001'
+                AdditionalProperties = @{}
                 Credentials = @([PSCustomObject]@{ KeyId = 'key-expired-001'; EndDateTime = $now.AddYears(-1).ToString('o') })
                 Owners = @()
-                AppRoleAssignments = @([PSCustomObject]@{ AdditionalProperties = @{ appRoleId = 'Directory.ReadWrite.All' } })
+                AppRoleAssignments = @([PSCustomObject]@{ PrincipalId = 'sp-002'; AdditionalProperties = @{ appRoleId = 'Directory.ReadWrite.All' } })
                 OAuthGrants = @()
             },
             [PSCustomObject]@{
@@ -109,10 +111,11 @@ function New-DecomNhiSyntheticData {
                 ServicePrincipalType = 'Application'; PublisherName = 'Contoso Corp'
                 VerifiedPublisher = $null; AccountEnabled = $true; Tags = @()
                 AppOwnerOrganizationId = 'tenant-001'
+                AdditionalProperties = @{}
                 Credentials = @()
                 Owners = @([PSCustomObject]@{ Id = 'owner-001'; DisplayName = 'Jane Smith' })
                 AppRoleAssignments = @()
-                OAuthGrants = @([PSCustomObject]@{ ConsentType = 'AllPrincipals'; Scope = 'Mail.Send offline_access' })
+                OAuthGrants = @([PSCustomObject]@{ ClientId = 'sp-003'; ConsentType = 'AllPrincipals'; Scope = 'Mail.Send offline_access' })
             },
             [PSCustomObject]@{
                 Id = 'sp-004'; AppId = 'app-004'; DisplayName = 'Microsoft Graph'
@@ -120,6 +123,7 @@ function New-DecomNhiSyntheticData {
                 VerifiedPublisher = [PSCustomObject]@{ DisplayName = 'Microsoft' }
                 AccountEnabled = $true; Tags = @()
                 AppOwnerOrganizationId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+                AdditionalProperties = @{}
                 Credentials = @()
                 Owners = @()
                 AppRoleAssignments = @()

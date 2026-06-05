@@ -417,7 +417,7 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     Write-DecomInfo "Generating NHI governance pack..."
 
     # Discover NHI inventory
-    $NhiInventory = Invoke-DecomNhiDiscovery -Context $Context -DemoMode:$DemoMode
+    $NhiInventory = Invoke-DecomNhiDiscovery -Context $Context
 
     # Analyze NHI objects
     $NhiAnalyzed = Invoke-DecomNhiAnalysis -NhiObjects $NhiInventory -Context $Context
@@ -432,10 +432,12 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     # === Rev3.8 M24: NHI credential / permission / sign-in scans ===
     Write-DecomInfo "Running NHI credential, permission, and sign-in scans..."
 
-    # Flatten raw SPs and related data from NhiInventory for scan functions
-    $nhiCredentialSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawServicePrincipal })
-    $nhiPermissionAras = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawAppRoleAssignments } | Where-Object { $_ })
-    $nhiPermissionGrants = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawOAuthGrants } | Where-Object { $_ })
+    # Flatten raw SPs from NhiAnalyzed for scan functions (consistent with owner/agent/publisher scans)
+    # Note: NhiInventory includes Microsoft Graph (sp-004) which is filtered out by NhiAnalysis; use NhiAnalyzed for SP list
+    $nhiScanSpIds = @($NhiAnalyzed | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.ObjectId })
+    $nhiCredentialSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawServicePrincipal })
+    $nhiPermissionAras = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawAppRoleAssignments } | Where-Object { $_ })
+    $nhiPermissionGrants = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawOAuthGrants } | Where-Object { $_ })
 
     # NHI-CRED scan
     $nhiCredentialFindings = @()
@@ -458,7 +460,10 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
         if ($nhiSignInFindings) { $Findings += $nhiSignInFindings }
     }
 
-    $newNhiFindingCount = ($nhiCredentialFindings.Count + $nhiPermissionFindings.Count + $nhiSignInFindings.Count)
+    $credCount = if ($nhiCredentialFindings) { $nhiCredentialFindings.Count } else { 0 }
+    $permCount = if ($nhiPermissionFindings) { $nhiPermissionFindings.Count } else { 0 }
+    $signCount = if ($nhiSignInFindings) { $nhiSignInFindings.Count } else { 0 }
+    $newNhiFindingCount = $credCount + $permCount + $signCount
     $Summary  = Get-DecomFindingSummary -Findings $Findings
     Write-DecomOk "NHI credential/permission/signIn scans complete - $newNhiFindingCount new findings added"
 
@@ -496,7 +501,10 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     $agentBlueprintIdByObjectId = @{}
     foreach ($nhiObj in $NhiInventory) {
         if ($nhiObj.ObjectType -eq 'ServicePrincipal') {
-            $blueprintId = $nhiObj.RawServicePrincipal.AgentIdentityBlueprintId
+            $blueprintId = $null
+            if ($nhiObj.RawServicePrincipal.PSObject.Properties.Name -contains 'AgentIdentityBlueprintId') {
+                $blueprintId = $nhiObj.RawServicePrincipal.AgentIdentityBlueprintId
+            }
             if (-not $blueprintId -and $nhiObj.RawServicePrincipal.AdditionalProperties) {
                 $blueprintId = $nhiObj.RawServicePrincipal.AdditionalProperties['agentIdentityBlueprintId']
             }
@@ -530,7 +538,10 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
         if ($nhiAgentFindings) { $Findings += $nhiAgentFindings }
     }
 
-    $newNhiFindingCount2 = ($nhiOwnerFindings.Count + $nhiPublisherFindings.Count + $nhiAgentFindings.Count)
+    $ownCount = if ($nhiOwnerFindings) { $nhiOwnerFindings.Count } else { 0 }
+    $pubCount = if ($nhiPublisherFindings) { $nhiPublisherFindings.Count } else { 0 }
+    $agentCount = if ($nhiAgentFindings) { $nhiAgentFindings.Count } else { 0 }
+    $newNhiFindingCount2 = $ownCount + $pubCount + $agentCount
     $Summary  = Get-DecomFindingSummary -Findings $Findings
     Write-DecomOk "NHI owner/publisher/agent scans complete - $newNhiFindingCount2 new findings added"
     }
