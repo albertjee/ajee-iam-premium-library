@@ -93,6 +93,9 @@ $modulesToLoad = @(
     'NhiAnalysis'
     'NhiGovernance'
     'NhiReporting'
+    'NhiCredential'
+    'NhiPermission'
+    'NhiSignIn'
 )
 
 foreach ($mod in $modulesToLoad) {
@@ -422,7 +425,39 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     $Summary  = Get-DecomFindingSummary -Findings $Findings
     $NhiPipelineRan = $true
     Write-DecomOk "NHI findings merged — total findings now $($Summary.Total)"
-}
+
+    # === Rev3.8 M24: NHI credential / permission / sign-in scans ===
+    Write-DecomInfo "Running NHI credential, permission, and sign-in scans..."
+
+    # Flatten raw SPs and related data from NhiInventory for scan functions
+    $nhiCredentialSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawServicePrincipal })
+    $nhiPermissionAras = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawAppRoleAssignments } | Where-Object { $_ })
+    $nhiPermissionGrants = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawOAuthGrants } | Where-Object { $_ })
+
+    # NHI-CRED scan
+    $nhiCredentialFindings = @()
+    if ($nhiCredentialSps.Count -gt 0) {
+        $nhiCredentialFindings = Invoke-NhiCredentialScan -ServicePrincipals $nhiCredentialSps -SignInByAppId @{} -SignInByServicePrincipalId @{}
+        if ($nhiCredentialFindings) { $Findings += $nhiCredentialFindings }
+    }
+
+    # NHI-PERM scan
+    $nhiPermissionFindings = @()
+    if ($nhiCredentialSps.Count -gt 0 -and ($nhiPermissionAras.Count -gt 0 -or $nhiPermissionGrants.Count -gt 0)) {
+        $nhiPermissionFindings = Invoke-NhiPermissionScan -ServicePrincipals $nhiCredentialSps -AppRoleAssignments $nhiPermissionAras -OAuthGrants $nhiPermissionGrants
+        if ($nhiPermissionFindings) { $Findings += $nhiPermissionFindings }
+    }
+
+    # NHI-SIGNIN scan
+    $nhiSignInFindings = @()
+    if ($nhiCredentialSps.Count -gt 0) {
+        $nhiSignInFindings = Invoke-NhiSignInScan -ServicePrincipals $nhiCredentialSps -SignInByAppId @{} -SignInByServicePrincipalId @{} -PermissionSummaryByObjectId @{}
+        if ($nhiSignInFindings) { $Findings += $nhiSignInFindings }
+    }
+
+    $newNhiFindingCount = ($nhiCredentialFindings.Count + $nhiPermissionFindings.Count + $nhiSignInFindings.Count)
+    $Summary  = Get-DecomFindingSummary -Findings $Findings
+    Write-DecomOk "NHI credential/permission/signIn scans complete — $newNhiFindingCount new findings added"
 
 # Baseline comparison if -BaselinePath provided
 $BaselineComparison = $null
