@@ -88,7 +88,7 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 **Project name:** Entra Identity Decommissioning Control Plane
 **Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`
 **Primary language:** PowerShell 7+
-**Current revision:** Rev3.8
+**Current revision:** Rev3.9
 **Push policy:** Albert pushes manually
 
 ---
@@ -168,12 +168,12 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.8 current baseline:** 1240 tests across all Rev3 modules (includes M21–M24 NHI coverage expansion: NhiCredential, NhiPermission, NhiSignIn modules; 61 new tests added)
+- **Rev3.9 current baseline:** 1291 tests across all Rev3 modules (includes M26–M29 NHI full parity: NhiOwner, NhiPublisher, NhiAgent modules; 51 new tests added)
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Detailed
   ```
-- Must show 0 failures — 1240 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures — 1291 passing is the current baseline. Any new rev must meet or exceed this.
 
 ---
 
@@ -183,7 +183,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 1179 tests passing |
+| Tests | 0 failures, ≥ 1291 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 
