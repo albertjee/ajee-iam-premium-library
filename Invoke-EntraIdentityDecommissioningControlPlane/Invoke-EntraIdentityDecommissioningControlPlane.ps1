@@ -468,27 +468,72 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     # Flatten raw SPs from NhiInventory for scan functions
     $nhiScanSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawServicePrincipal })
 
+    # Extract owner data for NhiOwner
+    $ownersByObjectId = @{}
+    $ownerLookupSucceeded = $true
+    foreach ($nhiObj in $NhiInventory) {
+        if ($nhiObj.ObjectType -eq 'ServicePrincipal') {
+            if ($nhiObj.RawOwners) {
+                $ownersByObjectId[$nhiObj.ObjectId] = @($nhiObj.RawOwners)
+            } else {
+                $ownersByObjectId[$nhiObj.ObjectId] = @()
+            }
+            if ($nhiObj.RiskScoreMayBeUnderstated -eq $true) {
+                $ownerLookupSucceeded = $false
+            }
+        }
+    }
+
+    # Extract app registration data for NhiPublisher
+    $appRegistrationByAppId = @{}
+    foreach ($nhiObj in $NhiInventory) {
+        if ($nhiObj.ObjectType -eq 'Application' -and $nhiObj.RawApplication) {
+            $appRegistrationByAppId[$nhiObj.AppId] = $nhiObj.RawApplication
+        }
+    }
+
+    # Extract agent blueprint IDs for NhiAgent
+    $agentBlueprintIdByObjectId = @{}
+    foreach ($nhiObj in $NhiInventory) {
+        if ($nhiObj.ObjectType -eq 'ServicePrincipal') {
+            $blueprintId = $nhiObj.RawServicePrincipal.AgentIdentityBlueprintId
+            if (-not $blueprintId -and $nhiObj.RawServicePrincipal.AdditionalProperties) {
+                $blueprintId = $nhiObj.RawServicePrincipal.AdditionalProperties['agentIdentityBlueprintId']
+            }
+            if ($blueprintId) {
+                $agentBlueprintIdByObjectId[$nhiObj.ObjectId] = $blueprintId
+            }
+        }
+    }
+
+    # TenantId for NhiPublisher
+    $tenantIdForNhiPublisher = ''
+    if ($Context -and $Context.TenantId) {
+        $tenantIdForNhiPublisher = [string]$Context.TenantId
+    }
+
     $nhiOwnerFindings = @()
     if ($nhiScanSps.Count -gt 0) {
-        $nhiOwnerFindings = Invoke-NhiOwnerScan -ServicePrincipals $nhiScanSps -OwnersByObjectId @{} -OwnerLookupSucceeded $false
+        $nhiOwnerFindings = Invoke-NhiOwnerScan -ServicePrincipals $nhiScanSps -OwnersByObjectId $ownersByObjectId -OwnerLookupSucceeded $ownerLookupSucceeded
         if ($nhiOwnerFindings) { $Findings += $nhiOwnerFindings }
     }
 
     $nhiPublisherFindings = @()
     if ($nhiScanSps.Count -gt 0) {
-        $nhiPublisherFindings = Invoke-NhiPublisherScan -ServicePrincipals $nhiScanSps -AppRegistrationByAppId @{} -TenantId ''
+        $nhiPublisherFindings = Invoke-NhiPublisherScan -ServicePrincipals $nhiScanSps -AppRegistrationByAppId $appRegistrationByAppId -TenantId $tenantIdForNhiPublisher
         if ($nhiPublisherFindings) { $Findings += $nhiPublisherFindings }
     }
 
     $nhiAgentFindings = @()
     if ($nhiScanSps.Count -gt 0) {
-        $nhiAgentFindings = Invoke-NhiAgentScan -ServicePrincipals $nhiScanSps -AgentBlueprintIdByObjectId @{}
+        $nhiAgentFindings = Invoke-NhiAgentScan -ServicePrincipals $nhiScanSps -AgentBlueprintIdByObjectId $agentBlueprintIdByObjectId
         if ($nhiAgentFindings) { $Findings += $nhiAgentFindings }
     }
 
     $newNhiFindingCount2 = ($nhiOwnerFindings.Count + $nhiPublisherFindings.Count + $nhiAgentFindings.Count)
     $Summary  = Get-DecomFindingSummary -Findings $Findings
     Write-DecomOk "NHI owner/publisher/agent scans complete - $newNhiFindingCount2 new findings added"
+    }
 
 # Baseline comparison if -BaselinePath provided
 $BaselineComparison = $null
