@@ -107,6 +107,49 @@
 
 ---
 
+## Rev3.10 — Data Wiring and DemoMode Hardening (2026-06-05)
+
+### M38 - Entry Point Structural Fix
+- Fixed pre-existing structural bug: `if ($GenerateNhiGovernancePack -or $DemoMode)` block at line 416 was missing closing `}` before the credential scan section — caused parse error with `pwsh -File`
+- Fixed pre-existing DemoMode parameter bug: `Invoke-DecomNhiDiscovery -Context $Context -DemoMode:$DemoMode` passes a parameter that does not exist on that function — DemoMode is read from `$Context.DemoMode` internally; removed illegal `-DemoMode:$DemoMode` argument
+- Entry point parse errors: 1 (pre-existing) → 0 (resolved)
+
+### M38 - DemoMode Synthetic Data Hardening (New-DecomNhiSyntheticData only)
+- Added `PrincipalId` to synthetic AppRoleAssignment on sp-002 — prevents `ContainsKey(null)` crash in NhiPermissionScan when scanning with empty hashtable inputs
+- Added `ClientId` to synthetic OAuthGrant on sp-003 — prevents `ContainsKey(null)` crash in NhiPermissionScan
+- Added `AdditionalProperties = @{}` to all 4 synthetic SPs — real Graph SPs always have this hashtable; ensures property access is not null
+- Added `KeyCredentials` array to sp-002 to align with what NhiCredentialScan expects (standard Graph property name vs the custom `Credentials` NoteProperty) — ensures credential scan can read key credential metadata
+
+### M39 - Data Source Wiring
+- Wire `ownersByObjectId` hashtable to `Invoke-NhiOwnerScan` — owner data from NhiDiscovery (via `RawOwners`) now passed instead of empty hashtable
+- Wire `appRegistrationByAppId` hashtable to `Invoke-NhiPublisherScan` — app registration data keyed by AppId now supplied
+- Wire `agentBlueprintIdByObjectId` hashtable to `Invoke-NhiAgentScan` — blueprint IDs from NhiDiscovery `AdditionalProperties['agentIdentityBlueprintId']` extracted for scan functions; added PSObject property-existence guard before direct property access
+- Fixed `ownerLookupSucceeded` flag — propagates `RiskScoreMayBeUnderstated` from NhiInventory to NhiOwner scan
+- Fixed credential/permission/sign-in section to use NhiAnalyzed SPs (3 SPs after Microsoft Graph filtered) instead of NhiInventory (4 SPs including Microsoft Graph) — consistent with owner/agent/publisher scan data source
+- Added null-safe count aggregation for scan result counts — scan functions return `$null` rather than `@()` when no findings, causing `$array.Count` to throw in earlier versions
+
+### M40 - Smoke Test
+- DemoMode smoke test: all 5 outputs generated (CSV, JSON, HTML, remediation plan, run manifest)
+- NHI finding counts in DemoMode: DEC-NHI (13), NHI-PERM (4), DEC-AGENT (6), NHI-AGENT (2)
+- Excluded from M40 commit (fold into M41): NHI-CRED (0 in DemoMode — credential scan reads KeyCredentials property which differs from synthetic data's `Credentials` NoteProperty; acceptable for data-dependent scan), NHI-SIGNIN (0 in DemoMode — sign-in data not generated because DemoMode does not use real-time sign-in records)
+- No code changes required for M40 — M40 results folded into M41 docs commit
+
+### Tests
+- Total: 1291 tests, 0 failures (unchanged from Rev3.9)
+- No new tests added in Rev3.10 (cleanup and wiring release, no new modules)
+
+### Safety
+- Rev3.10 is a structural and data wiring release — no new Graph endpoints, no new finding IDs
+- Property-existence guard added for `AgentIdentityBlueprintId` access on NhiInventory objects
+- Null-safe count aggregation prevents premature script termination when scan functions return `$null`
+- DemoMode synthetic data now more closely mirrors real Graph SDK response shape
+
+### KNOWN-P1: RESOLVED
+- Pre-existing entry point AST parse error (missing `}`): 0 parse errors after M38 fix
+- Pre-existing DemoMode parameter crash (`A parameter cannot be found that matches parameter name 'DemoMode'`): resolved, DemoMode now runs to completion
+
+---
+
 ## Rev3.7 — Polishing, Determinism, and Safety Hardening (2026-06-04)
 
 ### M16 - Output Manifest Determinism
