@@ -16,3 +16,8 @@ corruption-scan.txt
 parse_errors.txt
 pester-verbose.log
 src-listing.md
+
+BUILD-PROMPT-REV39-NHI-PARITY-v1.1.md
+BUILD-PROMPT-REV39-NHI-PARITY-v1.2.md
+hex-check.ps1
+runbooks/
