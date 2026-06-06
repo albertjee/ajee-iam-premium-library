@@ -1,5 +1,32 @@
 # Changelog
 
+## Rev3.11 — Simple Parameter Wrapper (2026-06-05)
+
+### M1 - Wrapper Script
+- Created `Start-EntraIAMAssessment.ps1` (repo root) — preset-driven launcher for the main entry point
+- Four run modes: QuickNHI, FullAssessment, DemoMode, WhatIfRemediation
+- Dot-source safe (returns immediately on dot-source)
+- ShouldProcess guard: `-WhatIf` blocks main tool invocation
+- `-Mode` validated at runtime (not Mandatory in param block)
+- Help content: .SYNOPSIS, .DESCRIPTION, 4 .EXAMPLE blocks
+- No hardcoded absolute paths
+- Commit: `feat: Rev3.11 M1 - Start-EntraIAMAssessment.ps1 wrapper, 4 preset modes`
+
+### M2 - Test Suite
+- Created `tests/StartEntraIAMAssessment.Rev311.Tests.ps1` (29 tests)
+- TestDrive fake entry point strategy (not Mock) for splat verification
+- Covers: presence/load, parameter metadata, help content, all 4 preset mappings, optional param wiring, ShouldProcess guard, no hardcoded paths
+- All 29 new tests pass
+- Commit: `test: Rev3.11 M2 - StartEntraIAMAssessment tests, 1320/1320 passing`
+
+### M3 - Documentation
+- `CHANGELOG.md` updated with Rev3.11 section
+- `CLAUDE.md` updated: Current revision Rev3.10 → Rev3.11, Canonical test count 1291 → 1320
+- Commit: `docs: Rev3.11 M3 - CHANGELOG and CLAUDE.md updated`
+
+### Tests
+- Total: 1320/1320 passing, 0 failed
+
 ## Rev3.8 — NHI Coverage Expansion (2026-06-05)
 
 ### M21 - NhiCredential Module
