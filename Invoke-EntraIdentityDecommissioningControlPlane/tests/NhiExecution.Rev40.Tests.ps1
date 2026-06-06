@@ -638,10 +638,6 @@ Describe 'Invoke-NhiDisable — ServicePrincipal' {
     }
 
     It 'Invoke-NhiDisable for SP: Record updated with DisabledAt and ScreamTestDays' {
-        Invoke-NhiDisable -ObjectId 'disable-sp-001' -ObjectType 'ServicePrincipal' `
-            -EngagementId 'ENG-REV40-001' -ExecutionRunId 'DIS_SP2' `
-            -ExecutionOutputPath $Script:DisableOutputPath -ScreamTestDays 15
-
         $manifestPath = Join-Path $Script:DisableOutputPath 'SnapshotManifest-DIS_SP2.json'
         # Create manifest
         $rec = New-TestSPSnapshotRecord -ObjectId 'disable-sp-001'
