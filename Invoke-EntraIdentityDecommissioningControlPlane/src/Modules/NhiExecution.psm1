@@ -852,9 +852,11 @@ function Invoke-NhiRollbackTag {
                 throw "Invoke-NhiRollbackTag: No snapshot Record found for ObjectId '$ObjectId' in SnapshotManifest-$ExecutionRunId.json."
             }
 
-            # Restore Priornotes exactly — null is a valid value (clears DecomTag)
-            [string]$restoreNotes = $records[$matchIndex]['PriorNotes']
-            Update-MgServicePrincipal -ServicePrincipalId $ObjectId -Notes $restoreNotes -ErrorAction Stop
+            # Restore PriorNotes exactly — null is a valid value (clears DecomTag)
+            # PowerShell ConvertFrom-Json converts JSON null to empty string; normalize back to $null
+            $restoreNotes = $records[$matchIndex]['PriorNotes']
+            if ($restoreNotes -eq '') { $restoreNotes = $null }
+            Update-MgServicePrincipal -ServicePrincipalId $ObjectId -BodyParameter @{ notes = $restoreNotes } -ErrorAction Stop
         }
 
         'ManagedIdentity' {
@@ -867,6 +869,124 @@ function Invoke-NhiRollbackTag {
     }
 }
 
+function Get-NhiScreamTestStatus {
+    <#
+    .SYNOPSIS
+        Computes the scream-test monitoring status for a disabled NHI object and
+        appends the result to NhiExecutionStatus.json in ExecutionOutputPath.
+
+    .PARAMETER ObjectId
+        The Entra ObjectId of the target.
+
+    .PARAMETER DisplayName
+        The display name of the target.
+
+    .PARAMETER DisabledAt
+        ISO 8601 UTC timestamp of when the object was disabled.
+
+    .PARAMETER ScreamTestDays
+        Number of days in the scream-test window.
+
+    .PARAMETER ExecutionOutputPath
+        Directory where NhiExecutionStatus.json is written.
+
+    .PARAMETER ExecutionRunId
+        Execution run identifier (yyyyMMdd_HHmmss format).
+
+    .OUTPUTS
+        MonitoringStatus object with 8 fields:
+        ObjectId, DisplayName, DisabledAt, ElapsedDays, ScreamTestDays,
+        Status (Active | Complete | Overdue), ExecutionRunId, AssessedAt
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ObjectId,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$DisplayName,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$DisabledAt,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(0, 3650)]
+        [int]$ScreamTestDays,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ExecutionOutputPath,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ExecutionRunId
+    )
+
+    # Parse DisabledAt as UTC datetime
+    [DateTime]$disabledAtUtc = [DateTime]::MinValue
+    if (-not [DateTime]::TryParse($DisabledAt, [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$disabledAtUtc)) {
+        throw "Get-NhiScreamTestStatus: DisabledAt '$DisabledAt' is not a parseable datetime."
+    }
+
+    # Validate ExecutionOutputPath exists and is writable
+    if (-not (Test-Path -Path $ExecutionOutputPath -PathType Container)) {
+        throw "Get-NhiScreamTestStatus: ExecutionOutputPath '$ExecutionOutputPath' does not exist or is not a directory."
+    }
+
+    # Calculate ElapsedDays as integer
+    [int]$elapsedDays = [Math]::Floor(([DateTime]::UtcNow - $disabledAtUtc).TotalDays)
+
+    # Determine Status using ordered evaluation (Overdue first)
+    [string]$status = 'Active'
+    if ($elapsedDays -gt ($ScreamTestDays + 7)) {
+        $status = 'Overdue'
+    } elseif ($elapsedDays -ge $ScreamTestDays) {
+        $status = 'Complete'
+    }
+
+    # Build MonitoringStatus object with exactly 8 fields
+    [PSCustomObject]$monitoringStatus = [PSCustomObject]@{
+        ObjectId         = $ObjectId
+        DisplayName      = $DisplayName
+        DisabledAt       = $DisabledAt
+        ElapsedDays      = $elapsedDays
+        ScreamTestDays   = $ScreamTestDays
+        Status           = $status
+        ExecutionRunId    = $ExecutionRunId
+        AssessedAt       = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+    }
+
+    # Append to NhiExecutionStatus.json
+    $statusFilePath = Join-Path $ExecutionOutputPath 'NhiExecutionStatus.json'
+
+    [object[]]$statusEntries = @()
+    if (Test-Path -Path $statusFilePath -PathType Leaf) {
+        try {
+            $existingJson = Get-Content -Path $statusFilePath -Raw -Encoding UTF8
+            $statusEntries = @($existingJson | ConvertFrom-Json)
+        } catch {
+            throw "Get-NhiScreamTestStatus: Could not parse existing NhiExecutionStatus.json at '$statusFilePath'. Error: $($_.Exception.Message)"
+        }
+    }
+
+    # Validate existing file is a JSON array (throw if malformed)
+    if (-not ($statusEntries -is [System.Array])) {
+        throw "Get-NhiScreamTestStatus: NhiExecutionStatus.json at '$statusFilePath' is not a valid JSON array."
+    }
+
+    $statusEntries += $monitoringStatus
+    $jsonOut = $statusEntries | ConvertTo-Json -Depth 10
+    [System.IO.File]::WriteAllText($statusFilePath, $jsonOut, [System.Text.UTF8Encoding]::new($false))
+
+    # Return the MonitoringStatus object
+    return $monitoringStatus
+}
+
 # ── EXPORTS ─────────────────────────────────────────────────────────────────---
 
 Export-ModuleMember -Function @(
@@ -875,4 +995,5 @@ Export-ModuleMember -Function @(
     'Invoke-NhiDisable'
     'Invoke-NhiRollbackDisable'
     'Invoke-NhiRollbackTag'
+    'Get-NhiScreamTestStatus'
 )

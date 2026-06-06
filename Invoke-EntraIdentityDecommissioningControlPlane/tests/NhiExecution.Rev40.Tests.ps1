@@ -919,7 +919,7 @@ Describe 'Invoke-NhiRollbackTag — ServicePrincipal' {
         Should -Invoke Update-MgServicePrincipal -ModuleName NhiExecution -Times 1
         Should -Invoke Update-MgServicePrincipal -ModuleName NhiExecution -ParameterFilter {
             $ServicePrincipalId -eq 'rb-tag-001' -and
-            $Notes -eq 'Original Notes'
+            $BodyParameter.notes -eq 'Original Notes'
         }
     }
 
@@ -930,7 +930,7 @@ Describe 'Invoke-NhiRollbackTag — ServicePrincipal' {
         Should -Invoke Update-MgServicePrincipal -ModuleName NhiExecution -Times 1
         Should -Invoke Update-MgServicePrincipal -ModuleName NhiExecution -ParameterFilter {
             $ServicePrincipalId -eq 'rb-tag-002' -and
-            $Notes -eq $null
+            [string]::IsNullOrEmpty($BodyParameter.notes)
         }
     }
 
