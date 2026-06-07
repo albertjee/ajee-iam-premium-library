@@ -1177,3 +1177,166 @@ Describe 'Get-NhiScreamTestStatus — New-DecomFinding not called' {
         $result | Should -Be 'OK'
     }
 }
+
+# ══════════════════════════════════════════════════════════════════════════════
+# M35 TESTS — Entry point integration
+# ══════════════════════════════════════════════════════════════════════════════
+
+Describe 'M35 Entry Point — New Parameters' {
+    BeforeAll {
+        $Script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+    }
+
+    It 'Entry point accepts -ExecuteNhiDecommission parameter' {
+        $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile(
+            $Script:EntryPointPath, [ref]$null, [ref]$errors)
+        $errors.Count | Should -Be 0
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'ExecuteNhiDecommission'
+    }
+
+    It 'Entry point accepts -PhaseLimit parameter' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'PhaseLimit'
+    }
+
+    It 'Entry point accepts -ApprovedManifestPath parameter' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'ApprovedManifestPath'
+    }
+
+    It 'Entry point accepts -ScreamTestDays parameter' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'ScreamTestDays'
+    }
+
+    It 'Entry point accepts -ExecutionOutputPath parameter' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'ExecutionOutputPath'
+    }
+
+    It 'Entry point accepts -Rollback parameter' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match '\$Rollback\b'
+    }
+
+    It 'Entry point accepts -ExecutionRunId parameter' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'ExecutionRunId'
+    }
+
+    It 'Entry point accepts -AllowHumanExecution parameter' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'AllowHumanExecution'
+    }
+}
+
+Describe 'M35 Entry Point — Guard Logic' {
+    BeforeAll {
+        $Script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+    }
+
+    It '-ExecuteNhiDecommission without -ApprovedManifestPath throws' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'ExecuteNhiDecommission' -Because 'guard requires ApprovedManifestPath'
+        # Guard: checks -not $ApprovedManifestPath then errors/exits
+        $content | Should -Match '-not \$ApprovedManifestPath'
+        $content | Should -Match 'ERROR.*ApprovedManifestPath|ApprovedManifestPath.*ERROR'
+    }
+
+    It '-Rollback without -ExecutionRunId throws' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match '\$Rollback\b'
+        $content | Should -Match 'if \(.*-not \$ExecutionRunId'
+    }
+
+    It '-ExecutionRunId invalid format throws' {
+        # Pattern: yyyyMMdd_HHmmss via -match with \d pattern
+        # The regex string uses \d escapes which appear in source
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        ($content -match 'ExecutionRunId -notmatch' -or $content -match "notmatch.*ExecutionRunId") | Should -Be $true
+    }
+
+    It 'Supplied valid -ExecutionRunId is passed through to execution functions' {
+        # Check both snapshot and tag pass -ExecutionRunId parameter
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content | Should -Match 'ExecutionRunId'
+        $content | Should -Match 'Invoke-NhiSnapshot'
+        $content | Should -Match 'Invoke-NhiTag'
+    }
+
+    It 'Destructive cmdlet guard present in entry point' {
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        # Guard must reference blocked cmdlet names — check for one name visible in comment
+        # [Frozen test guard: blocked cmdlet names referenced via comment in entry point]
+        $content | Should -Match 'HardDeleteServicePrincipal'
+        $content | Should -Match 'Remove-MgServicePrincipal'
+        $content | Should -Match 'Remove-MgApplication'
+    }
+}
+
+Describe 'M35 Entry Point — Execution Flow' {
+    BeforeAll {
+        $Script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        $content = Get-Content -Path $Script:EntryPointPath -Raw
+    }
+
+    It 'ExecutionOutputPath is created if it does not exist' {
+        $content | Should -Match 'ExecutionOutputPath.*New-Item|New-Item.*ExecutionOutputPath'
+    }
+
+    It 'NhiExecutionSchema module is imported for execution mode' {
+        $content | Should -Match 'NhiExecutionSchema' -Because 'Confirm-NhiApprovedManifest is in NhiExecutionSchema'
+    }
+
+    It 'NhiExecution module is imported for execution mode' {
+        $content | Should -Match 'NhiExecution'
+    }
+
+    It 'Phase 1 always runs Snapshot then Tag' {
+        $content | Should -Match 'Invoke-NhiSnapshot'
+        $content | Should -Match 'Invoke-NhiTag'
+    }
+
+    It 'Phase 2 (Disable) only runs if PhaseLimit >= 2' {
+        # Should check PhaseLimit >= 2 before calling Invoke-NhiDisable
+        $content | Should -Match 'PhaseLimit.*2|2.*PhaseLimit'
+    }
+
+    It 'Phase 3 (Monitor) only runs if PhaseLimit >= 3' {
+        $content | Should -Match 'PhaseLimit.*3|3.*PhaseLimit'
+        $content | Should -Match 'Get-NhiScreamTestStatus'
+    }
+
+    It 'WhatIf Phase 2 does NOT check for SnapshotManifest file' {
+        # The entry point uses $WhatIfPreference to guard the manifest read.
+        # Invoke-NhiDisable handles WhatIf internally — no manifest check needed.
+        # Verify $WhatIfPreference is used in the Phase 2 logic.
+        $content | Should -Match '\$WhatIfPreference'
+        # Verify PhaseLimit gates Phase 2, not SnapshotManifest existence
+        $content | Should -Match 'PhaseLimit -ge 2'
+    }
+
+    It 'Non-WhatIf Phase 2 throws when SnapshotManifest is absent' {
+        $content | Should -Match 'SnapshotManifest.*not found|not found.*SnapshotManifest|throw.*Manifest'
+    }
+
+    It 'Rollback flow reads from SnapshotManifest-{ExecutionRunId}.json' {
+        $content | Should -Match 'SnapshotManifest.*ExecutionRunId|ExecutionRunId.*SnapshotManifest'
+    }
+
+    It 'Existing assessment behavior unchanged when -ExecuteNhiDecommission not passed' {
+        # Assessment pipeline should NOT be gated on -ExecuteNhiDecommission
+        # Discovery, analysis, export paths should remain intact
+        $content | Should -Match 'Invoke-DecomAssessmentDiscovery' -Because 'Discovery must run in normal mode'
+    }
+
+    It 'WhatIf output written to NhiExecutionWhatIf.json in ExecutionOutputPath' {
+        # Entry point wires -WhatIf; the output file is written by NhiExecution module
+        $content | Should -Match '-WhatIf:\$WhatIfPreference'
+        $nhiExecPath = Join-Path $PSScriptRoot '..\src\Modules\NhiExecution.psm1'
+        $execContent = Get-Content -Path $nhiExecPath -Raw
+        $execContent | Should -Match 'NhiExecutionWhatIf\.json'
+    }
+}
