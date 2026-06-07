@@ -1,6 +1,6 @@
 # CLAUDE.md — Entra Identity Decommissioning Control Plane
 # Albert Jee | Architect-Level Baseline
-# Rev1.3 — Application Ownership Drift Detection
+# Rev1.3 — Rev4.0 NHI Execution Foundation
 
 ---
 
@@ -88,7 +88,7 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 **Project name:** Entra Identity Decommissioning Control Plane
 **Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`
 **Primary language:** PowerShell 7+
-**Current revision:** Rev3.11
+**Current revision:** Rev4.0
 **Push policy:** Albert pushes manually
 
 ---
@@ -168,13 +168,21 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 
 ## 9. Canonical Test Count
 
-- **Rev3.10 current baseline:** 1291 tests across all Rev3 modules (includes M26–M29 NHI full parity: NhiOwner, NhiPublisher, NhiAgent modules; 51 new tests added)
-- **Rev3.11 test count:** 1320 tests (1291 baseline + 29 wrapper tests)
+- **Rev3.11 baseline:** 1320 tests (Rev3.110 baseline)
+- **Rev4.0 test count:** 1456 tests (M31-M36)
+  - M31 NhiExecutionSchema: 25 tests
+  - M32 NhiExecution snapshot/tag: 25 tests
+  - M33 NhiExecution disable/rollback: 24 tests
+  - M34 NhiExecution scream-test monitoring: 14 tests
+  - M35 Entry point execution + guard: 18 tests
+  - M36 DestructiveCmdletGuard AST scanner: 25 tests
+  - Pre-existing Rev11 + Rev36 tests: 66 tests
+  - Pre-existing Rev3.x tests: remainder
 - **Gate 3 command:**
   ```powershell
-  Invoke-Pester -Path .\tests\ -Output Detailed
+  Invoke-Pester -Path .\tests\ -Output Minimal
   ```
-- Must show 0 failures — 1320 passing is the current baseline. Any new rev must meet or exceed this.
+- Must show 0 failures, >= 1456 tests passing.
 
 ---
 
@@ -184,7 +192,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 1320 tests passing |
+| Tests | 0 failures, ≥ 1456 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 

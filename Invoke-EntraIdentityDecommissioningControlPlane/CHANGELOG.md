@@ -1,5 +1,97 @@
 # Changelog
 
+## Rev4.0 — NHI Execution Foundation (2026-06-07)
+
+### M31 — Execution Schema
+- Created `src/Modules/NhiExecutionSchema.psm1`
+  - `Get-NhiExecutionSchema` — returns 12-action metadata hashtable (6 allowed + 6 blocked)
+  - `Test-NhiExecutionActionAllowed` — phase gating and reversibility enforcement
+  - `Confirm-NhiApprovedManifest` — 7-check approval manifest validation
+- Phase 1 (Snapshot, Tag), Phase 2 (Disable), Phase 3 (Monitor, RollbackTag, RollbackDisable)
+- 6 blocked actions: HardDeleteServicePrincipal, RemoveCredential, RemoveAppRoleAssignment, RemoveOAuthGrant, RemoveOwner, DeleteApplication
+- Created `tests/NhiExecutionSchema.Rev40.Tests.ps1` (25 tests)
+- Commit: `feat: Rev4.0 M31 - NhiExecutionSchema, action model, manifest validation`
+
+### M32 — Execution Module: Snapshot and Tag
+- Created `src/Modules/NhiExecution.psm1`
+  - `Invoke-NhiSnapshot` Phase 1 — reads SP graph state, writes SnapshotManifest, tags via Update-MgServicePrincipal
+  - `Invoke-NhiTag` Phase 1 — validates prior snapshot, writes DecomTagged notes via Update-MgServicePrincipal
+  - PriorNotes capture (null and non-null), PriorAccountEnabled capture
+  - Entra write scope: ServicePrincipal only. MI and User are scaffold/read-only.
+- Created `tests/NhiExecution.Rev40.Tests.ps1` (added 25 M32 tests)
+- Commit: `feat: Rev4.0 M32 - NhiExecution snapshot and tag, PriorNotes capture, SP-only write`
+
+### M33 — Execution Module: Disable and Rollback
+- Added to `NhiExecution.psm1`:
+  - `Invoke-NhiDisable` Phase 2 — Update-MgServicePrincipal -AccountEnabled:$false, ScreamTestDays tracking
+  - `Invoke-NhiRollbackDisable` — restores PriorAccountEnabled exactly (not unconditional $true)
+  - `Invoke-NhiRollbackTag` — restores PriorNotes exactly (including null case)
+- User with `-AllowHumanExecution`: silent scaffold, no Entra write, ScreamTestDays = 0
+- MI disable/rollback: no Entra write, skip reason logged
+- Added 24 M33 tests (`tests/NhiExecution.Rev40.Tests.ps1`)
+- Commit: `feat: Rev4.0 M33 - NhiExecution disable and rollback, prior-state restore`
+
+### M34 — Scream-Test Monitoring Status
+- Added `Get-NhiScreamTestStatus` to `NhiExecution.psm1`
+  - Status = Active | Complete | Overdue (ordered evaluation, Overdue takes precedence)
+  - Writes/updates NhiExecutionStatus.json with 8-field MonitoringStatus objects
+  - Threshold: Complete when ElapsedDays >= ScreamTestDays; Overdue at ScreamTestDays + 7
+- Added 14 M34 tests
+- Commit: `feat: Rev4.0 M34 - Get-NhiScreamTestStatus, scream-test monitoring, 1406/1406 passing`
+
+### M35 — Entry Point Integration
+- Modified `Invoke-EntraIdentityDecommissioningControlPlane.ps1`
+  - 8 new execution parameters: -ExecuteNhiDecommission, -PhaseLimit, -ApprovedManifestPath, -ScreamTestDays, -ExecutionOutputPath, -Rollback, -ExecutionRunId, -AllowHumanExecution
+  - M35 destructive cmdlet guard (runtime source scan for 12 blocked cmdlets)
+  - Approved manifest gate ordered before Connect-MgGraph
+  - All 4 phases wired: Phase 1 always runs (Snapshot+Tag), Phase 2 (Disable) follows, Phase 3 (Monitor) on demand
+  - ExecutionOutputPath created if absent
+- Added 18 M35 tests
+- Commit: `feat: Rev4.0 M35 - NhiExecution disable and rollback, prior-state restore, SP-only write`
+
+### M36 — Push Readiness Harness + Destructive Cmdlet Guard
+- Created `tests/DestructiveCmdletGuard.Rev40.Tests.ps1` —
+  25 CommandAst-based Pester It blocks (Use-MgServicePrincipal AST scan via FindAll(),
+  not .NET Visit() pattern — hardDeleteServicePrincipal hashtable keys excluded correctly)
+- Created `tools/Test-Rev40PushReadiness.ps1` — 5-gate push harness
+  (parse checks, module import, full Pester suite, git status, manifest validation smoke test)
+- Confirmed: DestructiveCmdletGuard.Rev40.Tests.ps1 BeforeAll failure fixed by replacing
+  $ast.Visit() with $ast.FindAll() (correct PowerShell AST traversal — FindAll() takes scriptblock + bool)
+- Commit: `feat: Rev4.0 M36 - DestructiveCmdletGuard test suite, push readiness harness, 1456 tests passing`
+
+### M37 — Documentation
+- Updated `CLAUDE.md` — Rev3.11 → Rev4.0, canonical test count 1320 → 1456
+- Created this CHANGELOG Rev4.0 section
+- Created `QA-PACKAGE-REV40-v1.md` (gitignored at repo root)
+
+### Tests
+- Total: 1456/1456 passing, 0 failed (Rev4.0 canonical count)
+
+### Key Design Decisions
+| Topic | Decision |
+|---|---|
+| Entra write scope | ServicePrincipal only. MI and User deferred to Rev4.1. |
+| Human identity hooks | User disable scaffold — -AllowHumanExecution required, no Entra write, ScreamTestDays = 0 |
+| MI behavior | Scaffold — reads capture state locally, skip reason logged, no Entra write |
+| Approved manifest | 7-check validation (EngagementId, SHA256, Phase, ApprovedBy, ApprovedAt, SchemaVersion, file parse) |
+| Destructive cmdlet guard | M35 runtime scan (entry point startup) + M36 Pester AST scan (CI gate) |
+| SnapshotManifest | SnapshotManifest-{ExecutionRunId}.json — one file per RunId |
+| ExecutionRunId | Auto-generated if not supplied (yyyyMMdd_HHmmss UTC), validated by regex |
+| HTML execution sections | Deferred to Rev4.1 (NhiReporting.psm1 not modified in Rev4.0) |
+| New-DecomFinding | Never called from any execution module |
+| Start-EntraIAMAssessment.ps1 | Not modified in Rev4.0 |
+
+### Known Limitations (carried forward from Rev3.x)
+- MI Entra write deferred to Rev4.1 (pending live SDK validation)
+- HTML execution sections deferred to Rev4.1
+- Sign-in log data source (NHI-SIGNIN-001/002) not yet wired
+- AgentIdentityBlueprintId (NHI-AGENT-002/003) not yet wired
+- DEC-AGENT-002/006/007 dormant findings
+- Full human execution deferred to Rev4.1
+- Start-EntraIAMAssessment.ps1 not updated (Rev3.11 v2 scope)
+
+---
+
 ## Rev3.11 — Simple Parameter Wrapper (2026-06-05)
 
 ### M1 - Wrapper Script
