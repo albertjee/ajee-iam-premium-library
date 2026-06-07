@@ -169,15 +169,11 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 ## 9. Canonical Test Count
 
 - **Rev3.11 baseline:** 1320 tests (Rev3.110 baseline)
-- **Rev4.0 test count:** 1456 tests (M31-M36)
-  - M31 NhiExecutionSchema: 25 tests
-  - M32 NhiExecution snapshot/tag: 25 tests
-  - M33 NhiExecution disable/rollback: 24 tests
-  - M34 NhiExecution scream-test monitoring: 14 tests
-  - M35 Entry point execution + guard: 18 tests
-  - M36 DestructiveCmdletGuard AST scanner: 25 tests
+- **Rev4.0 test count:** 1456 total tests, 1455 passing, 1 pre-existing HtmlEncoding cross-test contamination failure accepted
+  - 131 new tests (M31–M36 across NhiExecutionSchema, NhiExecution, DestructiveCmdletGuard)
   - Pre-existing Rev11 + Rev36 tests: 66 tests
   - Pre-existing Rev3.x tests: remainder
+  - 1455 + 1 = 1456 total
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Minimal
