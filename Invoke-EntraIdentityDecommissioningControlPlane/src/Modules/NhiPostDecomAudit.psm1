@@ -25,14 +25,10 @@ function Get-NhiPostDecomAuditLog {
     $timeFilter = "createdDateTime ge $startStr and createdDateTime le $endStr"
 
     try {
-        $entries = @()
-        try {
-            $entries = @(Get-MgAuditLogDirectoryAudit -Filter $timeFilter -All -ErrorAction SilentlyContinue)
-        } catch {
-            Write-DecomWarn "Get-NhiPostDecomAuditLog: Graph query failed for ObjectId '$ObjectId': $($_.Exception.Message)"
-        }
+        # Use Stop so query failure is detectable — caller handles gracefully
+        $rawEntries = @(Get-MgAuditLogDirectoryAudit -Filter $timeFilter -All -ErrorAction Stop)
         # Filter to entries that target the ObjectId (catches policy reversals by other SPs)
-        $windowed = @($entries | Where-Object {
+        $windowed = @($rawEntries | Where-Object {
             $entry = $_
             $targetsObject = $false
             if ($entry.TargetResources) {
@@ -40,10 +36,10 @@ function Get-NhiPostDecomAuditLog {
             }
             $targetsObject
         })
-        return [array]@($windowed)
+        return [PSCustomObject]@{ QuerySucceeded = $true;  Entries = [array]@($windowed); Error = $null }
     } catch {
-        Write-DecomWarn "Get-NhiPostDecomAuditLog: Failed for ObjectId '$ObjectId': $($_.Exception.Message)"
-        return [array]@([PSCustomObject]@{ Id = 'query-failed'; ActivityDisplayName = 'QueryFailed'; Result = 'Error' })
+        Write-DecomWarn "Get-NhiPostDecomAuditLog: Graph query failed for ObjectId '$ObjectId': $($_.Exception.Message)"
+        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message }
     }
 }
 
@@ -93,7 +89,15 @@ function Invoke-NhiPostDecomAttestation {
         return @((New-DecomFinding -FindingId 'DEC-ATTEST-004' -Category 'NHI Post-Decom Attestation - Incomplete' -Severity 'High' -RiskScore 70 -Evidence $evidence -ObjectId $ObjectId -DisplayName $DisplayName))
     }
 
-    $auditEntries = Get-NhiPostDecomAuditLog -ObjectId $ObjectId -DecomTimestamp $DecomTimestamp -WindowMinutes $WindowMinutes
+    $auditResult = Get-NhiPostDecomAuditLog -ObjectId $ObjectId -DecomTimestamp $DecomTimestamp -WindowMinutes $WindowMinutes
+
+    # Fail closed: if audit query failed, return DEC-ATTEST-004 not a provisional pass
+    if ($auditResult.PSObject.Properties.Name -contains 'QuerySucceeded' -and -not $auditResult.QuerySucceeded) {
+        $evidence = "Attestation INCOMPLETE: Audit log query failed for ObjectId '$ObjectId': $($auditResult.Error). Cannot verify decom action was reversed or stable."
+        return @((New-DecomFinding -FindingId 'DEC-ATTEST-004' -Category 'NHI Post-Decom Attestation - Incomplete' -Severity 'High' -RiskScore 70 -Evidence $evidence -ObjectId $ObjectId -DisplayName $DisplayName))
+    }
+
+    $auditEntries = if ($auditResult.PSObject.Properties.Name -contains 'Entries') { $auditResult.Entries } else { @($auditResult) }
 
     $overrideDetected      = $false
     $servicePrincipalReversal = $false

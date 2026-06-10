@@ -98,7 +98,7 @@ function Invoke-NhiComplianceAuditScan {
         $findings.Add((New-DecomFinding -FindingId 'NHI-COMPLY-003' -Category 'NHI Activity - Compliance Audit' -Severity 'High' -RiskScore 75 -Evidence "eDiscovery operations detected: $($ediscoveryOps.Count)" -ObjectId $objectId -DisplayName $displayName))
     }
     if ($findings.Count -eq 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-COMPLY-004' -Category 'NHI Activity - Compliance Audit' -Severity 'Informational' -RiskScore 0 -Evidence 'No compliance-sensitive operations detected in window' -ObjectId $objectId -DisplayName $displayName))
+        $findings.Add((New-DecomFinding -FindingId 'NHI-COMPLY-004' -Category 'NHI Activity - Compliance Audit' -Severity 'Informational' -RiskScore 0 -Evidence 'No compliance-sensitive operations detected in successfully retrieved audit logs for the assessment window' -ObjectId $objectId -DisplayName $displayName))
     }
 
     Write-DecomWarn "Compliance audit scan complete for ObjectId: $objectId, findings: $($findings.Count)"

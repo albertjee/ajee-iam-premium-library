@@ -449,8 +449,15 @@ if ($ExecuteNhiDecommission) {
                 -WindowMinutes 60
             $attestationFindings += $attFindings
         }
-        # DEC-ATTEST-* findings go to AttestationFindings — never merged into $Findings
-        Write-DecomOk "Post-decom attestation complete: $($attestationFindings.Count) finding(s)"
+        # Persist DEC-ATTEST-* findings to dedicated artifact — never merged into $Findings
+        $attestationPath = Join-Path $ExecutionOutputPath "AttestationFindings-$ExecutionRunId.json"
+        $attestationPayload = [PSCustomObject]@{
+            ExecutionRunId      = $ExecutionRunId
+            GeneratedUtc        = (Get-Date).ToUniversalTime().ToString('o')
+            AttestationFindings = @($attestationFindings)
+        }
+        $attestationPayload | ConvertTo-Json -Depth 12 | Set-Content -Path $attestationPath -Encoding UTF8
+        Write-DecomOk "Post-decom attestation complete: $($attestationFindings.Count) finding(s) -> $attestationPath"
     }
 
     exit 0
