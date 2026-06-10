@@ -1,5 +1,36 @@
 # Changelog
 
+## Rev4.1 — NHI Activity Audit Hardening
+
+### Summary
+Six new read-only pre-decom agentic activity audit modules. Rev4.0 P1 fix.
+Zero new write scopes. 1497/1497 tests passing.
+
+### Changes
+
+#### M0 — Rev4.0 P1 Fix
+- Fixed DestructiveCmdletGuard false positive: renamed hashtable key
+  HardDeleteServicePrincipal -> HardDeleteSvcPrincipalBlocklist in NhiExecutionSchema.psm1
+
+#### M1-M6 — New Read-Only Modules
+- NhiActivityLog.psm1: NHI-ACT-001 through NHI-ACT-005
+- NhiGraphApiAudit.psm1: NHI-GRAPH-000 through NHI-GRAPH-008
+- NhiComplianceAudit.psm1: NHI-COMPLY-001 through NHI-COMPLY-004
+- NhiTokenForensics.psm1: NHI-TOKEN-001 through NHI-TOKEN-003
+- NhiConditionalAccessResponse.psm1: NHI-CA-001 through NHI-CA-003
+- NhiPostDecomAudit.psm1: DEC-ATTEST-001 through DEC-ATTEST-004
+- Total new finding IDs: 28
+
+#### M7 — Entry Point
+- Added -IncludeAgentActivityAudit switch (optional, off by default)
+- Added 6 new modules to modulesToLoad
+
+#### Tests
+- New: tests/NhiActivityAudit.Rev41.Tests.ps1 (40 tests)
+- Total: 1497 passed, 0 failed (Rev4.0 baseline: 1456)
+
+---
+
 ## Rev4.0 — NHI Execution Foundation (2026-06-07)
 
 ### M31 — Execution Schema

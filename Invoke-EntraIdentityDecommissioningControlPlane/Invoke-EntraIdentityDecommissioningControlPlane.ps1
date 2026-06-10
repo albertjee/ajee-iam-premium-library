@@ -49,7 +49,10 @@ param(
     [string]$ExecutionOutputPath = '.\out\execution',
     [switch]$Rollback,
     [string]$ExecutionRunId,
-    [switch]$AllowHumanExecution
+    [switch]$AllowHumanExecution,
+
+    # Rev4.1 optional read-only NHI activity audit
+    [switch]$IncludeAgentActivityAudit
 )
 
 # Tool version - update this single constant each release
@@ -111,6 +114,12 @@ $modulesToLoad = @(
     'NhiAgent'
     'NhiExecutionSchema'
     'NhiExecution'
+    'NhiActivityLog'
+    'NhiGraphApiAudit'
+    'NhiComplianceAudit'
+    'NhiTokenForensics'
+    'NhiConditionalAccessResponse'
+    'NhiPostDecomAudit'
 )
 
 foreach ($mod in $modulesToLoad) {
@@ -820,6 +829,26 @@ if ($GenerateNhiGovernancePack -or $DemoMode) {
     $newNhiFindingCount2 = $ownCount + $pubCount + $agentCount
     $Summary  = Get-DecomFindingSummary -Findings $Findings
     Write-DecomOk "NHI owner/publisher/agent scans complete - $newNhiFindingCount2 new findings added"
+
+    # === Rev4.1 M7: Optional NHI activity audit ===
+    if ($IncludeAgentActivityAudit) {
+        Write-DecomInfo "Running optional NHI activity audit..."
+        $actWindowStart = (Get-Date).AddDays(-30)
+        $actWindowEnd   = Get-Date
+        foreach ($nhiObject in $NhiAnalyzed) {
+            if (-not $nhiObject.AgenticCandidate) { continue }
+            $signInLogs    = Get-NhiAgentSignInLog -ObjectId $nhiObject.ObjectId -ObjectType $nhiObject.ObjectType -StartTime $actWindowStart -EndTime $actWindowEnd
+            $directoryLogs = Get-NhiAgentDirectoryAuditLog -ObjectId $nhiObject.ObjectId -StartTime $actWindowStart -EndTime $actWindowEnd
+            $actFindings    = Invoke-NhiActivityLogScan -NhiObject $nhiObject -SignInLogs $signInLogs -DirectoryLogs $directoryLogs
+            $graphFindings  = Invoke-NhiGraphApiAuditScan -NhiObject $nhiObject -StartTime $actWindowStart -EndTime $actWindowEnd
+            $complyFindings = Invoke-NhiComplianceAuditScan -NhiObject $nhiObject -StartTime $actWindowStart -EndTime $actWindowEnd
+            $tokenFindings  = Invoke-NhiTokenForensicsScan -NhiObject $nhiObject -SignInLogs $signInLogs
+            $caFindings     = Invoke-NhiConditionalAccessResponseScan -NhiObject $nhiObject -SignInLogs $signInLogs
+            $Findings += $actFindings + $graphFindings + $complyFindings + $tokenFindings + $caFindings
+        }
+        $Summary = Get-DecomFindingSummary -Findings $Findings
+        Write-DecomOk "NHI activity audit complete - total findings now $($Summary.Total)"
+    }
     }
 
 # Baseline comparison if -BaselinePath provided

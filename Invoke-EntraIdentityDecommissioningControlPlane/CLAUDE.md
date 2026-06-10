@@ -88,7 +88,7 @@ Invoke-Pester -Path @('<test-paths>') -Output Detailed
 **Project name:** Entra Identity Decommissioning Control Plane
 **Repo:** `C:\Git\ajee-iam-premium-library\Invoke-EntraIdentityDecommissioningControlPlane`
 **Primary language:** PowerShell 7+
-**Current revision:** Rev4.0
+**Current revision:** Rev4.1
 **Push policy:** Albert pushes manually
 
 ---
