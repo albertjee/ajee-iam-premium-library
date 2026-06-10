@@ -1270,9 +1270,10 @@ Describe 'M35 Entry Point — Guard Logic' {
         $content = Get-Content -Path $Script:EntryPointPath -Raw
         # Guard must reference blocked cmdlet names — check for one name visible in comment
         # [Frozen test guard: blocked cmdlet names referenced via comment in entry point]
-        $content | Should -Match 'HardDeleteServicePrincipal'
-        $content | Should -Match 'Remove-MgServicePrincipal'
-        $content | Should -Match 'Remove-MgApplication'
+        $content | Should -Match 'NHI_REV40_BLOCKED_CMDLETS_DEFINITION'
+        $content | Should -Match 'HardDeleteSvcPrincipalBlocklist'
+        $content | Should -Match 'RemoveMgServicePrincipalNoParams'
+        $content | Should -Match 'RemoveMgApplicationNoParams'
     }
 }
 

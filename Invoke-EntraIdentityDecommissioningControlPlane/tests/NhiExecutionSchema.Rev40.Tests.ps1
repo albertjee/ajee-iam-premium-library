@@ -28,7 +28,7 @@ Describe 'Get-NhiExecutionSchema' {
 
     It 'Returns all 6 blocked actions with BlockedInRev40 = $true' {
         $schema = Get-NhiExecutionSchema
-        $blocked = @('HardDeleteServicePrincipal', 'RemoveCredential', 'RemoveAppRoleAssignment',
+        $blocked = @('HardDeleteSvcPrincipalBlocklist', 'RemoveCredential', 'RemoveAppRoleAssignment',
             'RemoveOAuthGrant', 'RemoveOwner', 'DeleteApplication')
         foreach ($name in $blocked) {
             $schema[$name].BlockedInRev40 | Should -Be $true -Because "Action '$name' must be blocked in Rev4.0"
@@ -45,7 +45,7 @@ Describe 'Get-NhiExecutionSchema' {
         $schema['RollbackTag'].Phase      | Should -Be 3
         $schema['RollbackDisable'].Phase  | Should -Be 3
 
-        $schema['HardDeleteServicePrincipal'].Phase | Should -Be 3
+        $schema['HardDeleteSvcPrincipalBlocklist'].Phase | Should -Be 3
         $schema['RemoveCredential'].Phase           | Should -Be 2
         $schema['RemoveAppRoleAssignment'].Phase    | Should -Be 2
         $schema['RemoveOAuthGrant'].Phase           | Should -Be 2
@@ -62,7 +62,7 @@ Describe 'Get-NhiExecutionSchema' {
         }
 
         # Blocked actions are all non-reversible
-        foreach ($name in @('HardDeleteServicePrincipal', 'RemoveCredential', 'RemoveAppRoleAssignment',
+        foreach ($name in @('HardDeleteSvcPrincipalBlocklist', 'RemoveCredential', 'RemoveAppRoleAssignment',
                 'RemoveOAuthGrant', 'RemoveOwner', 'DeleteApplication')) {
             $schema[$name].IsReversible | Should -Be $false
         }
@@ -114,7 +114,7 @@ Describe 'Get-NhiExecutionSchema' {
 
 Describe 'Test-NhiExecutionActionAllowed' {
     It 'Returns $false for all 6 blocked actions at PhaseLimit 3' {
-        foreach ($name in @('HardDeleteServicePrincipal', 'RemoveCredential', 'RemoveAppRoleAssignment',
+        foreach ($name in @('HardDeleteSvcPrincipalBlocklist', 'RemoveCredential', 'RemoveAppRoleAssignment',
                 'RemoveOAuthGrant', 'RemoveOwner', 'DeleteApplication')) {
             Test-NhiExecutionActionAllowed -ActionName $name -PhaseLimit 3 | Should -Be $false
         }

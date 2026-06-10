@@ -264,8 +264,8 @@ $_NhiActionRegistry = @{
 
     # ── Blocked in Rev4.0 ─────────────────────────────────────────────────────
 
-    'HardDeleteServicePrincipal' = @{
-        Name                     = 'HardDeleteServicePrincipal'
+    'HardDeleteSvcPrincipalBlocklist' = @{
+        Name                     = 'HardDeleteSvcPrincipalBlocklist'
         IsReversible             = $false
         Phase                    = 3
         ApplicableObjectTypes    = @('ServicePrincipal')

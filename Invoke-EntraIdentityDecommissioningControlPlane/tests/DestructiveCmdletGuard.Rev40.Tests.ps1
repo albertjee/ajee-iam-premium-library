@@ -67,8 +67,8 @@ Describe 'Destructive Cmdlet Guard — CommandAst Scanner' -Tag 'Rev40', 'Safety
         }
 
         # 12 It blocks — one per blocked cmdlet name
-        It 'NhiExecutionSchema.psm1: no invocation of HardDeleteServicePrincipal' {
-            $Script:SchemaCommands.Contains('HardDeleteServicePrincipal') | Should -Be $false
+        It 'NhiExecutionSchema.psm1: no invocation of HardDeleteSvcPrincipalBlocklist' {
+            $Script:SchemaCommands.Contains('HardDeleteSvcPrincipalBlocklist') | Should -Be $false
         }
 
         It 'NhiExecutionSchema.psm1: no invocation of Remove-MgServicePrincipal' {
