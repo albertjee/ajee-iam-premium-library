@@ -221,7 +221,7 @@ function Export-DecomRedactionReportJson {
         [string]$RunId = '',
 
         [Parameter(Mandatory = $false)]
-        [string]$ToolVersion = 'Rev3.6',
+        [string]$ToolVersion = 'Rev4.1',
 
         [Parameter(Mandatory = $false)]
         [int]$RedactedFileCount = 0
@@ -282,7 +282,7 @@ function Export-DecomRedactionReportMarkdown {
         [string]$RunId = '',
 
         [Parameter(Mandatory = $false)]
-        [string]$ToolVersion = 'Rev3.6',
+        [string]$ToolVersion = 'Rev4.1',
 
         [Parameter(Mandatory = $false)]
         [int]$RedactedFileCount = 0

@@ -6,7 +6,7 @@ function Invoke-DecomReleaseValidation {
         [Parameter(Mandatory = $false)]
         [PSObject]$Context,
         [Parameter(Mandatory = $false)]
-        [string]$ToolVersion = 'Rev3.3',
+        [string]$ToolVersion = 'Rev4.1',
         [Parameter(Mandatory = $false)]
         [string]$EntryPointPath,
         [Parameter(Mandatory = $false)]
@@ -105,15 +105,15 @@ function Test-DecomVersionConsistency {
     $epContent = Get-Content $epPath -Raw
 
     # Entry point must declare Rev3.6
-    if ($epContent -notmatch "\`$script:ToolVersion\s*=\s*'Rev3\.6'") {
-        $result.Errors += "Entry point does not declare ToolVersion = Rev3.6"
+    if ($epContent -notmatch "\`$script:ToolVersion\s*=\s*'Rev4\.1'") {
+        $result.Errors += "Entry point does not declare ToolVersion = Rev4.1"
         $result.Passed = $false
     }
 
     # Provided ToolVersion must match the current release standard Rev3.6
-    $providedVersion = if ($Context.PSObject.Properties['ToolVersion']) { [string]$Context.ToolVersion } else { 'Rev3.6' }
-    if ($providedVersion -ne 'Rev3.6') {
-        $result.Errors += "Provided ToolVersion '$providedVersion' does not match expected Rev3.6"
+    $providedVersion = if ($Context.PSObject.Properties['ToolVersion']) { [string]$Context.ToolVersion } else { 'Rev4.1' }
+    if ($providedVersion -ne 'Rev4.1') {
+        $result.Errors += "Provided ToolVersion '$providedVersion' does not match expected Rev4.1"
         $result.Passed = $false
     }
 
@@ -222,7 +222,7 @@ function Test-DecomSafetyInvariant {
             $allowedRemActions = @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment','RemoveGuestGroupMembership','RevokeGuestAppRoleAssignment')
         } elseif ($Context.ToolVersion -eq 'Rev3.2') {
             $allowedRemActions = @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment','RemoveGuestGroupMembership','RevokeGuestAppRoleAssignment','RemoveExpiredApplicationCredential')
-        } elseif ($Context.ToolVersion -in @('Rev3.3','Rev3.4','Rev3.5','Rev3.6')) {
+        } elseif ($Context.ToolVersion -in @('Rev3.3','Rev3.4','Rev3.5','Rev4.1')) {
             $allowedRemActions = @('RemoveAccessPackageAssignment','RemovePimEligibleAssignment','RemoveGuestGroupMembership','RevokeGuestAppRoleAssignment','RemoveExpiredApplicationCredential','AddApplicationOwner','RemoveCAExclusionGroupMember')
         }
         $forbiddenRemActions = $allRemActions | Where-Object { $_ -notin $allowedRemActions }

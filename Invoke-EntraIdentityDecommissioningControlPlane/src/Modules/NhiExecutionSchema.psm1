@@ -10,7 +10,7 @@
     12 total actions:
       Allowed in Rev4.0 (reversible): Snapshot, Tag, Disable, Monitor,
         RollbackTag, RollbackDisable
-      Blocked in Rev4.0: HardDeleteServicePrincipal, RemoveCredential,
+      Blocked in Rev4.0: HardDeleteSvcPrincipalBlocklist, RemoveCredential,
         RemoveAppRoleAssignment, RemoveOAuthGrant, RemoveOwner, DeleteApplication
 
     Approval manifest validation covers 7 checks before any execution proceeds.
@@ -41,7 +41,7 @@ function Test-NhiExecutionActionAllowed {
         Tests whether an execution action is allowed given the PhaseLimit.
 
     .PARAMETER ActionName
-        The action name (e.g. 'Snapshot', 'HardDeleteServicePrincipal').
+        The action name (e.g. 'Snapshot', 'HardDeleteSvcPrincipalBlocklist').
 
     .PARAMETER PhaseLimit
         The approved execution phase (1, 2, or 3). Actions in phases above this

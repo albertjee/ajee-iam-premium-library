@@ -69,7 +69,7 @@ function New-DecomRev3CapabilityMatrix {
     return [PSCustomObject]@{
         SchemaVersion    = '3.6'
         GeneratedUtc     = (Get-Date).ToUniversalTime().ToString('o')
-        ToolVersion = 'Rev3.6'
+        ToolVersion = 'Rev4.1'
         ExecutableActions = $actions
         PlanOnlyActions  = $planOnly
         DeferredActions  = $deferred

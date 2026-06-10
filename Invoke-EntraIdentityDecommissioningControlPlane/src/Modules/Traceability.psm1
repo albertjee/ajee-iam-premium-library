@@ -32,7 +32,7 @@ function New-DecomTraceabilityModel {
 
     $model = [pscustomobject]@{
         SchemaVersion = '3.6'
-        ToolVersion = 'Rev3.6'
+        ToolVersion = 'Rev4.1'
         RunId         = $RunId
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Rows          = @()

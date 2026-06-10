@@ -19,20 +19,26 @@ function Get-NhiPostDecomAuditLog {
 
     $windowEnd = $DecomTimestamp.AddMinutes($WindowMinutes)
     $startStr  = $DecomTimestamp.ToUniversalTime().ToString('o')
-    $filter    = "initiatedBy/app/servicePrincipalId eq '$ObjectId' and createdDateTime ge $startStr"
+    $endStr    = $windowEnd.ToUniversalTime().ToString('o')
+    # Query by time window — filter locally by TargetResources to detect reversals
+    # against the target object (not just actions initiated by it)
+    $timeFilter = "createdDateTime ge $startStr and createdDateTime le $endStr"
 
     try {
         $entries = @()
         try {
-            $entries = @(Get-MgAuditLogDirectoryAudit -Filter $filter -All -ErrorAction SilentlyContinue)
+            $entries = @(Get-MgAuditLogDirectoryAudit -Filter $timeFilter -All -ErrorAction SilentlyContinue)
         } catch {
             Write-DecomWarn "Get-NhiPostDecomAuditLog: Graph query failed for ObjectId '$ObjectId': $($_.Exception.Message)"
         }
+        # Filter to entries that target the ObjectId (catches policy reversals by other SPs)
         $windowed = @($entries | Where-Object {
-            if ($_.CreatedDateTime) {
-                $cd = [DateTime]::Parse($_.CreatedDateTime)
-                $cd -ge $DecomTimestamp -and $cd -le $windowEnd
-            } else { $false }
+            $entry = $_
+            $targetsObject = $false
+            if ($entry.TargetResources) {
+                $targetsObject = [bool]($entry.TargetResources | Where-Object { $_.Id -eq $ObjectId })
+            }
+            $targetsObject
         })
         return [array]@($windowed)
     } catch {

@@ -310,134 +310,40 @@ function Invoke-NhiGraphApiAuditScan {
         $NhiObject.GraphApiAuditAnalysis = $analysis
     }
 
-    # Generate findings
-    $findings = @()
+    # Generate findings — all New-DecomFinding calls on single lines (no backtick continuation)
+    $findings = [System.Collections.Generic.List[PSCustomObject]]::new()
 
-    # NHI-GRAPH-000: No operations detected
     if ($analysis.TotalOperations -eq 0) {
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-000' `
-            -Severity 'Informational' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -Evidence
-    }
-    # NHI-GRAPH-001: Operations detected
-    elseif ($analysis.TotalOperations -gt 0) {
-        $sev = if ($analysis.OverallRiskScore -lt 50) { 'Medium' } else { 'High' }
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-001' `
-            -Severity $sev `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore $analysis.OverallRiskScore `
-            -Evidence "Agent initiated $($analysis.TotalOperations) Graph operations: $($analysis.SuccessfulOperations) successful, $($analysis.FailedOperations) failed" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-000' -Category 'NHI Activity - Graph API Audit' -Severity 'Informational' -RiskScore 0 -Evidence 'No Graph API operations detected in assessment window' -ObjectId $objectId -DisplayName $displayName))
+    } else {
+        $sev001 = if ($analysis.OverallRiskScore -lt 50) { 'Medium' } else { 'High' }
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-001' -Category 'NHI Activity - Graph API Audit' -Severity $sev001 -RiskScore $analysis.OverallRiskScore -Evidence "Agent initiated $($analysis.TotalOperations) Graph operations: $($analysis.SuccessfulOperations) successful, $($analysis.FailedOperations) failed" -ObjectId $objectId -DisplayName $displayName))
     }
 
-    # NHI-GRAPH-002: User modification operations
     if ($analysis.UserModificationOps -gt 0) {
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-002' `
-            -Severity 'High' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore 65 `
-            -Evidence "User modification operations: $($analysis.UserModificationOps)" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-002' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 65 -Evidence "User modification operations: $($analysis.UserModificationOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-
-    # NHI-GRAPH-003: Role assignment operations
     if ($analysis.RoleAssignmentOps -gt 0) {
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-003' `
-            -Severity 'Critical' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore 90 `
-            -Evidence "CRITICAL: Role assignment operations: $($analysis.RoleAssignmentOps)" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-003' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 90 -Evidence "CRITICAL: Role assignment operations: $($analysis.RoleAssignmentOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-
-    # NHI-GRAPH-004: Consent grant operations
     if ($analysis.ConsentGrantOps -gt 0) {
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-004' `
-            -Severity 'High' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore 75 `
-            -Evidence "Application consent grants: $($analysis.ConsentGrantOps)" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-004' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 75 -Evidence "Application consent grants: $($analysis.ConsentGrantOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-
-    # NHI-GRAPH-005: Compliance-sensitive operations
     if ($analysis.ComplianceSensitiveOpCount -gt 0) {
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-005' `
-            -Severity 'Critical' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore 95 `
-            -Evidence "CRITICAL: Compliance-sensitive operations: $($analysis.ComplianceSensitiveOpCount)" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-005' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 95 -Evidence "CRITICAL: Compliance-sensitive operations: $($analysis.ComplianceSensitiveOpCount)" -ObjectId $objectId -DisplayName $displayName))
     }
-
-    # NHI-GRAPH-006: Policy modification operations
     if ($analysis.PolicyModificationOps -gt 0) {
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-006' `
-            -Severity 'Critical' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore 88 `
-            -Evidence "CRITICAL: Security policy modifications: $($analysis.PolicyModificationOps)" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-006' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 88 -Evidence "CRITICAL: Security policy modifications: $($analysis.PolicyModificationOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-
-    # NHI-GRAPH-007: High-risk operations
     if ($analysis.HighRiskOpCount -gt 0) {
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-007' `
-            -Severity 'High' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore 70 `
-            -Evidence "High-risk operations: $($analysis.HighRiskOpCount)" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-007' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 70 -Evidence "High-risk operations: $($analysis.HighRiskOpCount)" -ObjectId $objectId -DisplayName $displayName))
     }
-
-    # NHI-GRAPH-008: High failure rate
     if ($analysis.FailureRate -gt 0.5) {
-        $failurePercent = [math]::Round($analysis.FailureRate * 100, 1)
-        $findings += New-DecomFinding `
-            -FindingId 'NHI-GRAPH-008' `
-            -Severity 'Medium' `
-            -Category 'NHI Activity - Graph API Audit' `
-            -ObjectId $objectId `
-            -DisplayName $displayName `
-            -RiskScore 45 `
-            -Evidence "High operation failure rate: $failurePercent% failure rate ($($analysis.FailedOperations) of $($analysis.TotalOperations) operations failed)" `
-            -ObjectId $objectId
-            -DisplayName $displayName
+        $failurePct = [math]::Round($analysis.FailureRate * 100, 1)
+        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-008' -Category 'NHI Activity - Graph API Audit' -Severity 'Medium' -RiskScore 45 -Evidence "High operation failure rate: ${failurePct}% failure rate ($($analysis.FailedOperations) of $($analysis.TotalOperations) operations failed)" -ObjectId $objectId -DisplayName $displayName))
     }
 
-    return $findings
+    return $findings.ToArray()
 }
 
 Export-ModuleMember -Function Invoke-NhiGraphApiAuditScan

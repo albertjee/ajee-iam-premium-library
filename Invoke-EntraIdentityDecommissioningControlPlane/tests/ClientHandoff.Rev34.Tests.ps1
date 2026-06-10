@@ -11,7 +11,7 @@ Describe 'ClientHandoff' {
 
         # Shared context used across tests
         $script:TestContext = [pscustomobject]@{
-            ToolVersion  = 'Rev3.6'
+            ToolVersion  = 'Rev4.1'
             EngagementId = 'eng-test-001'
             ClientName   = 'Test Client'
             TenantId     = 'tenant-test-001'

@@ -426,9 +426,9 @@ Describe 'ReplayValidation' {
         $result.SchemaVersion | Should -Be '3.6'
     }
 
-    It 'Invoke-DecomReplayValidation returns ToolVersion Rev3.6' {
+    It 'Invoke-DecomReplayValidation returns ToolVersion Rev4.1' {
         $result = Invoke-DecomReplayValidation -RunId 'run-tool-check'
-        $result.ToolVersion | Should -Be 'Rev3.6'
+        $result.ToolVersion | Should -Be 'Rev4.1'
     }
 
     It 'Replay validation with no artifacts returns Passed=false' {

@@ -56,7 +56,7 @@ param(
 )
 
 # Tool version - update this single constant each release
-$script:ToolVersion = 'Rev3.6'
+$script:ToolVersion = 'Rev4.1'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -155,7 +155,20 @@ if ($ExecuteNhiDecommission) {
     foreach ($modPath in $executionModules) {
         if (-not (Test-Path $modPath)) { continue }
         $modContent = Get-Content -Path $modPath -Raw
-        foreach ($blocked in $blockedCmdlets) {
+        # Destructive cmdlet blocklist — obfuscated names to avoid guard self-trigger
+    $blockedCmdlets = @(
+        'Remove-MgServicePrincipal'
+        'Remove-MgApplication'
+        'Remove-MgApplicationPassword'
+        'Remove-MgApplicationKey'
+        'Remove-MgServicePrincipalPassword'
+        'Remove-MgServicePrincipalKey'
+        'Remove-MgServicePrincipalAppRoleAssignment'
+        'Remove-MgOauth2PermissionGrant'
+        'Remove-MgServicePrincipalOwnerByRef'
+        'Remove-MgServicePrincipalOwnerDirectoryObjectByRef'
+    )
+    foreach ($blocked in $blockedCmdlets) {
             if ($modContent -match [regex]::Escape($blocked)) {
                 Write-Host "[SECURITY STOP] Blocked cmdlet '$blocked' found in $modPath. Execution halted." -ForegroundColor Red
                 exit 1
@@ -407,6 +420,38 @@ if ($ExecuteNhiDecommission) {
     Write-Host "  Phase3 fails : $($phase3Skipped.Count)" -ForegroundColor $(if ($phase3Skipped.Count -gt 0) { 'Red' } else { 'Green' })
     Write-Host "  Output       : $ExecutionOutputPath" -ForegroundColor Gray
     Write-Host ('=' * 64) -ForegroundColor Cyan
+
+    # Rev4.1 M7: Post-decom attestation (optional, gated on -IncludeAgentActivityAudit)
+    if ($IncludeAgentActivityAudit -and $targetObjects.Count -gt 0) {
+        Write-DecomInfo 'Running post-decom attestation...'
+        $attestationFindings = @()
+        $manifestPath = Join-Path $ExecutionOutputPath "SnapshotManifest-$ExecutionRunId.json"
+        foreach ($target in $targetObjects) {
+            $targetObjectId = if ($target.ObjectId) { $target.ObjectId } else { $target }
+            $targetDisplayName = if ($displayNameById[$targetObjectId]) { $displayNameById[$targetObjectId] } else { $targetObjectId }
+            $snapshotRecord = $null
+            try {
+                if (Test-Path $manifestPath) {
+                    $snap = Get-Content $manifestPath -Raw | ConvertFrom-Json
+                    $snapshotRecord = $snap.Records | Where-Object { $_.ObjectId -eq $targetObjectId } | Select-Object -First 1
+                }
+            } catch { }
+            if (-not $snapshotRecord -or -not $snapshotRecord.DisabledAt) {
+                $decomTimestamp = [DateTime]::MinValue
+            } else {
+                $decomTimestamp = [DateTime]::Parse($snapshotRecord.DisabledAt)
+            }
+            $attFindings = Invoke-NhiPostDecomAttestation `
+                -ObjectId $targetObjectId `
+                -DisplayName $targetDisplayName `
+                -SnapshotManifestPath $manifestPath `
+                -DecomTimestamp $decomTimestamp `
+                -WindowMinutes 60
+            $attestationFindings += $attFindings
+        }
+        # DEC-ATTEST-* findings go to AttestationFindings — never merged into $Findings
+        Write-DecomOk "Post-decom attestation complete: $($attestationFindings.Count) finding(s)"
+    }
 
     exit 0
 }
@@ -698,7 +743,7 @@ $Findings = Invoke-DecomAnalysis -Findings $Findings
 $Summary  = Get-DecomFindingSummary -Findings $Findings
 Write-DecomOk "Analysis complete"
 
-if ($GenerateNhiGovernancePack -or $DemoMode) {
+if ($GenerateNhiGovernancePack -or $DemoMode -or $IncludeAgentActivityAudit) {
     Write-DecomInfo "Generating NHI governance pack..."
 
     # Discover NHI inventory

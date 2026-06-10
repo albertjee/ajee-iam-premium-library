@@ -13,28 +13,28 @@ Describe 'OutputManifest' {
     }
 
     It 'New-DecomOutputManifest returns an object' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $manifest | Should -Not -BeNullOrEmpty
     }
 
     It 'New-DecomOutputManifest sets SchemaVersion to 3.6' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $manifest.SchemaVersion | Should -Be '3.6'
     }
 
     It 'New-DecomOutputManifest sets ToolVersion from context' {
-        $context = @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $context = @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $manifest = New-DecomOutputManifest -Context $context -RunId 'run-123' -OutputRoot '.\out'
-        $manifest.ToolVersion | Should -Be 'Rev3.6'
+        $manifest.ToolVersion | Should -Be 'Rev4.1'
     }
 
     It 'New-DecomOutputManifest sets RunId' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-abc' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-abc' -OutputRoot '.\out'
         $manifest.RunId | Should -Be 'run-abc'
     }
 
     It 'Add-DecomOutputManifestItem adds a file' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content'
         try {
@@ -51,7 +51,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Add-DecomOutputManifestItem sets SHA-256 hash' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content for hash'
         try {
@@ -65,13 +65,13 @@ Describe 'OutputManifest' {
     }
 
     It 'Export-DecomOutputManifestJson writes JSON file' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempJson = [System.IO.Path]::GetTempFileName()
         try {
             Export-DecomOutputManifestJson -Manifest $manifest -Path $tempJson
             $jsonContent = Get-Content $tempJson -Raw | ConvertFrom-Json
             $jsonContent.SchemaVersion | Should -Be '3.6'
-            $jsonContent.ToolVersion | Should -Be 'Rev3.6'
+            $jsonContent.ToolVersion | Should -Be 'Rev4.1'
             $jsonContent.RunId | Should -Be 'run-123'
             $jsonContent.EngagementId | Should -Be 'eng-123'
             $jsonContent.ClientName | Should -Be 'Client A'
@@ -81,7 +81,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Export-DecomOutputManifestCsv writes CSV file' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content'
         try {
@@ -101,7 +101,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Test-DecomOutputManifest validates a valid manifest' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content'
         try {
@@ -115,7 +115,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Test-DecomOutputManifest detects missing file' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content'
         try {
@@ -130,7 +130,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Test-DecomOutputManifest detects duplicate manifest entry' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content'
         try {
@@ -145,7 +145,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Add-DecomOutputManifestItem sets Sensitivity classification' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content'
         try {
@@ -158,7 +158,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Add-DecomOutputManifestItem sets SafeForClient flag' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = [System.IO.Path]::GetTempFileName()
         Set-Content -Path $tempFile -Value 'test content'
         try {
@@ -170,7 +170,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Output manifest includes nested evidence-bundle files' {
-        $ctx      = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx      = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $tmpBase  = [System.IO.Path]::GetTempPath()
         $outRoot  = Join-Path $tmpBase ('omR_' + [guid]::NewGuid().ToString('N').Substring(0, 6))
         $nested   = Join-Path $outRoot 'nested'
@@ -188,7 +188,7 @@ Describe 'OutputManifest' {
     }
 
     It 'Output manifest includes redacted files' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
         $tempFile = Join-Path '.\out' 'redacted-report.json'
         Set-Content -Path $tempFile -Value '{"redacted": "data"}'
         try {

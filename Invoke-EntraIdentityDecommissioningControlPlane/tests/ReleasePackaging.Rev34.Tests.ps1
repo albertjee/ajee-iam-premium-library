@@ -36,7 +36,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         }
 
         $script:context = [PSCustomObject]@{
-            ToolVersion  = 'Rev3.6'
+            ToolVersion  = 'Rev4.1'
             OutputPath   = $script:testOutputDir
             ClientName   = 'TestClient'
             EngagementId = 'test-eng'
@@ -48,7 +48,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         New-DecomReleasePackage -Context $script:context -OutputPath $script:releaseDir -RequireHardeningArtifacts
         Pop-Location
 
-        $script:releaseRevDir = Join-Path $script:releaseDir 'Rev3.6'
+        $script:releaseRevDir = Join-Path $script:releaseDir 'Rev4.1'
     }
 
     AfterAll {
@@ -57,7 +57,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         Remove-Module ReleasePackaging,Utilities -Force -ErrorAction SilentlyContinue
     }
 
-    It 'Release package directory is Rev3.6' {
+    It 'Release package directory is Rev4.1' {
         Test-Path $script:releaseRevDir | Should -Be $true
     }
 
@@ -110,7 +110,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         $manifestPath = Join-Path $script:releaseRevDir 'release-package-manifest.json'
         $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
         $manifest.SchemaVersion | Should -Be '3.6'
-        $manifest.ToolVersion   | Should -Be 'Rev3.6'
+        $manifest.ToolVersion   | Should -Be 'Rev4.1'
     }
 
     It 'Release package manifest reports no missing required artifacts' {
@@ -129,7 +129,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         try {
             Push-Location $fakeRoot
             $ctx = [PSCustomObject]@{
-                ToolVersion  = 'Rev3.6'
+                ToolVersion  = 'Rev4.1'
                 OutputPath   = $fakeRoot
                 ClientName   = 'TestClient'
                 EngagementId = 'test-eng'
@@ -202,7 +202,7 @@ Describe 'ReleasePackaging.psm1 — Rev3.4 Hardening Artifact Copy' {
         try {
             Push-Location $fakeRoot
             $ctx = [PSCustomObject]@{
-                ToolVersion  = 'Rev3.6'
+                ToolVersion  = 'Rev4.1'
                 OutputPath   = $fakeRoot
                 ClientName   = 'TestClient'
                 EngagementId = 'test-eng'

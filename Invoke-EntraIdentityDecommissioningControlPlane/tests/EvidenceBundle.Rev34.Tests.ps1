@@ -13,7 +13,7 @@ Describe 'EvidenceBundle' {
     }
 
     It 'Evidence bundle manifest exported' {
-        $ctx = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-001' `
             -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
         $tempJson = [System.IO.Path]::GetTempFileName()
@@ -29,7 +29,7 @@ Describe 'EvidenceBundle' {
     }
 
     It 'Evidence hash manifest exported' {
-        $ctx = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-002' `
             -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
         $tempFile = [System.IO.Path]::GetTempFileName()
@@ -52,7 +52,7 @@ Describe 'EvidenceBundle' {
     }
 
     It 'Evidence bundle includes files when added by category' {
-        $ctx = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-003' `
             -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
         $tempFile = [System.IO.Path]::GetTempFileName()
@@ -69,7 +69,7 @@ Describe 'EvidenceBundle' {
     }
 
     It 'Evidence bundle detects missing required evidence' {
-        $ctx = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-004' `
             -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
         $fakeEntry = [pscustomobject]@{
@@ -90,7 +90,7 @@ Describe 'EvidenceBundle' {
     }
 
     It 'Evidence bundle index Markdown exported' {
-        $ctx = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-005' `
             -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
         $tempMd = [System.IO.Path]::GetTempFileName() + '.md'
@@ -106,7 +106,7 @@ Describe 'EvidenceBundle' {
     }
 
     It 'Evidence bundle file outside source path uses filename as RelativePath' {
-        $ctx = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-ext-001' `
             -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
         $tempFile = [System.IO.Path]::GetTempFileName()
@@ -120,7 +120,7 @@ Describe 'EvidenceBundle' {
     }
 
     It 'Evidence hash manifest includes evidence-bundle manifest' {
-        $ctx = [pscustomobject]@{ ToolVersion='Rev3.6'; EngagementId='eng-123'; ClientName='Client A' }
+        $ctx = [pscustomobject]@{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' }
         $bundle = New-DecomEvidenceBundle -Context $ctx -RunId 'run-123' -BundleId 'bundle-006' `
             -SourceOutputPath '.\out' -BundleOutputPath '.\bundle'
         $tempFile = [System.IO.Path]::GetTempFileName()

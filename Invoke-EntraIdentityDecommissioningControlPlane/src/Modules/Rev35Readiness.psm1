@@ -16,7 +16,7 @@ function New-DecomRev35ReadinessReport {
     # Build the base report — NhiDetectorsImplemented MUST be $false in Rev3.4
     $report = [pscustomobject]@{
         SchemaVersion                  = '3.6'
-        ToolVersion = 'Rev3.6'
+        ToolVersion = 'Rev4.1'
         GeneratedUtc                   = (Get-Date).ToUniversalTime().ToString('o')
         ReadinessScore                 = 0
         TotalChecks                    = 0

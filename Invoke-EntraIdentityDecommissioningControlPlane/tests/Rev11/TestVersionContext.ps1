@@ -11,9 +11,9 @@ function Get-DecomExpectedToolVersion {
     Use this helper instead of hardcoding version strings in tests.
     When the tool version is bumped, update this single function.
     .RETURNS
-    String representing current expected ToolVersion (e.g., 'Rev3.6')
+    String representing current expected ToolVersion (e.g., 'Rev4.1')
     #>
-    return 'Rev3.6'
+    return 'Rev4.1'
 }
 
 function Get-DecomExpectedSchemaVersion {
@@ -34,7 +34,7 @@ function Get-DecomExpectedMajorMinor {
     .SYNOPSIS
     Returns the major.minor version for compatibility checks.
     .DESCRIPTION
-    Useful for checks that care about 3.6 but not Rev3.6 vs Tool version.
+    Useful for checks that care about 3.6 but not Rev4.1 vs Tool version.
     .RETURNS
     String representing major.minor version (e.g., '3.6')
     #>
