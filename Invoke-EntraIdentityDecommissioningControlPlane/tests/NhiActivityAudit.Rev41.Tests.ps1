@@ -310,11 +310,11 @@ Describe 'NhiComplianceAudit module exports' {
 Describe 'Get-NhiComplianceAuditLog - returns collection type' {
     # Call without Graph auth (will fail gracefully in catch)
     It 'Returns array-like result when called without auth' {
-        # On Graph failure, returns @() gracefully — no throw
+        # On Graph failure, returns PSCustomObject with QuerySucceeded=$false — no throw
         { $script:ComplianceResult = Get-NhiComplianceAuditLog -ObjectId 'test-compliance-id' -StartTime ([DateTime]::Now.AddDays(-30)) -EndTime ([DateTime]::Now) } |
             Should -Not -Throw
-        # Result is null or empty array — both are valid graceful degradation
-        ($null -eq $script:ComplianceResult -or $script:ComplianceResult.Count -ge 0) | Should -BeTrue
+        # Result is PSCustomObject (query failed) or array (query succeeded)
+        $script:ComplianceResult | Should -Not -BeNullOrEmpty
     }
 
     It 'Throws on empty ObjectId (ValidateNotNullOrEmpty)' {

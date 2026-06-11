@@ -73,7 +73,14 @@ function Invoke-NhiComplianceAuditScan {
     $displayName = if ($NhiObject.DisplayName) { $NhiObject.DisplayName } else { $objectId }
 
     Write-DecomWarn "Starting compliance audit scan for ObjectId: $objectId"
-    $auditLogs = Get-NhiComplianceAuditLog -ObjectId $objectId -StartTime $StartTime -EndTime $EndTime
+    $auditResult = Get-NhiComplianceAuditLog -ObjectId $objectId -StartTime $StartTime -EndTime $EndTime
+
+    # Handle query failure — suppress NHI-COMPLY-004 when Graph unavailable
+    if ($auditResult -is [PSCustomObject] -and $auditResult.PSObject.Properties.Name -contains 'QuerySucceeded' -and -not $auditResult.QuerySucceeded) {
+        Write-DecomWarn "Compliance audit query failed for ObjectId '$objectId': $($auditResult.Error)"
+        return @()
+    }
+    $auditLogs = if ($auditResult -is [PSCustomObject] -and $auditResult.PSObject.Properties.Name -contains 'Entries') { $auditResult.Entries } else { @($auditResult) }
 
     $deleteOps     = @()
     $retentionOps  = @()

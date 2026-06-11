@@ -304,12 +304,14 @@ if ($ExecuteNhiDecommission) {
     Write-Host "NHI Execution RunId: $ExecutionRunId, PhaseLimit: $PhaseLimit, Targets: $($targetObjects.Count)" -ForegroundColor Cyan
 
     # Connecting to Graph (read scopes for NHI object resolution)
+    # AuditLog.Read.All required for Rev4.1 post-decom attestation
     Write-Host 'Connecting to Graph (read scopes)...' -ForegroundColor Gray
     try {
         $readScopes = @(
             'User.Read.All',
             'Directory.Read.All',
-            'Application.Read.All'
+            'Application.Read.All',
+            'AuditLog.Read.All'
         )
         Connect-MgGraph -Scopes $readScopes -TenantId $TenantId -ErrorAction Stop | Out-Null
     } catch {
