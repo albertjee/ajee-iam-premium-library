@@ -1,4 +1,5 @@
 # NHI Controlled Decommission Runbook
+
 ## Rev4.2-S1 Planner and Evidence Workflow
 
 **Audience:** IAM operators, reviewers, and approvers
@@ -31,9 +32,9 @@ Do not treat Rev4.2-S1 delete-readiness evidence as authorization to delete an o
 
 The workflow requires both local JSON inputs:
 
-| Input | Purpose |
-|---|---|
-| Decommission plan | Identifies the RunId, target, and requested planning stage |
+| Input             | Purpose                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| Decommission plan | Identifies the RunId, target, and requested planning stage      |
 | Approval manifest | Binds an approver, expiry, target, and allowed planning actions |
 
 Repository samples:
@@ -83,13 +84,13 @@ Expected result:
 
 The workflow creates a local `controlled-decommission-<RunId>` folder containing:
 
-| File | Description |
-|---|---|
-| `nhi-controlled-decommission-plan.json` | Planning-only action record |
-| `nhi-controlled-decommission-snapshot.json` | Sanitized target snapshot and SHA-256 hash |
-| `nhi-controlled-decommission-screamtest.json` | Illustrative/generated planner evaluation; not live monitoring evidence |
-| `nhi-controlled-decommission-delete-readiness.json` | Fail-closed readiness decision |
-| `nhi-controlled-decommission-rollback-plan.json` | Rollback planning evidence |
+| File                                                | Description                                                             |
+| --------------------------------------------------- | ----------------------------------------------------------------------- |
+| `nhi-controlled-decommission-plan.json`             | Planning-only action record                                             |
+| `nhi-controlled-decommission-snapshot.json`         | Sanitized target snapshot and SHA-256 hash                              |
+| `nhi-controlled-decommission-screamtest.json`       | Illustrative/generated planner evaluation; not live monitoring evidence |
+| `nhi-controlled-decommission-delete-readiness.json` | Fail-closed readiness decision                                          |
+| `nhi-controlled-decommission-rollback-plan.json`    | Rollback planning evidence                                              |
 
 Review evidence for RunId and target consistency. Confirm snapshots contain metadata only and no
 secret, token, or certificate material.

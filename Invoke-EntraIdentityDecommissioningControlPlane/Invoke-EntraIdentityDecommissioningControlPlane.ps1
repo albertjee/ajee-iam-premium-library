@@ -297,13 +297,25 @@ if ($ExecuteNhiControlledDecommission) {
             DemoMode = $DemoMode.IsPresent
         }
         $controlledModule = Get-Module NhiControlledDecommission
-        $controlledFinalDeleteGate = & $controlledModule {
-            param($GateInput)
-            Test-NhiControlledServicePrincipalFinalDeleteGate @GateInput
-        } $controlledFinalDeleteGateInput
+        if ([string]$controlledPlanInput.TargetType -eq 'Application') {
+            $activeCredentialOverrideProperty = $controlledApproval.PSObject.Properties['ActiveCredentialOverrideApproved']
+            $activeCredentialOverrideApproved = if ($null -ne $activeCredentialOverrideProperty) { [bool]$activeCredentialOverrideProperty.Value } else { $false }
+            $controlledFinalDeleteGateInput['ActiveCredentialOverrideApproved'] = $activeCredentialOverrideApproved
+            $controlledFinalDeleteGate = & $controlledModule {
+                param($GateInput)
+                Test-NhiControlledApplicationDeleteReadinessGate @GateInput
+            } $controlledFinalDeleteGateInput
+            $controlledFifthEvidenceName = 'nhi-controlled-decommission-finaldelete-application-readiness.json'
+            Write-Host "[SECURITY STOP] Rev4.4 Application FinalDelete readiness status: $($controlledFinalDeleteGate.Status). Live delete is unavailable." -ForegroundColor Yellow
+        } else {
+            $controlledFinalDeleteGate = & $controlledModule {
+                param($GateInput)
+                Test-NhiControlledServicePrincipalFinalDeleteGate @GateInput
+            } $controlledFinalDeleteGateInput
+            $controlledFifthEvidenceName = 'nhi-controlled-decommission-finaldelete-sp-guard.json'
+            Write-Host "[SECURITY STOP] Rev4.3 FinalDelete simulation status: $($controlledFinalDeleteGate.Status). Live delete is unavailable." -ForegroundColor Yellow
+        }
         $controlledFifthEvidence = $controlledFinalDeleteGate
-        $controlledFifthEvidenceName = 'nhi-controlled-decommission-finaldelete-sp-guard.json'
-        Write-Host "[SECURITY STOP] Rev4.3 FinalDelete simulation status: $($controlledFinalDeleteGate.Status). Live delete is unavailable." -ForegroundColor Yellow
     }
 
     $controlledEvidencePaths = @(
