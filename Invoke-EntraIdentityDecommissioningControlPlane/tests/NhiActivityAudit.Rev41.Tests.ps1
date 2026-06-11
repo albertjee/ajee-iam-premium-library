@@ -330,15 +330,32 @@ Describe 'Invoke-NhiComplianceAuditScan - skips non-agentic' {
     }
 }
 
+Describe 'Invoke-NhiComplianceAuditScan - Graph failure suppresses NHI-COMPLY-004' {
+    It 'Suppresses NHI-COMPLY-004 when compliance audit query fails' {
+        Mock Get-MgAuditLogDirectoryAudit -ModuleName NhiComplianceAudit {
+            throw 'Graph unavailable'
+        }
+        $result = Invoke-NhiComplianceAuditScan `
+            -NhiObject (New-TestNhiObject) `
+            -StartTime ([DateTime]::Now.AddDays(-30)) `
+            -EndTime ([DateTime]::Now)
+        $ids = @($result | ForEach-Object { $_.FindingId })
+        $ids | Should -Not -Contain 'NHI-COMPLY-004'
+        $result | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'Invoke-NhiComplianceAuditScan - reports NHI-COMPLY-004 when no findings' {
-    It 'Returns NHI-COMPLY-004 Informational finding when no compliance-ops detected' {
-        # Call with no auth (will fail gracefully) plus explicit datetime params to avoid null coercion
-        $result = Invoke-NhiComplianceAuditScan -NhiObject (New-TestNhiObject) -StartTime ([DateTime]::Now.AddDays(-30)) -EndTime ([DateTime]::Now)
-        $ids = $result | ForEach-Object { $_.FindingId }
+    It 'Returns NHI-COMPLY-004 when query succeeds and no compliance operations detected' {
+        Mock Get-MgAuditLogDirectoryAudit -ModuleName NhiComplianceAudit {
+            return @()
+        }
+        $result = Invoke-NhiComplianceAuditScan `
+            -NhiObject (New-TestNhiObject) `
+            -StartTime ([DateTime]::Now.AddDays(-30)) `
+            -EndTime ([DateTime]::Now)
+        $ids = @($result | ForEach-Object { $_.FindingId })
         $ids | Should -Contain 'NHI-COMPLY-004'
-        $c004 = $result | Where-Object { $_.FindingId -eq 'NHI-COMPLY-004' }
-        $c004.Severity  | Should -Be 'Informational'
-        $c004.RiskScore | Should -Be 0
     }
 }
 

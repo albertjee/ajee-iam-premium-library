@@ -29,26 +29,13 @@ function Get-NhiComplianceAuditLog {
             $logs = @(Get-MgAuditLogDirectoryAudit -Filter $filter -All -ErrorAction Stop)
         } catch {
             Write-DecomWarn "Time-filtered query failed: $($_.Exception.Message)"
-            # Do NOT fall back to unbounded query — violates global bounded-query rule
-            # Return marker object so graceful-degradation tests receive non-null result
-            return @([PSCustomObject]@{
-                Id                   = 'graph-auth-unavailable'
-                ActivityDisplayName  = 'GraphAuthUnavailable'
-                Result               = 'AuthError'
-                AdditionalProperties = @{}
-            })
+            return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message }
         }
         Write-DecomWarn "Retrieved $($logs.Count) audit log entries"
         return [array]@($logs)
     } catch {
         Write-DecomWarn "Failed to retrieve audit logs: $($_.Exception.Message)"
-        # Return marker object so callers receive non-null/non-empty result
-        return @([PSCustomObject]@{
-            Id                   = 'graph-auth-unavailable'
-            ActivityDisplayName  = 'GraphAuthUnavailable'
-            Result               = 'AuthError'
-            AdditionalProperties = @{}
-        })
+        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message }
     }
 }
 
