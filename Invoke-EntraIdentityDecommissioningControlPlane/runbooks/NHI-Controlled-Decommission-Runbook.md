@@ -95,6 +95,10 @@ The workflow creates a local `controlled-decommission-<RunId>` folder containing
 Review evidence for RunId and target consistency. Confirm snapshots contain metadata only and no
 secret, token, or certificate material.
 
+Plan artifacts can still show `FinalDelete = Blocked` while the gate artifact reports
+`GuardSatisfiedSimulationOnly`. That combination means the guard simulation succeeded, not that live
+delete is executable. Neither artifact authorizes deletion.
+
 The S1 scream-test artifact is generated planner evidence. It does not prove a live Graph query,
 live monitoring period, or tenant observation occurred.
 
@@ -122,6 +126,17 @@ Expected FinalDelete-specific evidence replacing the rollback-plan artifact:
 - `DeleteCmdletAvailable = false`
 
 `-AllowFinalDelete` permits gate simulation only. It does not authorize or enable deletion.
+
+## Rev4.5 and Rev4.6 Evidence Notes
+
+Rev4.5 metadata cleanup adds a sixth local evidence artifact, `nhi-controlled-metadata-cleanup-action-log.json`,
+to complement the inventory, plan, snapshot, readiness, and rollback evidence.
+
+Rev4.6 grants cleanup adds a sixth local evidence artifact, `nhi-controlled-grants-cleanup-action-log.json`,
+to complement the plan, dependency recheck, post-cleanup validation, snapshot, and readiness evidence.
+
+Both builds remain evidence-only and fail closed unless the local plan, approval, snapshot, and readiness inputs
+match exactly.
 
 ## Fail-Closed Conditions
 

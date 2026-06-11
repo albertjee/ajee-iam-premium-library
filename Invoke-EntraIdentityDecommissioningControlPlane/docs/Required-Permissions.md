@@ -44,6 +44,16 @@ Rev4.3 adds local FinalDelete gate evaluation and simulation evidence only. It r
 Microsoft Graph permissions or write scopes. No Service Principal delete cmdlet is implemented.
 The test-tenant guard metadata in the sample is local evidence and does not authorize tenant access.
 
+## Rev4.4–Rev4.6 Permission Boundary Notes
+
+Rev4.4, Rev4.5, and Rev4.6 remain local planner/evidence workflows only.
+
+- No new Microsoft Graph permissions are required.
+- `-WhatIfExecution` or `-DemoMode` is required for the controlled build paths.
+- The output is local evidence only; no tenant cleanup, delete, or write execution is performed.
+- Assessment permissions remain read-only.
+- Live delete/cleanup/write execution remains blocked.
+
 ## Rev2.4 — No New Permissions Required
 
 Rev2.4 adds baseline comparison (`-BaselinePath`) and executive evidence pack (`-GenerateExecutivePack`)

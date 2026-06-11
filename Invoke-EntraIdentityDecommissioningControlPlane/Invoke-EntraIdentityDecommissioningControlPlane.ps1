@@ -177,16 +177,23 @@ if ($SelfTest) {
     # Rev4.2-S1 controlled NHI decommission planner/evidence flow
     # This branch intentionally short-circuits before the legacy Rev4.0 execution path.
     if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup) {
+        $controlledInvocationLabel = if ($ExecuteNhiControlledMetadataCleanup) {
+            '-ExecuteNhiControlledMetadataCleanup'
+        } elseif ($ExecuteNhiControlledGrantCleanup) {
+            '-ExecuteNhiControlledGrantCleanup'
+        } else {
+            '-ExecuteNhiControlledDecommission'
+        }
         if (-not $WhatIfExecution -and -not $DemoMode) {
             Write-Host '[ERROR] Rev4.2-S1 controlled decommission is planner/evidence only. Use -WhatIfExecution or -DemoMode.' -ForegroundColor Red
             exit 1
         }
     if (-not $DecommissionPlanPath -or -not (Test-Path -LiteralPath $DecommissionPlanPath -PathType Leaf)) {
-        Write-Host '[ERROR] -ExecuteNhiControlledDecommission requires a valid -DecommissionPlanPath.' -ForegroundColor Red
+        Write-Host "[ERROR] $controlledInvocationLabel requires a valid -DecommissionPlanPath." -ForegroundColor Red
         exit 1
     }
     if (-not $ApprovalManifestPath -or -not (Test-Path -LiteralPath $ApprovalManifestPath -PathType Leaf)) {
-        Write-Host '[ERROR] -ExecuteNhiControlledDecommission requires a valid -ApprovalManifestPath.' -ForegroundColor Red
+        Write-Host "[ERROR] $controlledInvocationLabel requires a valid -ApprovalManifestPath." -ForegroundColor Red
         exit 1
     }
     # Rev4.2-S1 compatibility marker: $ExecutionStage -eq 'FinalDelete' -or $AllowFinalDelete remains guarded.
@@ -376,6 +383,7 @@ if ($SelfTest) {
         $controlledEvidencePaths = @(
             Export-NhiControlledDecommissionEvidence -Evidence $grantCleanupPlan -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-cleanup-plan.json')
             Export-NhiControlledDecommissionEvidence -Evidence $grantDependencyRecheck -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-dependency-recheck.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $grantActionLog -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-cleanup-action-log.json')
             Export-NhiControlledDecommissionEvidence -Evidence $grantPostCleanupValidation -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-post-cleanup-validation.json')
             Export-NhiControlledDecommissionEvidence -Evidence $controlledSnapshot -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-snapshot.json')
             Export-NhiControlledDecommissionEvidence -Evidence $grantReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-cleanup-readiness.json')

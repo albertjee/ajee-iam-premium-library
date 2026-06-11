@@ -190,6 +190,91 @@ Sample: `samples/nhi-controlled-finaldelete-sp.sample.json`
 
 ---
 
+## Rev4.4 Application Registration Readiness Schemas
+
+Rev4.4 adds application-registration readiness and FinalDelete simulation evidence only. It does not
+introduce live deletion or new Graph write permissions.
+
+### Application FinalDelete Readiness Gate
+
+**Required fields:** SchemaVersion, TargetId, TargetType, ActionType, GatesPassed, Status,
+SimulationOnly, LiveDeleteExecutable, DeleteCmdletAvailable, WhatIf, DemoMode, Reasons
+
+`Status` may be `Blocked` or `ReadinessSatisfiedSimulationOnly`. `SimulationOnly` must be `true`;
+`LiveDeleteExecutable` and `DeleteCmdletAvailable` must be `false`.
+
+### Application Readiness Evidence
+
+The Rev4.4 planner exports local-only evidence artifacts for plan, snapshot, scream-test, delete-readiness,
+and application readiness simulation. All generated evidence remains simulation-only and cannot authorize
+live deletion.
+
+Sample: `samples/nhi-controlled-finaldelete-application.sample.json`
+
+---
+
+## Rev4.5 Metadata Cleanup Schemas
+
+Rev4.5 adds related metadata inventory and cleanup-readiness evidence only. It does not introduce live
+credential removal, owner removal, marker updates, or tenant writes.
+
+### Metadata Inventory
+
+**Core fields:** SchemaVersion, RunId, TargetObjectId, TargetType, MetadataCleanupType,
+CredentialMetadataEvidence, OwnerMetadataEvidence, DecommissionMarkerEvidence, RollbackLimitation,
+CleanupReadiness, Status, PlanningOnly, LiveCleanupEnabled
+
+### Metadata Cleanup Plan
+
+**Core fields:** SchemaVersion, RunId, TargetObjectId, TargetType, MetadataCleanupType, MetadataObjectId,
+DependencyRecheckStatus, CleanupReadiness, BroadCleanupBlocked, LiveCleanupEnabled, PlanningOnly, Status
+
+### Metadata Cleanup Action Log
+
+**Core fields:** SchemaVersion, RunId, TargetObjectId, TargetType, MetadataCleanupType, Status, Result,
+SimulationOnly, LiveCleanupEnabled
+
+### Rollback Limitation
+
+Allowed classifications are `Reversible`, `Limited`, `NotAvailable`, and `EvidenceOnly`.
+
+Credential metadata evidence must not export secret values, token values, certificate values, or raw credential material.
+
+Sample: `samples/nhi-controlled-metadata-cleanup.sample.json`
+
+---
+
+## Rev4.6 Grant Cleanup Schemas
+
+Rev4.6 adds grant and assignment cleanup-readiness evidence only. It does not introduce live grant removal,
+app role assignment removal, or any other write/delete path.
+
+### Grant Cleanup Plan
+
+**Core fields:** SchemaVersion, RunId, TargetObjectId, TargetType, RelatedObjectType, RelatedObjectId,
+ResourceAppId, ResourceId, PrincipalId, PermissionName, Scope, DependencyRecheckStatus, CleanupReadiness,
+BroadCleanupBlocked, LiveCleanupEnabled, PlanningOnly, Status
+
+### Dependency Recheck
+
+Allowed statuses are `Clean`, `Blocked`, `Unknown`, and `SkippedWithApproval`.
+
+### Post-Cleanup Validation
+
+Allowed statuses are `NotRun`, `Simulated`, `ConfirmedAbsent`, `ConfirmedPresent`, and `Unknown`.
+
+### Grant Cleanup Action Log
+
+**Core fields:** SchemaVersion, RunId, TargetObjectId, RelatedObjectId, DependencyRecheckStatus,
+CleanupReadiness, Status, Result, SimulationOnly, LiveCleanupEnabled
+
+If `ResourceAppId`, `ResourceId`, `PrincipalId`, `PermissionName`, or `Scope` is present on either the
+plan or approval object, the runtime must fail closed unless both sides are present and equal.
+
+Sample: `samples/nhi-controlled-grants-cleanup.sample.json`
+
+---
+
 ## Schema Validation
 
 To validate any object against a contract programmatically:

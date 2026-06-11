@@ -1,12 +1,12 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Rev4.2-S1 controlled NHI decommission planner and evidence functions.
+    Rev4.6 controlled NHI decommission planner and evidence functions.
 
 .DESCRIPTION
     Additive, local-data-only planner. This module performs no Graph calls and
-    contains no tenant mutation path. FinalDelete is blocked for live execution
-    in Rev4.2-S1.
+    contains no tenant mutation path. FinalDelete remains simulation-only when
+    -AllowFinalDelete is set; live execution stays blocked.
 #>
 
 $script:ControlledSchemaVersion = '4.2'
@@ -751,11 +751,21 @@ function Test-NhiControlledGrantCleanupReadinessGate {
     if ($Approval.RelatedObjectId -ne $Plan.RelatedObjectId) { $reasons.Add('RelatedObjectId mismatch blocks cleanup.') }
     if ($Approval.RelatedObjectType -ne $Plan.RelatedObjectType) { $reasons.Add('RelatedObjectType mismatch blocks cleanup.') }
     if ($Approval.ApprovedActions -notcontains 'GrantCleanupReadiness') { $reasons.Add('Approval must specifically authorize the cleanup action.') }
-    if ($Approval.ResourceAppId -and $Plan.ResourceAppId -and $Approval.ResourceAppId -ne $Plan.ResourceAppId) { $reasons.Add('ResourceAppId mismatch blocks cleanup.') }
-    if ($Approval.ResourceId -and $Plan.ResourceId -and $Approval.ResourceId -ne $Plan.ResourceId) { $reasons.Add('ResourceId mismatch blocks cleanup.') }
-    if ($Approval.PrincipalId -and $Plan.PrincipalId -and $Approval.PrincipalId -ne $Plan.PrincipalId) { $reasons.Add('PrincipalId mismatch blocks cleanup.') }
-    if ($Approval.PermissionName -and $Plan.PermissionName -and $Approval.PermissionName -ne $Plan.PermissionName) { $reasons.Add('PermissionName mismatch blocks cleanup.') }
-    if ($Approval.Scope -and $Plan.Scope -and $Approval.Scope -ne $Plan.Scope) { $reasons.Add('Scope mismatch blocks cleanup.') }
+    if ($Plan.ResourceAppId -or $Approval.ResourceAppId) {
+        if ([string]::IsNullOrWhiteSpace([string]$Plan.ResourceAppId) -or [string]::IsNullOrWhiteSpace([string]$Approval.ResourceAppId) -or $Approval.ResourceAppId -ne $Plan.ResourceAppId) { $reasons.Add('ResourceAppId mismatch blocks cleanup.') }
+    }
+    if ($Plan.ResourceId -or $Approval.ResourceId) {
+        if ([string]::IsNullOrWhiteSpace([string]$Plan.ResourceId) -or [string]::IsNullOrWhiteSpace([string]$Approval.ResourceId) -or $Approval.ResourceId -ne $Plan.ResourceId) { $reasons.Add('ResourceId mismatch blocks cleanup.') }
+    }
+    if ($Plan.PrincipalId -or $Approval.PrincipalId) {
+        if ([string]::IsNullOrWhiteSpace([string]$Plan.PrincipalId) -or [string]::IsNullOrWhiteSpace([string]$Approval.PrincipalId) -or $Approval.PrincipalId -ne $Plan.PrincipalId) { $reasons.Add('PrincipalId mismatch blocks cleanup.') }
+    }
+    if ($Plan.PermissionName -or $Approval.PermissionName) {
+        if ([string]::IsNullOrWhiteSpace([string]$Plan.PermissionName) -or [string]::IsNullOrWhiteSpace([string]$Approval.PermissionName) -or $Approval.PermissionName -ne $Plan.PermissionName) { $reasons.Add('PermissionName mismatch blocks cleanup.') }
+    }
+    if ($Plan.Scope -or $Approval.Scope) {
+        if ([string]::IsNullOrWhiteSpace([string]$Plan.Scope) -or [string]::IsNullOrWhiteSpace([string]$Approval.Scope) -or $Approval.Scope -ne $Plan.Scope) { $reasons.Add('Scope mismatch blocks cleanup.') }
+    }
     if (-not $Snapshot -or -not $Snapshot.SHA256) { $reasons.Add('Snapshot evidence is required.') }
     if ($Plan.SnapshotId -and $Plan.SnapshotId -ne $Snapshot.SHA256) { $reasons.Add('Snapshot does not include the related object.') }
     if ($Approval.SnapshotId -and $Approval.SnapshotId -ne $Snapshot.SHA256) { $reasons.Add('Snapshot does not include the related object.') }
