@@ -4,7 +4,7 @@
 
 ### Summary
 Six new read-only pre-decom agentic activity audit modules. Rev4.0 P1 fix.
-Zero new write scopes. 1497/1497 tests passing.
+Zero new write scopes. 1498/1498 tests passing.
 
 ### Changes
 
@@ -26,8 +26,8 @@ Zero new write scopes. 1497/1497 tests passing.
 - Added 6 new modules to modulesToLoad
 
 #### Tests
-- New: tests/NhiActivityAudit.Rev41.Tests.ps1 (40 tests)
-- Total: 1497 passed, 0 failed (Rev4.0 baseline: 1456)
+- New: tests/NhiActivityAudit.Rev41.Tests.ps1 (41 tests)
+- Total: 1498 passed, 0 failed (Rev4.0 baseline: 1456)
 
 ---
 

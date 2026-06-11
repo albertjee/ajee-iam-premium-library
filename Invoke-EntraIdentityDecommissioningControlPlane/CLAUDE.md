@@ -174,11 +174,14 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
   - Pre-existing Rev11 + Rev36 tests: 66 tests
   - Pre-existing Rev3.x tests: remainder
   - 1455 + 1 = 1456 total
+- **Rev4.1 test count:** 1498 total tests, 1498 passing, 0 failed
+  - 41 new tests (NhiActivityAudit.Rev41.Tests.ps1, M1-M6 activity audit modules)
+  - HtmlEncoding cross-test contamination failure resolved during Rev4.1 fix cycles
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Minimal
   ```
-- Must show 0 failures, >= 1456 tests passing.
+- Must show 0 failures, >= 1498 tests passing.
 
 ---
 
@@ -188,7 +191,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 1456 tests passing |
+| Tests | 0 failures, ≥ 1498 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 
