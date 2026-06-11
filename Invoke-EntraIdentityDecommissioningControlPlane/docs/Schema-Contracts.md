@@ -118,6 +118,10 @@ All output objects produced by the Entra Identity Decommissioning Control Plane 
 Rev4.2-S1 schema objects are local planning and evidence contracts. They do not authorize Graph
 writes or live deletion. `FinalDeleteLiveEnabled` must remain `false`.
 
+Rich evidence fields in the sample plan are illustrative input examples only. Runtime recomputes
+generated snapshot, scream-test, dependency, readiness, rollback, and plan evidence from accepted
+plan and approval inputs. Precomputed readiness or evidence fields are not trusted as authority.
+
 ### Controlled Decommission Plan
 
 **Required input fields:** SchemaVersion, RunId, TargetId, TargetType
@@ -154,6 +158,13 @@ The planner exports five local JSON evidence objects:
 
 Snapshots retain credential metadata only. Secret values, tokens, and certificate material must
 not be exported.
+
+Rev4.2-S1 scream-test evidence is generated planner evidence only. It is not evidence of live
+monitoring, a live Graph query, or completed tenant observation.
+
+Future hardening note: if `ConvertTo-NhiControlledSnapshot` is later supplied raw Graph objects,
+sanitization must be expanded and tested for `AdditionalProperties` and unusual secret-like fields
+before that input path is enabled.
 
 Sample contracts:
 

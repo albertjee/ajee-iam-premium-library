@@ -26,6 +26,18 @@ Rev4.2-S1 is planner/evidence/WhatIf/Demo only and performs no Graph connection 
 - Focused Rev4.2 tests: 71 passed, 0 failed.
 - Full Pester before documentation milestone: 1569 passed, 0 failed.
 
+### External QA P2 Polish
+- Evaluated updating entry-point `ToolVersion` to `Rev4.2-S1`; retained `Rev4.1` because the frozen
+  release-validation contract requires it and SelfTest fails on a different value.
+- Clarified that S1 scream-test evidence is illustrative/generated planner evidence, not live
+  monitoring evidence.
+- Clarified that rich sample evidence fields are examples only and runtime recomputes generated
+  evidence rather than trusting precomputed readiness as authority.
+- Documented that the controlled branch short-circuits before legacy Rev4.0 execution when both
+  execution switches are supplied.
+- Added a future hardening note for raw Graph object sanitization, including `AdditionalProperties`
+  and unusual secret-like fields. No broad sanitization behavior was added in S1.
+
 ---
 
 ## Rev4.1 — NHI Activity Audit Hardening

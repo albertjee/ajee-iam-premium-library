@@ -11,6 +11,7 @@
   "LiveMutationEnabled": false,
   "FinalDeleteLiveEnabled": false,
   "Status": "Planned",
+  "EvidenceNotice": "Rich evidence fields in this sample are illustrative input examples only. Runtime recomputes generated evidence and does not trust precomputed readiness as authority.",
   "TargetValidation": {
     "Passed": true,
     "Reasons": []
@@ -22,6 +23,7 @@
     "ContainsSecretValues": false
   },
   "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
     "Status": "Complete",
     "WindowHours": 24,
     "DependencyDetected": false,

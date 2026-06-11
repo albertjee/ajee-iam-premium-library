@@ -173,6 +173,7 @@ if ($SelfTest) {
 }
 
 # Rev4.2-S1 controlled NHI decommission planner/evidence flow
+# This branch intentionally short-circuits before the legacy Rev4.0 execution path.
 if ($ExecuteNhiControlledDecommission) {
     if (-not $WhatIfExecution -and -not $DemoMode) {
         Write-Host '[ERROR] Rev4.2-S1 controlled decommission is planner/evidence only. Use -WhatIfExecution or -DemoMode.' -ForegroundColor Red

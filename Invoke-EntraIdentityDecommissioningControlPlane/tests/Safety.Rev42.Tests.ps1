@@ -29,6 +29,10 @@ Describe 'Rev4.2-S1 entry-point controlled decommission safety' {
         $script:ParseErrors.Count | Should -Be 0
     }
 
+    It 'retains Rev4.1 tool version for frozen release-validation compatibility' {
+        $script:Source | Should -Match ([regex]::Escape('$script:ToolVersion = ''Rev4.1'''))
+    }
+
     It 'defines the Rev4.2-S1 parameter contract' {
         $parameterNames = @($script:EntryAst.ParamBlock.Parameters.Name.VariablePath.UserPath)
         @(

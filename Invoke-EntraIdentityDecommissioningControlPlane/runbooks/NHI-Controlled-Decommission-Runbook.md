@@ -5,6 +5,10 @@
 
 **Scope:** Local planner/evidence/WhatIf/Demo workflow only
 
+**Compatibility note:** The entry-point `ToolVersion` remains `Rev4.1` because the frozen
+release-validation contract requires it. Rev4.2-S1 traceability is carried by the schema, branch,
+commit, documentation, module, samples, and tests.
+
 ---
 
 ## Safety Boundary
@@ -18,6 +22,8 @@ Rev4.2-S1 does not perform live controlled decommission actions.
 - `Remove-MgServicePrincipal` and `Remove-MgApplication` are not implemented or invoked.
 - Assessment, default, SelfTest, DemoMode, and WhatIf paths remain write-free.
 - Missing or invalid plan and approval inputs fail closed.
+- If both `-ExecuteNhiControlledDecommission` and `-ExecuteNhiDecommission` are supplied, the
+  controlled Rev4.2-S1 branch runs first and exits before the legacy Rev4.0 execution path.
 
 Do not treat Rev4.2-S1 delete-readiness evidence as authorization to delete an object.
 
@@ -34,6 +40,10 @@ Repository samples:
 
 - `samples/nhi-controlled-decommission-plan.sample.json`
 - `samples/nhi-controlled-decommission-approval.sample.json`
+
+Rich evidence fields in the sample plan are illustrative input examples only. Runtime recomputes
+generated evidence from the accepted plan and approval inputs and does not trust precomputed
+readiness as authority.
 
 ## Preflight
 
@@ -77,12 +87,15 @@ The workflow creates a local `controlled-decommission-<RunId>` folder containing
 |---|---|
 | `nhi-controlled-decommission-plan.json` | Planning-only action record |
 | `nhi-controlled-decommission-snapshot.json` | Sanitized target snapshot and SHA-256 hash |
-| `nhi-controlled-decommission-screamtest.json` | Scream-test window and activity evaluation |
+| `nhi-controlled-decommission-screamtest.json` | Illustrative/generated planner evaluation; not live monitoring evidence |
 | `nhi-controlled-decommission-delete-readiness.json` | Fail-closed readiness decision |
 | `nhi-controlled-decommission-rollback-plan.json` | Rollback planning evidence |
 
 Review evidence for RunId and target consistency. Confirm snapshots contain metadata only and no
 secret, token, or certificate material.
+
+The S1 scream-test artifact is generated planner evidence. It does not prove a live Graph query,
+live monitoring period, or tenant observation occurred.
 
 ## Fail-Closed Conditions
 
@@ -105,3 +118,8 @@ write cmdlets. Do not manually convert planner evidence into a live delete opera
 
 Rev4.2-S1 completion means evidence was generated and reviewed. It does not mean the target was
 changed or deleted.
+
+## Future Hardening Note
+
+If `ConvertTo-NhiControlledSnapshot` is later supplied raw Graph objects, expand and test
+sanitization for `AdditionalProperties` and unusual secret-like fields before enabling that path.

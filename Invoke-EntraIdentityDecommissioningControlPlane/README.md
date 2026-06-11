@@ -26,6 +26,10 @@ Rev4.2-S1 adds an additive, local-only controlled NHI decommission planner and e
 It supports `WhatIf` and `DemoMode` planning only. It does not connect to Microsoft Graph, request
 new Graph write scopes, or mutate tenant objects.
 
+The entry-point `ToolVersion` remains `Rev4.1` for compatibility with the frozen release-validation
+contract. Rev4.2-S1 traceability is provided by its schema version, branch, commit, documentation,
+module, samples, and focused tests.
+
 Safety boundary:
 
 - Live `FinalDelete` is blocked in Rev4.2-S1.
@@ -34,6 +38,10 @@ Safety boundary:
 - A valid Rev4.2 plan and approval manifest are required; missing or invalid inputs fail closed.
 - The workflow produces five local JSON evidence files: plan, sanitized snapshot, scream-test
   evaluation, delete-readiness evaluation, and rollback plan.
+- Scream-test and readiness evidence is illustrative/generated planner evidence, not live monitoring
+  evidence. Runtime recomputes generated evidence and does not trust rich sample fields as authority.
+- If both `-ExecuteNhiControlledDecommission` and `-ExecuteNhiDecommission` are supplied, the
+  Rev4.2-S1 controlled path runs first and exits before legacy Rev4.0 execution.
 
 Sample planner command:
 
