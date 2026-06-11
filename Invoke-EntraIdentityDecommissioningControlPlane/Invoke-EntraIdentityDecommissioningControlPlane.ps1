@@ -58,7 +58,7 @@ param(
     [switch]$ExecuteNhiControlledDecommission,
     [switch]$ExecuteNhiControlledMetadataCleanup,
     [switch]$ExecuteNhiControlledGrantCleanup,
-    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','MetadataCleanupReadiness','GrantCleanupReadiness','FinalDelete')]
+    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','MetadataCleanupReadiness','GrantCleanupReadiness','ManagedIdentityReadiness','FinalDelete')]
     [string]$ExecutionStage = 'ValidateOnly',
     [string]$DecommissionPlanPath,
     [ValidateRange(1,8760)][int]$ScreamTestWindowHours = 24,
@@ -227,6 +227,7 @@ if ($SelfTest) {
     $expectedControlledSchemaVersion = switch ($controlledFeatureStage) {
         'MetadataCleanupReadiness' { '4.5' }
         'GrantCleanupReadiness'    { '4.6' }
+        'ManagedIdentityReadiness'  { '4.7' }
         default                    { '4.2' }
     }
     if ([string]$controlledPlanInput.SchemaVersion -ne $expectedControlledSchemaVersion) {
@@ -389,6 +390,68 @@ if ($SelfTest) {
             Export-NhiControlledDecommissionEvidence -Evidence $grantReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-cleanup-readiness.json')
         )
         Write-Host '[OK] Rev4.6 grants cleanup readiness completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+        $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+        exit 0
+    }
+
+    if ($controlledFeatureStage -eq 'ManagedIdentityReadiness') {
+        $managedIdentityExecutionStage = 'ManagedIdentityReadiness'
+        $managedIdentityDeleteReadiness = if ($null -ne $controlledPlanInput.DeleteReadiness) { [PSCustomObject]@{ Status = [string]$controlledPlanInput.DeleteReadiness.Status } } else { [PSCustomObject]@{ Status = 'Blocked' } }
+        $managedIdentityDependencyRecheck = if ($null -ne $controlledPlanInput.DependencyRecheck) {
+            [PSCustomObject]@{
+                SchemaVersion = '4.7'
+                Status = [string]$controlledPlanInput.DependencyRecheck.Status
+                QuerySucceeded = [bool]$controlledPlanInput.DependencyRecheck.QuerySucceeded
+                Blocked = [bool]$controlledPlanInput.DependencyRecheck.Blocked
+                SkippedWithApproval = [bool]$controlledPlanInput.DependencyRecheck.SkippedWithApproval
+            }
+        } else {
+            [PSCustomObject]@{
+                SchemaVersion = '4.7'
+                Status = 'Clean'
+                QuerySucceeded = $true
+                Blocked = $false
+                SkippedWithApproval = $false
+            }
+        }
+        $managedIdentityRoleAssignmentEvidence = if ($null -ne $controlledPlanInput.RoleAssignmentEvidence) { $controlledPlanInput.RoleAssignmentEvidence } else { [PSCustomObject]@{ ActiveRoleAssignmentCount = 0 } }
+        $managedIdentityFederatedCredentialEvidence = if ($null -ne $controlledPlanInput.FederatedCredentialEvidence) { $controlledPlanInput.FederatedCredentialEvidence } else { [PSCustomObject]@{ ActiveDependencyCount = 0; AppRelationshipDependencyCount = 0 } }
+        $managedIdentityParentEvidence = if ($null -ne $controlledPlanInput.ParentResourceEvidence) { $controlledPlanInput.ParentResourceEvidence } else { [PSCustomObject]@{ Present = $true; ParentResourceId = [string]$controlledPlanInput.TargetId; ParentResourceType = 'AzureResource'; LocalOnly = $true } }
+        $managedIdentityAttachmentEvidence = if ($null -ne $controlledPlanInput.AttachmentEvidence) { $controlledPlanInput.AttachmentEvidence } else { [PSCustomObject]@{ Present = $true; ResourceId = [string]$controlledPlanInput.TargetId; Attached = $true; LocalOnly = $true } }
+        $managedIdentityReadiness = & $controlledModule {
+            param($GateInput)
+            Test-NhiControlledManagedIdentityReadinessGate @GateInput
+        } @{
+            ExecutionStage = $managedIdentityExecutionStage
+            Plan = $controlledPlanInput
+            Approval = $controlledApproval
+            TargetValidation = $controlledTargetValidation
+            Snapshot = $controlledSnapshot
+            DeleteReadiness = $managedIdentityDeleteReadiness
+            DependencyRecheck = $managedIdentityDependencyRecheck
+            RoleAssignmentEvidence = $managedIdentityRoleAssignmentEvidence
+            FederatedCredentialEvidence = $managedIdentityFederatedCredentialEvidence
+            ParentResourceEvidence = $managedIdentityParentEvidence
+            AttachmentEvidence = $managedIdentityAttachmentEvidence
+            WhatIf = $WhatIfExecution.IsPresent
+            DemoMode = $DemoMode.IsPresent
+        }
+        $managedIdentityPlan = & $controlledModule {
+            param($Plan, $Readiness, $Snapshot, $RoleAssignmentEvidence, $FederatedCredentialEvidence, $ParentResourceEvidence, $AttachmentEvidence)
+            New-NhiControlledManagedIdentityReadinessPlan -Plan $Plan -Readiness $Readiness -Snapshot $Snapshot -RoleAssignmentEvidence $RoleAssignmentEvidence -FederatedCredentialEvidence $FederatedCredentialEvidence -ParentResourceEvidence $ParentResourceEvidence -AttachmentEvidence $AttachmentEvidence
+        } $controlledPlanInput $managedIdentityReadiness $controlledSnapshot $managedIdentityRoleAssignmentEvidence $managedIdentityFederatedCredentialEvidence $managedIdentityParentEvidence $managedIdentityAttachmentEvidence
+        $managedIdentityActionLog = & $controlledModule {
+            param($Plan, $Readiness, $Snapshot)
+            New-NhiControlledManagedIdentityActionLog -Plan $Plan -Readiness $Readiness -Snapshot $Snapshot
+        } $controlledPlanInput $managedIdentityReadiness $controlledSnapshot
+        $controlledEvidencePaths = @(
+            Export-NhiControlledDecommissionEvidence -Evidence $managedIdentityPlan -Path (Join-Path $controlledOutputPath 'nhi-controlled-managed-identity-plan.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $managedIdentityActionLog -Path (Join-Path $controlledOutputPath 'nhi-controlled-managed-identity-action-log.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $controlledSnapshot -Path (Join-Path $controlledOutputPath 'nhi-controlled-managed-identity-snapshot.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $controlledScreamTest -Path (Join-Path $controlledOutputPath 'nhi-controlled-managed-identity-screamtest.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $managedIdentityReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-managed-identity-readiness.json')
+        )
+        Write-Host '[OK] Rev4.7 managed identity readiness completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
         $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
         exit 0
     }

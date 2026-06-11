@@ -102,6 +102,10 @@ delete is executable. Neither artifact authorizes deletion.
 The S1 scream-test artifact is generated planner evidence. It does not prove a live Graph query,
 live monitoring period, or tenant observation occurred.
 
+Rev4.7 managed-identity readiness follows the same rule: the plan artifact can show readiness metadata
+while the gate artifact remains simulation-only. `ManagedIdentityReadinessSatisfiedSimulationOnly` is a
+local planning result, not live cleanup authorization.
+
 ## Rev4.3 Service Principal FinalDelete Guard Simulation
 
 Rev4.3 evaluates Service Principal FinalDelete gates and writes local evidence only. It does not

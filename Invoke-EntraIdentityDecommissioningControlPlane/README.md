@@ -85,6 +85,12 @@ Even when every gate passes, Rev4.3 reports `GuardSatisfiedSimulationOnly`,
 
 ---
 
+### Rev4.7 Managed Identity Readiness
+
+Rev4.7 adds managed identity readiness and simulation-only evidence. `SystemAssigned` identities require
+parent resource evidence; `UserAssigned` identities require attachment evidence. No live Managed Identity
+deletion, Azure Resource Manager deletion, or role-assignment cleanup path is included.
+
 ## Assessment Control Plane (Rev1.4)
 
 ### What it does

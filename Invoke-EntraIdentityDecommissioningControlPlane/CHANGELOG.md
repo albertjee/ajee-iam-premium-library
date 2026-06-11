@@ -1,5 +1,22 @@
 # Changelog
 
+## Rev4.7 - Managed Identity Controlled Decommission Readiness
+
+### Summary
+Added managed identity readiness and simulation-only evidence. Rev4.7 supports SystemAssigned and
+UserAssigned managed identities but does not introduce live deletion, ARM cleanup, or Graph write paths.
+
+### Safety Boundary
+- `ManagedIdentityReadinessSatisfiedSimulationOnly` is local evidence only.
+- `LiveCleanupExecutable` and `CleanupCmdletAvailable` remain `false`.
+- No live Managed Identity cleanup, role-assignment removal, or ARM deletion was added.
+- Frozen modules remain untouched.
+
+### Tests
+- Added focused Rev4.7 readiness and safety tests.
+
+---
+
 ## Rev4.3 - Controlled Service Principal FinalDelete Guard
 
 ### Summary

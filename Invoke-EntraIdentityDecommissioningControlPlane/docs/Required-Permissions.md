@@ -54,6 +54,16 @@ Rev4.4, Rev4.5, and Rev4.6 remain local planner/evidence workflows only.
 - Assessment permissions remain read-only.
 - Live delete/cleanup/write execution remains blocked.
 
+Rev4.7 and Rev4.8 extend the same boundary:
+
+- No new Microsoft Graph permissions are required.
+- `-WhatIfExecution` or `-DemoMode` is required for the controlled build paths.
+- The output is local evidence only; no tenant cleanup, delete, or write execution is performed.
+- Assessment permissions remain read-only.
+- Live delete/cleanup/write execution remains blocked.
+- No live Azure Resource Manager deletion is performed.
+- No live Managed Identity cleanup or end-to-end evidence execution is allowed outside simulation-only paths.
+
 ## Rev2.4 — No New Permissions Required
 
 Rev2.4 adds baseline comparison (`-BaselinePath`) and executive evidence pack (`-GenerateExecutivePack`)

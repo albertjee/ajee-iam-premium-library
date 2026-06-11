@@ -1,0 +1,60 @@
+{
+  "SchemaVersion": "4.7",
+  "RunId": "RUN-REV47-MI-SAMPLE-001",
+  "Status": "Approved",
+  "ApprovedBy": "managed-identity-approver@example.com",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "ApprovalId": "APP-REV47-MI-001",
+  "TargetId": "mi-rev47-test-001",
+  "TargetType": "ManagedIdentity",
+  "TargetObjectIds": [
+    "mi-rev47-test-001"
+  ],
+  "ApprovedActions": [
+    "ManagedIdentityReadiness"
+  ],
+  "ManagedIdentityType": "SystemAssigned",
+  "ParentResourceEvidence": {
+    "Present": true,
+    "ParentResourceId": "res-group-rev47-001",
+    "ParentResourceType": "Microsoft.Web/sites",
+    "LocalOnly": true
+  },
+  "AttachmentEvidence": {
+    "Present": true,
+    "ResourceId": "mi-rev47-test-001",
+    "Attached": true,
+    "LocalOnly": true
+  },
+  "RoleAssignmentEvidence": {
+    "ActiveRoleAssignmentCount": 0,
+    "QuerySucceeded": true
+  },
+  "FederatedCredentialEvidence": {
+    "ActiveDependencyCount": 0,
+    "AppRelationshipDependencyCount": 0,
+    "QuerySucceeded": true
+  },
+  "DependencyRecheck": {
+    "SchemaVersion": "4.7",
+    "Status": "Clean",
+    "QuerySucceeded": true,
+    "Blocked": false,
+    "SkippedWithApproval": false
+  },
+  "DeleteReadiness": {
+    "Status": "Ready"
+  },
+  "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
+    "Status": "Complete",
+    "DependencyDetected": false,
+    "RecentActivityDetected": false,
+    "QuerySucceeded": true
+  },
+  "RollbackLimitation": "EvidenceOnly",
+  "LiveCleanupApproved": false,
+  "LiveCleanupExecutable": false,
+  "Notes": "Single local file used as both plan and approval input for Rev4.7 managed identity readiness simulation."
+}

@@ -40,11 +40,13 @@ function Get-NhiControlledDecommissionSchema {
         ControlledDecommissionSchemaVersion = $script:ControlledSchemaVersion
         MetadataCleanupSchemaVersion        = '4.5'
         GrantCleanupSchemaVersion           = '4.6'
+        ManagedIdentitySchemaVersion        = '4.7'
         ActionLogSchemaVersion              = $script:ControlledSchemaVersion
         SnapshotSchemaVersion               = $script:ControlledSchemaVersion
         DeleteReadinessSchemaVersion        = $script:ControlledSchemaVersion
         DependencyRecheckStatuses           = @('Clean', 'Blocked', 'Unknown', 'SkippedWithApproval')
         PostCleanupValidationStatuses       = @('NotRun', 'Simulated', 'ConfirmedAbsent', 'ConfirmedPresent', 'Unknown')
+        ManagedIdentityTypes                = @('SystemAssigned', 'UserAssigned', 'Unknown')
         SupportedTargetTypes                = @($script:SupportedTargetTypes)
         SupportedStages                     = @($script:SupportedStages)
         LiveMutationEnabled                 = $false
@@ -858,6 +860,213 @@ function New-NhiControlledGrantCleanupActionLog {
     }
 }
 
+function Get-NhiControlledManagedIdentityType {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Plan
+    )
+
+    $candidate = $null
+    foreach ($propertyName in @('ManagedIdentityType', 'IdentityType', 'ManagedIdentityClassification')) {
+        $property = $Plan.PSObject.Properties[$propertyName]
+        if ($null -ne $property -and -not [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+            $candidate = [string]$property.Value
+            break
+        }
+    }
+
+    if ($candidate -notin @('SystemAssigned', 'UserAssigned')) {
+        $candidate = 'Unknown'
+    }
+
+    [PSCustomObject]@{
+        SchemaVersion = '4.7'
+        ManagedIdentityType = $candidate
+        IsKnown = $candidate -in @('SystemAssigned', 'UserAssigned')
+        IsSystemAssigned = $candidate -eq 'SystemAssigned'
+        IsUserAssigned = $candidate -eq 'UserAssigned'
+    }
+}
+
+function Test-NhiControlledManagedIdentityReadinessGate {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ExecutionStage,
+
+        [Parameter(Mandatory)]
+        [object]$Plan,
+
+        [Parameter(Mandatory)]
+        [object]$Approval,
+
+        [Parameter(Mandatory)]
+        [object]$TargetValidation,
+
+        [Parameter()]
+        [object]$Snapshot,
+
+        [Parameter(Mandatory)]
+        [object]$DeleteReadiness,
+
+        [Parameter(Mandatory)]
+        [object]$DependencyRecheck,
+
+        [Parameter()]
+        [object]$RoleAssignmentEvidence,
+
+        [Parameter()]
+        [object]$FederatedCredentialEvidence,
+
+        [Parameter()]
+        [object]$ParentResourceEvidence,
+
+        [Parameter()]
+        [object]$AttachmentEvidence,
+
+        [Parameter()]
+        [bool]$WhatIf = $false,
+
+        [Parameter()]
+        [bool]$DemoMode = $false
+    )
+
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $miType = Get-NhiControlledManagedIdentityType -Plan $Plan
+
+    if ($ExecutionStage -ne 'ManagedIdentityReadiness') { $reasons.Add('ExecutionStage ManagedIdentityReadiness is required.') }
+    if ([string]$Plan.TargetType -ne 'ManagedIdentity') { $reasons.Add('Target type must be ManagedIdentity.') }
+    if (-not $miType.IsKnown) { $reasons.Add('Managed identity type is Unknown.') }
+    if (-not $TargetValidation.Passed) { $reasons.Add('Target validation failed.') }
+    if ([string]::IsNullOrWhiteSpace([string]$Plan.ApprovalId)) { $reasons.Add('ApprovalId is required.') }
+    if ([string]::IsNullOrWhiteSpace([string]$Approval.ApprovedBy)) { $reasons.Add('ApprovedBy is required.') }
+    if ([string]$Approval.Status -ne 'Approved') { $reasons.Add('Approval status must be Approved.') }
+    if ($Approval.ApprovalId -ne $Plan.ApprovalId) { $reasons.Add('Exact approval is required.') }
+    if ($Approval.TargetId -ne $Plan.TargetId) { $reasons.Add('Exact target binding is required.') }
+    if ($Approval.TargetType -ne $Plan.TargetType) { $reasons.Add('Target type mismatch blocks readiness.') }
+    if ($Approval.ManagedIdentityType -and $Approval.ManagedIdentityType -ne $Plan.ManagedIdentityType) { $reasons.Add('Managed identity type mismatch blocks readiness.') }
+    if ($Approval.ApprovedActions -notcontains 'ManagedIdentityReadiness') { $reasons.Add('Approval must specifically authorize the readiness action.') }
+    if (-not $Snapshot -or -not $Snapshot.SHA256) { $reasons.Add('Snapshot evidence is required.') }
+    if (-not $DeleteReadiness -or [string]$DeleteReadiness.Status -ne 'Ready') { $reasons.Add('Delete-readiness must be Ready.') }
+    if (-not $DependencyRecheck -or $DependencyRecheck.Status -in @('Unknown', 'Blocked')) { $reasons.Add('Dependency recheck blocks readiness.') }
+
+    $roleAssignmentCount = if ($null -ne $RoleAssignmentEvidence -and $null -ne $RoleAssignmentEvidence.ActiveRoleAssignmentCount) { [int]$RoleAssignmentEvidence.ActiveRoleAssignmentCount } else { 0 }
+    $federatedDependencyCount = if ($null -ne $FederatedCredentialEvidence -and $null -ne $FederatedCredentialEvidence.ActiveDependencyCount) { [int]$FederatedCredentialEvidence.ActiveDependencyCount } else { 0 }
+    $appDependencyCount = if ($null -ne $FederatedCredentialEvidence -and $null -ne $FederatedCredentialEvidence.AppRelationshipDependencyCount) { [int]$FederatedCredentialEvidence.AppRelationshipDependencyCount } else { 0 }
+
+    if ($roleAssignmentCount -gt 0) { $reasons.Add('Active role assignments block readiness.') }
+    if ($federatedDependencyCount -gt 0 -or $appDependencyCount -gt 0) { $reasons.Add('Federated credential or app relationship dependency blocks readiness.') }
+
+    $parentEvidencePresent = $null -ne $ParentResourceEvidence -and ($ParentResourceEvidence.Present -eq $true -or $ParentResourceEvidence.ParentResourceId)
+    $attachmentEvidencePresent = $null -ne $AttachmentEvidence -and ($AttachmentEvidence.Present -eq $true -or $AttachmentEvidence.ResourceId -or $AttachmentEvidence.Attached -eq $true)
+
+    if ($miType.ManagedIdentityType -eq 'SystemAssigned' -and -not $parentEvidencePresent) {
+        $reasons.Add('System-assigned managed identity requires parent resource evidence.')
+    }
+    if ($miType.ManagedIdentityType -eq 'UserAssigned' -and -not $attachmentEvidencePresent) {
+        $reasons.Add('User-assigned managed identity requires attachment evidence.')
+    }
+    if (-not $WhatIf -and -not $DemoMode) { $reasons.Add('Rev4.7 unattended build permits WhatIf or DemoMode simulation only.') }
+
+    [PSCustomObject]@{
+        SchemaVersion         = '4.7'
+        EvaluatedUtc          = [DateTime]::UtcNow.ToString('o')
+        TargetId              = [string]$Plan.TargetId
+        TargetType            = [string]$Plan.TargetType
+        ManagedIdentityType    = $miType.ManagedIdentityType
+        ActionType            = 'ManagedIdentityReadiness'
+        GatesPassed           = $reasons.Count -eq 0
+        Status                = if ($reasons.Count -eq 0) { 'ManagedIdentityReadinessSatisfiedSimulationOnly' } else { 'Blocked' }
+        SimulationOnly        = $true
+        LiveCleanupExecutable  = $false
+        CleanupCmdletAvailable = $false
+        WhatIf                = $WhatIf
+        DemoMode              = $DemoMode
+        DeleteReadiness       = $DeleteReadiness
+        DependencyRecheck     = $DependencyRecheck
+        ParentResourceEvidence = $ParentResourceEvidence
+        AttachmentEvidence    = $AttachmentEvidence
+        RoleAssignmentEvidence = $RoleAssignmentEvidence
+        FederatedCredentialEvidence = $FederatedCredentialEvidence
+        Reasons               = @($reasons)
+    }
+}
+
+function New-NhiControlledManagedIdentityReadinessPlan {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Plan,
+
+        [Parameter(Mandatory)]
+        [object]$Readiness,
+
+        [Parameter(Mandatory)]
+        [object]$Snapshot,
+
+        [Parameter()]
+        [object]$RoleAssignmentEvidence,
+
+        [Parameter()]
+        [object]$FederatedCredentialEvidence,
+
+        [Parameter()]
+        [object]$ParentResourceEvidence,
+
+        [Parameter()]
+        [object]$AttachmentEvidence
+    )
+
+    $miType = Get-NhiControlledManagedIdentityType -Plan $Plan
+    [PSCustomObject]@{
+        SchemaVersion            = '4.7'
+        RunId                    = [string]$Plan.RunId
+        TargetId                 = [string]$Plan.TargetId
+        TargetType               = [string]$Plan.TargetType
+        ManagedIdentityType      = $miType.ManagedIdentityType
+        ParentResourceEvidence   = $ParentResourceEvidence
+        AttachmentEvidence       = $AttachmentEvidence
+        RoleAssignmentEvidence   = $RoleAssignmentEvidence
+        FederatedCredentialEvidence = $FederatedCredentialEvidence
+        SnapshotSHA256           = [string]$Snapshot.SHA256
+        DeleteReadinessStatus    = [string]$Readiness.Status
+        RollbackLimitation       = if ($Plan.RollbackLimitation) { [string]$Plan.RollbackLimitation } else { 'EvidenceOnly' }
+        LiveCleanupEnabled       = $false
+        PlanningOnly             = $true
+        Status                   = if ($Readiness.GatesPassed) { 'Planned' } else { 'Blocked' }
+        EvidenceKind             = 'ManagedIdentityReadiness'
+    }
+}
+
+function New-NhiControlledManagedIdentityActionLog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Plan,
+
+        [Parameter(Mandatory)]
+        [object]$Readiness,
+
+        [Parameter(Mandatory)]
+        [object]$Snapshot
+    )
+
+    $miType = Get-NhiControlledManagedIdentityType -Plan $Plan
+    [PSCustomObject]@{
+        SchemaVersion       = '4.7'
+        RunId               = [string]$Plan.RunId
+        TargetId            = [string]$Plan.TargetId
+        TargetType          = [string]$Plan.TargetType
+        ManagedIdentityType = $miType.ManagedIdentityType
+        SnapshotSHA256      = [string]$Snapshot.SHA256
+        DeleteReadiness     = [string]$Readiness.Status
+        LiveCleanupExecuted = $false
+        Result              = if ($Readiness.GatesPassed) { 'SimulationOnly' } else { 'Blocked' }
+        Notes               = @('No live managed identity cleanup performed.')
+    }
+}
+
 function New-NhiControlledRollbackPlan {
     [CmdletBinding()]
     param(
@@ -889,7 +1098,7 @@ function New-NhiControlledDecommissionPlan {
         [object]$Target,
 
         [Parameter(Mandatory)]
-        [ValidateSet('ValidateOnly', 'SnapshotOnly', 'TagOnly', 'DisableOnly', 'ScreamTestOnly', 'DeleteReadinessOnly', 'FinalDelete')]
+        [ValidateSet('ValidateOnly', 'SnapshotOnly', 'TagOnly', 'DisableOnly', 'ScreamTestOnly', 'DeleteReadinessOnly', 'MetadataCleanupReadiness', 'GrantCleanupReadiness', 'ManagedIdentityReadiness', 'FinalDelete')]
         [string]$ExecutionStage,
 
         [Parameter(Mandatory)]

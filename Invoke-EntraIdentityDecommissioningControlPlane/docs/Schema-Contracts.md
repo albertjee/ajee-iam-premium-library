@@ -275,6 +275,29 @@ Sample: `samples/nhi-controlled-grants-cleanup.sample.json`
 
 ---
 
+## Rev4.7 Managed Identity Readiness Schemas
+
+Rev4.7 adds managed-identity readiness and simulation-only evidence. It does not introduce live Managed Identity deletion,
+Azure Resource Manager deletion, or any live role-assignment cleanup path.
+
+### Managed Identity Readiness
+
+**Core fields:** SchemaVersion, RunId, TargetId, TargetType, ManagedIdentityType, ParentResourceEvidence,
+AttachmentEvidence, RoleAssignmentEvidence, FederatedCredentialEvidence, DeleteReadiness, DependencyRecheck,
+SnapshotSHA256, RollbackLimitation, LiveCleanupEnabled, PlanningOnly, Status, EvidenceKind
+
+### Managed Identity Action Log
+
+**Core fields:** SchemaVersion, RunId, TargetId, TargetType, ManagedIdentityType, SnapshotSHA256, DeleteReadiness,
+LiveCleanupExecuted, Result, Notes
+
+Managed identity evidence is simulation-only. `SystemAssigned` identities require parent resource evidence.
+`UserAssigned` identities require attachment evidence.
+
+Sample: `samples/nhi-controlled-managed-identity-readiness.sample.json`
+
+---
+
 ## Schema Validation
 
 To validate any object against a contract programmatically:
