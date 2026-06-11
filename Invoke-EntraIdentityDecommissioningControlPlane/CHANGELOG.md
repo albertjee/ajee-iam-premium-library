@@ -1,5 +1,33 @@
 # Changelog
 
+## Rev4.2-S1 - Controlled NHI Decommission Planner and Evidence
+
+### Summary
+Additive controlled NHI decommission planning, validation, and evidence generation.
+Rev4.2-S1 is planner/evidence/WhatIf/Demo only and performs no Graph connection or tenant mutation.
+
+### Changes
+- Added `src/Modules/NhiControlledDecommission.psm1` with schema, target and approval validation,
+  sanitized snapshot hashing, scream-test evaluation, dependency recheck, delete-readiness,
+  rollback-plan generation, and local evidence export.
+- Added entry-point switches for the controlled planner/evidence path.
+- Added sample Rev4.2 plan and approval manifests.
+- Added focused module and safety regression tests.
+- Added the controlled NHI decommission operator runbook and schema/permission documentation.
+
+### Safety Boundary
+- Live `FinalDelete` is blocked in Rev4.2-S1.
+- No `Remove-MgServicePrincipal` or `Remove-MgApplication` implementation or invocation.
+- No new Microsoft Graph write scopes.
+- Assessment, default, SelfTest, DemoMode, WhatIf, and controlled S1 planner paths remain write-free.
+- Required plan and approval inputs fail closed when absent or invalid.
+
+### Validation
+- Focused Rev4.2 tests: 71 passed, 0 failed.
+- Full Pester before documentation milestone: 1569 passed, 0 failed.
+
+---
+
 ## Rev4.1 — NHI Activity Audit Hardening
 
 ### Summary

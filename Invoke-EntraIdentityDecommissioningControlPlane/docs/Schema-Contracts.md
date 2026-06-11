@@ -113,6 +113,55 @@ All output objects produced by the Entra Identity Decommissioning Control Plane 
 
 ---
 
+## Rev4.2-S1 Controlled NHI Decommission Schemas
+
+Rev4.2-S1 schema objects are local planning and evidence contracts. They do not authorize Graph
+writes or live deletion. `FinalDeleteLiveEnabled` must remain `false`.
+
+### Controlled Decommission Plan
+
+**Required input fields:** SchemaVersion, RunId, TargetId, TargetType
+
+**Required generated fields:** SchemaVersion, RunId, GeneratedUtc, TargetId, TargetType,
+ExecutionStage, WhatIf, DemoMode, PlanningOnly, LiveMutationEnabled, FinalDeleteLiveEnabled,
+Status, Actions
+
+Allowed target types are `ServicePrincipal`, `Application`, and `ManagedIdentity`.
+Allowed execution stages are `ValidateOnly`, `SnapshotOnly`, `TagOnly`, `DisableOnly`,
+`ScreamTestOnly`, `DeleteReadinessOnly`, and `FinalDelete`. In Rev4.2-S1, every stage is planning
+only and `FinalDelete` is always blocked.
+
+### Controlled Decommission Approval
+
+**Required fields:** SchemaVersion, RunId, Status, ApprovedBy, ExpiresUtc, TargetObjectIds,
+ApprovedActions
+
+Approval validation requires schema version `4.2`, an approved and unexpired manifest, an exact
+target match, and authorization for the requested planning action. Approval does not enable live
+mutation or `FinalDelete`.
+
+### Controlled Evidence
+
+The planner exports five local JSON evidence objects:
+
+| Evidence | Purpose |
+|---|---|
+| Plan | Records the requested planning stage and blocked/live-mutation state |
+| Sanitized snapshot | Preserves non-sensitive target state and SHA-256 integrity hash |
+| Scream-test evaluation | Records time-window, dependency, activity, and query status |
+| Delete-readiness evaluation | Fails closed unless all readiness gates pass |
+| Rollback plan | Links reversible planning guidance to the sanitized snapshot hash |
+
+Snapshots retain credential metadata only. Secret values, tokens, and certificate material must
+not be exported.
+
+Sample contracts:
+
+- `samples/nhi-controlled-decommission-plan.sample.json`
+- `samples/nhi-controlled-decommission-approval.sample.json`
+
+---
+
 ## Schema Validation
 
 To validate any object against a contract programmatically:

@@ -20,6 +20,42 @@ before any execution is considered.
 
 ---
 
+## Rev4.2-S1 Controlled NHI Decommission Planning
+
+Rev4.2-S1 adds an additive, local-only controlled NHI decommission planner and evidence workflow.
+It supports `WhatIf` and `DemoMode` planning only. It does not connect to Microsoft Graph, request
+new Graph write scopes, or mutate tenant objects.
+
+Safety boundary:
+
+- Live `FinalDelete` is blocked in Rev4.2-S1.
+- `Remove-MgServicePrincipal` and `Remove-MgApplication` are not implemented or invoked.
+- Assessment, default, SelfTest, DemoMode, and WhatIf paths remain write-free.
+- A valid Rev4.2 plan and approval manifest are required; missing or invalid inputs fail closed.
+- The workflow produces five local JSON evidence files: plan, sanitized snapshot, scream-test
+  evaluation, delete-readiness evaluation, and rollback plan.
+
+Sample planner command:
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+    -ExecuteNhiControlledDecommission `
+    -ExecutionStage DeleteReadinessOnly `
+    -DecommissionPlanPath '.\samples\nhi-controlled-decommission-plan.sample.json' `
+    -ApprovalManifestPath '.\samples\nhi-controlled-decommission-approval.sample.json' `
+    -WhatIfExecution `
+    -OutputPath '.\out'
+```
+
+Sample inputs:
+
+- `samples/nhi-controlled-decommission-plan.sample.json`
+- `samples/nhi-controlled-decommission-approval.sample.json`
+
+See `runbooks/NHI-Controlled-Decommission-Runbook.md` for the full S1 operator workflow.
+
+---
+
 ## Assessment Control Plane (Rev1.4)
 
 ### What it does

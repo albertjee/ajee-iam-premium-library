@@ -1,0 +1,21 @@
+{
+  "SchemaVersion": "4.2",
+  "RunId": "RUN-REV42-SAMPLE-001",
+  "Status": "Approved",
+  "ApprovedBy": "approver@example.com",
+  "ApprovedUtc": "2026-06-11T00:00:00Z",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "TargetObjectIds": [
+    "sp-rev42-sample-001"
+  ],
+  "ApprovedActions": [
+    "ValidateOnly",
+    "SnapshotOnly",
+    "ScreamTestOnly",
+    "DeleteReadinessOnly"
+  ],
+  "FinalDeleteApproved": false,
+  "LiveMutationApproved": false,
+  "Notes": "Rev4.2-S1 sample approval authorizes planner and evidence stages only."
+}

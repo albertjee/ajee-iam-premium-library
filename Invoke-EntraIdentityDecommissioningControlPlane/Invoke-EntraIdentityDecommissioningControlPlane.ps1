@@ -52,7 +52,17 @@ param(
     [switch]$AllowHumanExecution,
 
     # Rev4.1 optional read-only NHI activity audit
-    [switch]$IncludeAgentActivityAudit
+    [switch]$IncludeAgentActivityAudit,
+
+    # Rev4.2-S1 controlled NHI decommission planner/evidence parameters
+    [switch]$ExecuteNhiControlledDecommission,
+    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','FinalDelete')]
+    [string]$ExecutionStage = 'ValidateOnly',
+    [string]$DecommissionPlanPath,
+    [ValidateRange(1,8760)][int]$ScreamTestWindowHours = 24,
+    [switch]$RequireSecondConfirmation,
+    [switch]$AllowFinalDelete,
+    [switch]$WhatIfExecution
 )
 
 # Tool version - update this single constant each release
@@ -120,6 +130,7 @@ $modulesToLoad = @(
     'NhiTokenForensics'
     'NhiConditionalAccessResponse'
     'NhiPostDecomAudit'
+    'NhiControlledDecommission'
 )
 
 foreach ($mod in $modulesToLoad) {
@@ -159,6 +170,112 @@ if ($SelfTest) {
     Write-DecomError "SelfTest FAILED:"
     $selfTestResult.Errors | ForEach-Object { Write-DecomError "  $_" }
     exit 1
+}
+
+# Rev4.2-S1 controlled NHI decommission planner/evidence flow
+if ($ExecuteNhiControlledDecommission) {
+    if (-not $WhatIfExecution -and -not $DemoMode) {
+        Write-Host '[ERROR] Rev4.2-S1 controlled decommission is planner/evidence only. Use -WhatIfExecution or -DemoMode.' -ForegroundColor Red
+        exit 1
+    }
+    if (-not $DecommissionPlanPath -or -not (Test-Path -LiteralPath $DecommissionPlanPath -PathType Leaf)) {
+        Write-Host '[ERROR] -ExecuteNhiControlledDecommission requires a valid -DecommissionPlanPath.' -ForegroundColor Red
+        exit 1
+    }
+    if (-not $ApprovalManifestPath -or -not (Test-Path -LiteralPath $ApprovalManifestPath -PathType Leaf)) {
+        Write-Host '[ERROR] -ExecuteNhiControlledDecommission requires a valid -ApprovalManifestPath.' -ForegroundColor Red
+        exit 1
+    }
+    if ($ExecutionStage -eq 'FinalDelete' -or $AllowFinalDelete) {
+        Write-Host '[SECURITY STOP] FinalDelete is blocked for live execution in Rev4.2-S1.' -ForegroundColor Red
+        exit 1
+    }
+    if ($RequireSecondConfirmation) {
+        Write-Host '[INFO] -RequireSecondConfirmation recorded for planning evidence. No interactive mutation is available in Rev4.2-S1.' -ForegroundColor Gray
+    }
+
+    try {
+        $controlledPlanInput = Get-Content -LiteralPath $DecommissionPlanPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $controlledApproval = Get-Content -LiteralPath $ApprovalManifestPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Write-Host "[ERROR] Controlled decommission input parsing failed: $_" -ForegroundColor Red
+        exit 1
+    }
+
+    if ([string]$controlledPlanInput.SchemaVersion -ne '4.2') {
+        Write-Host '[ERROR] Controlled decommission plan SchemaVersion must be 4.2.' -ForegroundColor Red
+        exit 1
+    }
+    if (-not $controlledPlanInput.RunId -or -not $controlledPlanInput.TargetId -or -not $controlledPlanInput.TargetType) {
+        Write-Host '[ERROR] Controlled decommission plan requires RunId, TargetId, and TargetType.' -ForegroundColor Red
+        exit 1
+    }
+
+    $optionalPlanValues = @{}
+    foreach ($propertyName in @(
+        'DisplayName',
+        'ProtectedObject',
+        'MicrosoftFirstParty',
+        'EmergencyAccessIndicator',
+        'BreakGlassIndicator',
+        'HighConfidenceActive',
+        'Ambiguous'
+    )) {
+        $property = $controlledPlanInput.PSObject.Properties[$propertyName]
+        $optionalPlanValues[$propertyName] = if ($null -ne $property) { $property.Value } else { $null }
+    }
+
+    $controlledTarget = [PSCustomObject]@{
+        ObjectId                 = [string]$controlledPlanInput.TargetId
+        ObjectType               = [string]$controlledPlanInput.TargetType
+        DisplayName              = if ($optionalPlanValues.DisplayName) { [string]$optionalPlanValues.DisplayName } else { [string]$controlledPlanInput.TargetId }
+        ProtectedObject          = [bool]$optionalPlanValues.ProtectedObject
+        MicrosoftFirstParty      = [bool]$optionalPlanValues.MicrosoftFirstParty
+        EmergencyAccessIndicator = [bool]$optionalPlanValues.EmergencyAccessIndicator
+        BreakGlassIndicator      = [bool]$optionalPlanValues.BreakGlassIndicator
+        HighConfidenceActive     = [bool]$optionalPlanValues.HighConfidenceActive
+        Ambiguous                = [bool]$optionalPlanValues.Ambiguous
+    }
+    $controlledTargetValidation = Test-NhiControlledTarget -Target $controlledTarget
+    if (-not $controlledTargetValidation.Passed) {
+        Write-Host "[SECURITY STOP] Target validation failed: $($controlledTargetValidation.Reasons -join '; ')" -ForegroundColor Red
+        exit 1
+    }
+
+    $controlledApprovalValidation = Confirm-NhiControlledApproval -Approval $controlledApproval -RunId ([string]$controlledPlanInput.RunId) -TargetId ([string]$controlledPlanInput.TargetId) -ActionType $ExecutionStage
+    if (-not $controlledApprovalValidation.Passed) {
+        Write-Host "[SECURITY STOP] Approval validation failed: $($controlledApprovalValidation.Reasons -join '; ')" -ForegroundColor Red
+        exit 1
+    }
+
+    $controlledOutputPath = Join-Path $OutputPath "controlled-decommission-$($controlledPlanInput.RunId)"
+    New-Item -ItemType Directory -Path $controlledOutputPath -Force | Out-Null
+    $controlledSnapshot = ConvertTo-NhiControlledSnapshot -Target $controlledTarget -RunId ([string]$controlledPlanInput.RunId)
+    $screamTestEvidenceProperty = $controlledPlanInput.PSObject.Properties['ScreamTestEvidence']
+    $screamTestEvidence = if ($null -ne $screamTestEvidenceProperty) { $screamTestEvidenceProperty.Value } else { $null }
+    $dependencyProperty = if ($null -ne $screamTestEvidence) { $screamTestEvidence.PSObject.Properties['DependencyDetected'] } else { $null }
+    $recentActivityProperty = if ($null -ne $screamTestEvidence) { $screamTestEvidence.PSObject.Properties['RecentActivityDetected'] } else { $null }
+    $querySucceededProperty = if ($null -ne $screamTestEvidence) { $screamTestEvidence.PSObject.Properties['QuerySucceeded'] } else { $null }
+    $dependencyDetected = if ($null -ne $dependencyProperty) { [bool]$dependencyProperty.Value } else { $false }
+    $recentActivityDetected = if ($null -ne $recentActivityProperty) { [bool]$recentActivityProperty.Value } else { $false }
+    $querySucceeded = if ($null -ne $querySucceededProperty) { [bool]$querySucceededProperty.Value } else { $false }
+    $startedUtc = [DateTime]::UtcNow.AddHours(-1 * ($ScreamTestWindowHours + 1))
+    $controlledScreamTest = Get-NhiControlledScreamTestStatus -StartedUtc $startedUtc -WindowHours $ScreamTestWindowHours -DependencyDetected $dependencyDetected -RecentActivityDetected $recentActivityDetected -QuerySucceeded $querySucceeded
+    $controlledDependencies = Test-NhiControlledDependencies -Dependencies @() -RecentActivity $(if ($recentActivityDetected) { @([PSCustomObject]@{ Id = 'plan-recent-activity' }) } else { @() }) -QuerySucceeded $querySucceeded
+    $controlledReadiness = Get-NhiControlledDeleteReadiness -TargetValidation $controlledTargetValidation -ApprovalValidation $controlledApprovalValidation -Snapshot $controlledSnapshot -ScreamTest $controlledScreamTest -DependencyCheck $controlledDependencies
+    $controlledRollback = New-NhiControlledRollbackPlan -Snapshot $controlledSnapshot -RunId ([string]$controlledPlanInput.RunId)
+    $controlledPlan = New-NhiControlledDecommissionPlan -Target $controlledTarget -ExecutionStage $ExecutionStage -RunId ([string]$controlledPlanInput.RunId) -WhatIf $true -DemoMode $DemoMode.IsPresent
+
+    $controlledEvidencePaths = @(
+        Export-NhiControlledDecommissionEvidence -Evidence $controlledPlan -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-plan.json')
+        Export-NhiControlledDecommissionEvidence -Evidence $controlledSnapshot -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-snapshot.json')
+        Export-NhiControlledDecommissionEvidence -Evidence $controlledScreamTest -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-screamtest.json')
+        Export-NhiControlledDecommissionEvidence -Evidence $controlledReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-delete-readiness.json')
+        Export-NhiControlledDecommissionEvidence -Evidence $controlledRollback -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-rollback-plan.json')
+    )
+    Write-Host '[OK] Rev4.2-S1 controlled decommission planner/evidence completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+    $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+    exit 0
 }
 
 # ── Rev4.0 M35: NHI Execution Guard + Flow ────────────────────────────────────
