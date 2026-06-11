@@ -56,7 +56,9 @@ param(
 
     # Rev4.2-S1 controlled NHI decommission planner/evidence parameters
     [switch]$ExecuteNhiControlledDecommission,
-    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','FinalDelete')]
+    [switch]$ExecuteNhiControlledMetadataCleanup,
+    [switch]$ExecuteNhiControlledGrantCleanup,
+    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','MetadataCleanupReadiness','GrantCleanupReadiness','FinalDelete')]
     [string]$ExecutionStage = 'ValidateOnly',
     [string]$DecommissionPlanPath,
     [ValidateRange(1,8760)][int]$ScreamTestWindowHours = 24,
@@ -172,13 +174,13 @@ if ($SelfTest) {
     exit 1
 }
 
-# Rev4.2-S1 controlled NHI decommission planner/evidence flow
-# This branch intentionally short-circuits before the legacy Rev4.0 execution path.
-if ($ExecuteNhiControlledDecommission) {
-    if (-not $WhatIfExecution -and -not $DemoMode) {
-        Write-Host '[ERROR] Rev4.2-S1 controlled decommission is planner/evidence only. Use -WhatIfExecution or -DemoMode.' -ForegroundColor Red
-        exit 1
-    }
+    # Rev4.2-S1 controlled NHI decommission planner/evidence flow
+    # This branch intentionally short-circuits before the legacy Rev4.0 execution path.
+    if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup) {
+        if (-not $WhatIfExecution -and -not $DemoMode) {
+            Write-Host '[ERROR] Rev4.2-S1 controlled decommission is planner/evidence only. Use -WhatIfExecution or -DemoMode.' -ForegroundColor Red
+            exit 1
+        }
     if (-not $DecommissionPlanPath -or -not (Test-Path -LiteralPath $DecommissionPlanPath -PathType Leaf)) {
         Write-Host '[ERROR] -ExecuteNhiControlledDecommission requires a valid -DecommissionPlanPath.' -ForegroundColor Red
         exit 1
@@ -188,29 +190,40 @@ if ($ExecuteNhiControlledDecommission) {
         exit 1
     }
     # Rev4.2-S1 compatibility marker: $ExecutionStage -eq 'FinalDelete' -or $AllowFinalDelete remains guarded.
-    if ($AllowFinalDelete -and $ExecutionStage -ne 'FinalDelete') {
-        Write-Host '[SECURITY STOP] -AllowFinalDelete requires -ExecutionStage FinalDelete.' -ForegroundColor Red
-        exit 1
-    }
-    if ($ExecutionStage -eq 'FinalDelete' -and -not $AllowFinalDelete) {
-        Write-Host '[SECURITY STOP] FinalDelete is blocked for live execution by default and requires -AllowFinalDelete for Rev4.3 simulation.' -ForegroundColor Red
-        # Rev4.2-S1 safety contract: FinalDelete is blocked for live execution in Rev4.2-S1.
-        exit 1
-    }
-    if ($RequireSecondConfirmation) {
-        Write-Host '[INFO] -RequireSecondConfirmation recorded for planning evidence. No interactive mutation is available in Rev4.2-S1.' -ForegroundColor Gray
-    }
+        if ($AllowFinalDelete -and $ExecutionStage -ne 'FinalDelete') {
+            Write-Host '[SECURITY STOP] -AllowFinalDelete requires -ExecutionStage FinalDelete.' -ForegroundColor Red
+            exit 1
+        }
+        if ($ExecutionStage -eq 'FinalDelete' -and -not $AllowFinalDelete) {
+            Write-Host '[SECURITY STOP] FinalDelete is blocked for live execution by default and requires -AllowFinalDelete for Rev4.3 simulation.' -ForegroundColor Red
+            # Rev4.2-S1 safety contract: FinalDelete is blocked for live execution in Rev4.2-S1.
+            exit 1
+        }
+        if ($RequireSecondConfirmation) {
+            Write-Host '[INFO] -RequireSecondConfirmation recorded for planning evidence. No interactive mutation is available in Rev4.2-S1.' -ForegroundColor Gray
+        }
 
-    try {
-        $controlledPlanInput = Get-Content -LiteralPath $DecommissionPlanPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-        $controlledApproval = Get-Content -LiteralPath $ApprovalManifestPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-    } catch {
+        $controlledFeatureStage = switch ($true) {
+            { $ExecuteNhiControlledMetadataCleanup } { 'MetadataCleanupReadiness' }
+            { $ExecuteNhiControlledGrantCleanup }    { 'GrantCleanupReadiness' }
+            default                                  { $ExecutionStage }
+        }
+
+        try {
+            $controlledPlanInput = Get-Content -LiteralPath $DecommissionPlanPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $controlledApproval = Get-Content -LiteralPath $ApprovalManifestPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        } catch {
         Write-Host "[ERROR] Controlled decommission input parsing failed: $_" -ForegroundColor Red
         exit 1
     }
 
-    if ([string]$controlledPlanInput.SchemaVersion -ne '4.2') {
-        Write-Host '[ERROR] Controlled decommission plan SchemaVersion must be 4.2.' -ForegroundColor Red
+    $expectedControlledSchemaVersion = switch ($controlledFeatureStage) {
+        'MetadataCleanupReadiness' { '4.5' }
+        'GrantCleanupReadiness'    { '4.6' }
+        default                    { '4.2' }
+    }
+    if ([string]$controlledPlanInput.SchemaVersion -ne $expectedControlledSchemaVersion) {
+        Write-Host "[ERROR] Controlled decommission plan SchemaVersion must be $expectedControlledSchemaVersion." -ForegroundColor Red
         exit 1
     }
     if (-not $controlledPlanInput.RunId -or -not $controlledPlanInput.TargetId -or -not $controlledPlanInput.TargetType) {
@@ -249,7 +262,7 @@ if ($ExecuteNhiControlledDecommission) {
         exit 1
     }
 
-    $controlledApprovalValidation = Confirm-NhiControlledApproval -Approval $controlledApproval -RunId ([string]$controlledPlanInput.RunId) -TargetId ([string]$controlledPlanInput.TargetId) -ActionType $ExecutionStage
+    $controlledApprovalValidation = Confirm-NhiControlledApproval -Approval $controlledApproval -RunId ([string]$controlledPlanInput.RunId) -TargetId ([string]$controlledPlanInput.TargetId) -ActionType $controlledFeatureStage -ExpectedSchemaVersion $expectedControlledSchemaVersion
     if (-not $controlledApprovalValidation.Passed) {
         Write-Host "[SECURITY STOP] Approval validation failed: $($controlledApprovalValidation.Reasons -join '; ')" -ForegroundColor Red
         exit 1
@@ -276,6 +289,101 @@ if ($ExecuteNhiControlledDecommission) {
     $controlledReadiness = Get-NhiControlledDeleteReadiness -TargetValidation $controlledTargetValidation -ApprovalValidation $controlledApprovalValidation -Snapshot $controlledSnapshot -ScreamTest $controlledScreamTest -DependencyCheck $controlledDependencies
     $controlledRollback = New-NhiControlledRollbackPlan -Snapshot $controlledSnapshot -RunId ([string]$controlledPlanInput.RunId)
     $controlledPlan = New-NhiControlledDecommissionPlan -Target $controlledTarget -ExecutionStage $ExecutionStage -RunId ([string]$controlledPlanInput.RunId) -WhatIf $true -DemoMode $DemoMode.IsPresent
+    $controlledModule = Get-Module NhiControlledDecommission
+
+    if ($ExecuteNhiControlledMetadataCleanup -or $controlledFeatureStage -eq 'MetadataCleanupReadiness') {
+        $metadataExecutionStage = 'MetadataCleanupReadiness'
+        $metadataCleanupReadiness = if ($null -ne $controlledPlanInput.CleanupReadiness) { [PSCustomObject]@{ Status = [string]$controlledPlanInput.CleanupReadiness.Status } } else { [PSCustomObject]@{ Status = 'Blocked' } }
+        $metadataInventory = & $controlledModule {
+            param($Plan, $Approval, $Snapshot, $CleanupReadiness)
+            New-NhiControlledMetadataInventory -Plan $Plan -Approval $Approval -Snapshot $Snapshot -CleanupReadiness $CleanupReadiness -Credentials @($Plan.CredentialMetadataEvidence)
+        } $controlledPlanInput $controlledApproval $controlledSnapshot $metadataCleanupReadiness
+        $metadataReadiness = & $controlledModule {
+            param($GateInput)
+            Test-NhiControlledMetadataCleanupReadinessGate @GateInput
+        } @{
+            ExecutionStage = $metadataExecutionStage
+            Plan = $controlledPlanInput
+            Approval = $controlledApproval
+            TargetValidation = $controlledTargetValidation
+            Snapshot = $controlledSnapshot
+            CleanupReadiness = $metadataCleanupReadiness
+            WhatIf = $WhatIfExecution.IsPresent
+            DemoMode = $DemoMode.IsPresent
+        }
+        $metadataCleanupPlan = & $controlledModule {
+            param($Plan, $Inventory, $Readiness)
+            New-NhiControlledMetadataCleanupPlan -Plan $Plan -Inventory $Inventory -Readiness $Readiness
+        } $controlledPlanInput $metadataInventory $metadataReadiness
+        $metadataActionLog = & $controlledModule {
+            param($Plan, $Inventory, $Readiness)
+            New-NhiControlledMetadataCleanupActionLog -Plan $Plan -Inventory $Inventory -Readiness $Readiness
+        } $controlledPlanInput $metadataInventory $metadataReadiness
+        $controlledEvidencePaths = @(
+            Export-NhiControlledDecommissionEvidence -Evidence $metadataInventory -Path (Join-Path $controlledOutputPath 'nhi-controlled-metadata-inventory.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $metadataCleanupPlan -Path (Join-Path $controlledOutputPath 'nhi-controlled-metadata-cleanup-plan.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $metadataActionLog -Path (Join-Path $controlledOutputPath 'nhi-controlled-metadata-cleanup-action-log.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $controlledSnapshot -Path (Join-Path $controlledOutputPath 'nhi-controlled-metadata-snapshot.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $metadataReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-metadata-cleanup-readiness.json')
+        )
+        Write-Host '[OK] Rev4.5 metadata cleanup readiness completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+        $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+        exit 0
+    }
+
+    if ($ExecuteNhiControlledGrantCleanup -or $controlledFeatureStage -eq 'GrantCleanupReadiness') {
+        $grantExecutionStage = 'GrantCleanupReadiness'
+        $grantDependencyRecheck = if ($null -ne $controlledPlanInput.DependencyRecheck) {
+            [PSCustomObject]@{
+                SchemaVersion = '4.6'
+                Status = [string]$controlledPlanInput.DependencyRecheck.Status
+                QuerySucceeded = [bool]$controlledPlanInput.DependencyRecheck.QuerySucceeded
+                Blocked = [bool]$controlledPlanInput.DependencyRecheck.Blocked
+                SkippedWithApproval = [bool]$controlledPlanInput.DependencyRecheck.SkippedWithApproval
+            }
+        } else {
+            & $controlledModule { param($Plan) Get-NhiControlledDependencyRecheckStatus -QuerySucceeded $true -Blocked $false -SkippedWithApproval $false } $controlledPlanInput
+        }
+        $grantReadiness = & $controlledModule {
+            param($GateInput)
+            Test-NhiControlledGrantCleanupReadinessGate @GateInput
+        } @{
+            ExecutionStage = $grantExecutionStage
+            Plan = $controlledPlanInput
+            Approval = $controlledApproval
+            TargetValidation = $controlledTargetValidation
+            Snapshot = $controlledSnapshot
+            DependencyRecheck = $grantDependencyRecheck
+            WhatIf = $WhatIfExecution.IsPresent
+            DemoMode = $DemoMode.IsPresent
+        }
+        $grantCleanupPlan = & $controlledModule {
+            param($Plan, $DependencyRecheck, $Readiness)
+            New-NhiControlledGrantCleanupPlan -Plan $Plan -DependencyRecheck $DependencyRecheck -Readiness $Readiness
+        } $controlledPlanInput $grantDependencyRecheck $grantReadiness
+        $grantActionLog = & $controlledModule {
+            param($Plan, $DependencyRecheck, $Readiness)
+            New-NhiControlledGrantCleanupActionLog -Plan $Plan -DependencyRecheck $DependencyRecheck -Readiness $Readiness
+        } $controlledPlanInput $grantDependencyRecheck $grantReadiness
+        $grantPostCleanupValidation = [PSCustomObject]@{
+            SchemaVersion = '4.6'
+            RunId = [string]$controlledPlanInput.RunId
+            TargetObjectId = [string]$controlledPlanInput.TargetObjectId
+            RelatedObjectId = [string]$controlledPlanInput.RelatedObjectId
+            Status = if ($WhatIfExecution.IsPresent -or $DemoMode.IsPresent) { 'Simulated' } else { 'NotRun' }
+            Outcome = 'EvidenceOnly'
+        }
+        $controlledEvidencePaths = @(
+            Export-NhiControlledDecommissionEvidence -Evidence $grantCleanupPlan -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-cleanup-plan.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $grantDependencyRecheck -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-dependency-recheck.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $grantPostCleanupValidation -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-post-cleanup-validation.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $controlledSnapshot -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-snapshot.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $grantReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-grants-cleanup-readiness.json')
+        )
+        Write-Host '[OK] Rev4.6 grants cleanup readiness completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+        $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+        exit 0
+    }
 
     $controlledFifthEvidence = $controlledRollback
     $controlledFifthEvidenceName = 'nhi-controlled-decommission-rollback-plan.json'

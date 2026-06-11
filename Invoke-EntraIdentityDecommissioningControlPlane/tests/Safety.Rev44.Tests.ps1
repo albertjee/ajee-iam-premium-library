@@ -31,8 +31,8 @@ Describe 'Rev4.4 Application readiness safety boundary' {
     }
 
     It 'keeps SelfTest before controlled and Graph paths' {
-        $script:EntrySource.IndexOf('if ($SelfTest)') | Should -BeLessThan $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission)')
-        $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission)') | Should -BeLessThan $script:EntrySource.IndexOf('Connect-MgGraph')
+        $script:EntrySource.IndexOf('# SelfTest early exit - no Graph connection, discovery, or remediation') | Should -BeLessThan $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
+        $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeLessThan $script:EntrySource.IndexOf('Connect-MgGraph')
     }
 
     It 'dispatches Application readiness separately from ServicePrincipal gate' {
@@ -64,7 +64,7 @@ Describe 'Rev4.4 Application readiness safety boundary' {
     }
 
     It 'default source path contains no Application gate invocation before controlled branch' {
-        $controlledIndex = $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission)')
+        $controlledIndex = $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
         $prefix = $script:EntrySource.Substring(0, $controlledIndex)
         $prefix | Should -Not -Match 'Test-NhiControlledApplicationDeleteReadinessGate'
     }

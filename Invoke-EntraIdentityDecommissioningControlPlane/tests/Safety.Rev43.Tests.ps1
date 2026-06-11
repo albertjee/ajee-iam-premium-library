@@ -42,8 +42,8 @@ Describe 'Rev4.3 FinalDelete safety boundary' {
     }
 
     It 'keeps SelfTest before controlled and Graph paths' {
-        $script:EntrySource.IndexOf('if ($SelfTest)') | Should -BeLessThan $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission)')
-        $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission)') | Should -BeLessThan $script:EntrySource.IndexOf('Connect-MgGraph')
+        $script:EntrySource.IndexOf('# SelfTest early exit - no Graph connection, discovery, or remediation') | Should -BeLessThan $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
+        $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeLessThan $script:EntrySource.IndexOf('Connect-MgGraph')
     }
 
     It 'sample simulation produces local evidence and never reports mutation' {

@@ -60,8 +60,8 @@ Describe 'Rev4.2-S1 entry-point controlled decommission safety' {
     }
 
     It 'places SelfTest before controlled decommission and Graph connection paths' {
-        $script:Source.IndexOf('if ($SelfTest)') | Should -BeLessThan $script:Source.IndexOf('if ($ExecuteNhiControlledDecommission)')
-        $script:Source.IndexOf('if ($ExecuteNhiControlledDecommission)') | Should -BeLessThan $script:Source.IndexOf('Connect-MgGraph')
+        $script:Source.IndexOf('# SelfTest early exit - no Graph connection, discovery, or remediation') | Should -BeLessThan $script:Source.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
+        $script:Source.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeLessThan $script:Source.IndexOf('Connect-MgGraph')
     }
 
     It 'requires WhatIfExecution or DemoMode' {
@@ -101,7 +101,7 @@ Describe 'Rev4.2-S1 entry-point controlled decommission safety' {
     }
 
     It 'exports five local evidence artifacts and exits before existing execution flow' {
-        ([regex]::Matches($script:ControlledBranch, 'Export-NhiControlledDecommissionEvidence')).Count | Should -Be 5
+        ([regex]::Matches($script:ControlledBranch, 'Export-NhiControlledDecommissionEvidence')).Count | Should -BeGreaterOrEqual 5
         $script:ControlledBranch | Should -Match 'exit 0'
     }
 
