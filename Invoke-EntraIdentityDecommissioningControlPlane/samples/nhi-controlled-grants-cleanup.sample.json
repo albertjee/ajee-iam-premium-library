@@ -1,0 +1,48 @@
+{
+  "SchemaVersion": "4.6",
+  "RunId": "RUN-REV46-GRANTS-SAMPLE-001",
+  "Status": "Approved",
+  "ApprovedBy": "grants-cleanup-approver@example.com",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "ApprovalId": "APP-REV46-GRANTS-001",
+  "TargetId": "app-rev46-test-001",
+  "TargetObjectId": "app-rev46-test-001",
+  "TargetType": "Application",
+  "TargetObjectIds": [
+    "app-rev46-test-001"
+  ],
+  "ApprovedActions": [
+    "GrantCleanupReadiness"
+  ],
+  "RelatedObjectType": "OAuthGrant",
+  "RelatedObjectId": "oauth-grant-rev46-test-001",
+  "ResourceAppId": "00000003-0000-0000-c000-000000000000",
+  "PrincipalId": "principal-rev46-test-001",
+  "PermissionName": "User.Read",
+  "CleanupScope": "Narrow",
+  "TargetAmbiguous": false,
+  "DependencyRecheck": {
+    "Status": "Clean",
+    "QuerySucceeded": true,
+    "Blocked": false,
+    "SkippedWithApproval": false
+  },
+  "CleanupReadiness": {
+    "Status": "Ready"
+  },
+  "PostCleanupValidationStatus": "Simulated",
+  "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
+    "Status": "Complete",
+    "DependencyDetected": false,
+    "RecentActivityDetected": false,
+    "QuerySucceeded": true
+  },
+  "DeleteReadiness": {
+    "Status": "Ready"
+  },
+  "LiveCleanupApproved": false,
+  "LiveCleanupExecutable": false,
+  "Notes": "Single local file used as both plan and approval input for Rev4.6 grants cleanup readiness simulation."
+}
