@@ -1,5 +1,24 @@
 # Changelog
 
+## Rev4.3 - Controlled Service Principal FinalDelete Guard
+
+### Summary
+Added a Service Principal-only FinalDelete gate simulation and evidence model. Rev4.3 evaluates
+high-friction delete gates but includes no live delete cmdlet, Graph write, or unattended execution.
+
+### Safety Boundary
+- `FinalDelete` remains blocked by default.
+- `-AllowFinalDelete` is accepted only with `-ExecutionStage FinalDelete` and WhatIf/Demo controlled flow.
+- All passing gates produce `GuardSatisfiedSimulationOnly`.
+- `LiveDeleteExecutable` and `DeleteCmdletAvailable` remain `false`.
+- No `Remove-MgServicePrincipal` or `Remove-MgApplication` invocation was added.
+- Frozen modules remain untouched.
+
+### Tests
+- Added 43 focused Rev4.3 gate and safety tests.
+
+---
+
 ## Rev4.2-S1 - Controlled NHI Decommission Planner and Evidence
 
 ### Summary

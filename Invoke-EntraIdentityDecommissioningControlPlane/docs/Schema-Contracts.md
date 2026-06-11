@@ -173,6 +173,23 @@ Sample contracts:
 
 ---
 
+## Rev4.3 Service Principal FinalDelete Guard Evidence
+
+The Rev4.3 gate evaluator produces `nhi-controlled-decommission-finaldelete-sp-guard.json`.
+
+**Required evaluation fields:** SchemaVersion, TargetId, TargetType, ActionType, GatesPassed,
+Status, SimulationOnly, LiveDeleteExecutable, DeleteCmdletAvailable, WhatIf, DemoMode, Reasons
+
+`Status` may be `Blocked` or `GuardSatisfiedSimulationOnly`. `SimulationOnly` must be `true`;
+`LiveDeleteExecutable` and `DeleteCmdletAvailable` must be `false`.
+
+Test-tenant guard metadata requires `IsTestTenant = true` and `Environment = Test`. This metadata is
+necessary for simulation readiness but never enables live deletion.
+
+Sample: `samples/nhi-controlled-finaldelete-sp.sample.json`
+
+---
+
 ## Schema Validation
 
 To validate any object against a contract programmatically:

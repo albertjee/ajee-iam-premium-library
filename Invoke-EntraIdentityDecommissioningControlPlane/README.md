@@ -62,6 +62,27 @@ Sample inputs:
 
 See `runbooks/NHI-Controlled-Decommission-Runbook.md` for the full S1 operator workflow.
 
+### Rev4.3 Service Principal FinalDelete Guard
+
+Rev4.3 adds a Service Principal-only FinalDelete gate simulation and evidence artifact. It evaluates
+stage, explicit allow switch, exact approval, snapshot, delete-readiness, scream-test or override,
+dependency recheck, protected-target checks, and test-tenant metadata.
+
+Even when every gate passes, Rev4.3 reports `GuardSatisfiedSimulationOnly`,
+`LiveDeleteExecutable = false`, and `DeleteCmdletAvailable = false`. No
+`Remove-MgServicePrincipal` cmdlet, Graph write, or unattended live-delete path is included.
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+    -ExecuteNhiControlledDecommission `
+    -ExecutionStage FinalDelete `
+    -AllowFinalDelete `
+    -DecommissionPlanPath '.\samples\nhi-controlled-finaldelete-sp.sample.json' `
+    -ApprovalManifestPath '.\samples\nhi-controlled-finaldelete-sp.sample.json' `
+    -WhatIfExecution `
+    -OutputPath '.\out'
+```
+
 ---
 
 ## Assessment Control Plane (Rev1.4)

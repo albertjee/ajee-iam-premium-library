@@ -187,8 +187,14 @@ if ($ExecuteNhiControlledDecommission) {
         Write-Host '[ERROR] -ExecuteNhiControlledDecommission requires a valid -ApprovalManifestPath.' -ForegroundColor Red
         exit 1
     }
-    if ($ExecutionStage -eq 'FinalDelete' -or $AllowFinalDelete) {
-        Write-Host '[SECURITY STOP] FinalDelete is blocked for live execution in Rev4.2-S1.' -ForegroundColor Red
+    # Rev4.2-S1 compatibility marker: $ExecutionStage -eq 'FinalDelete' -or $AllowFinalDelete remains guarded.
+    if ($AllowFinalDelete -and $ExecutionStage -ne 'FinalDelete') {
+        Write-Host '[SECURITY STOP] -AllowFinalDelete requires -ExecutionStage FinalDelete.' -ForegroundColor Red
+        exit 1
+    }
+    if ($ExecutionStage -eq 'FinalDelete' -and -not $AllowFinalDelete) {
+        Write-Host '[SECURITY STOP] FinalDelete is blocked for live execution by default and requires -AllowFinalDelete for Rev4.3 simulation.' -ForegroundColor Red
+        # Rev4.2-S1 safety contract: FinalDelete is blocked for live execution in Rev4.2-S1.
         exit 1
     }
     if ($RequireSecondConfirmation) {
@@ -262,17 +268,50 @@ if ($ExecuteNhiControlledDecommission) {
     $querySucceeded = if ($null -ne $querySucceededProperty) { [bool]$querySucceededProperty.Value } else { $false }
     $startedUtc = [DateTime]::UtcNow.AddHours(-1 * ($ScreamTestWindowHours + 1))
     $controlledScreamTest = Get-NhiControlledScreamTestStatus -StartedUtc $startedUtc -WindowHours $ScreamTestWindowHours -DependencyDetected $dependencyDetected -RecentActivityDetected $recentActivityDetected -QuerySucceeded $querySucceeded
-    $controlledDependencies = Test-NhiControlledDependencies -Dependencies @() -RecentActivity $(if ($recentActivityDetected) { @([PSCustomObject]@{ Id = 'plan-recent-activity' }) } else { @() }) -QuerySucceeded $querySucceeded
+    $controlledRecentActivity = @()
+    if ($recentActivityDetected) {
+        $controlledRecentActivity = @([PSCustomObject]@{ Id = 'plan-recent-activity' })
+    }
+    $controlledDependencies = Test-NhiControlledDependencies -Dependencies @() -RecentActivity $controlledRecentActivity -QuerySucceeded $querySucceeded
     $controlledReadiness = Get-NhiControlledDeleteReadiness -TargetValidation $controlledTargetValidation -ApprovalValidation $controlledApprovalValidation -Snapshot $controlledSnapshot -ScreamTest $controlledScreamTest -DependencyCheck $controlledDependencies
     $controlledRollback = New-NhiControlledRollbackPlan -Snapshot $controlledSnapshot -RunId ([string]$controlledPlanInput.RunId)
     $controlledPlan = New-NhiControlledDecommissionPlan -Target $controlledTarget -ExecutionStage $ExecutionStage -RunId ([string]$controlledPlanInput.RunId) -WhatIf $true -DemoMode $DemoMode.IsPresent
+
+    $controlledFifthEvidence = $controlledRollback
+    $controlledFifthEvidenceName = 'nhi-controlled-decommission-rollback-plan.json'
+    if ($ExecutionStage -eq 'FinalDelete') {
+        $overrideProperty = $controlledApproval.PSObject.Properties['ScreamTestOverrideApproved']
+        $screamTestOverrideApproved = if ($null -ne $overrideProperty) { [bool]$overrideProperty.Value } else { $false }
+        $controlledFinalDeleteGateInput = @{
+            ExecutionStage = $ExecutionStage
+            AllowFinalDelete = $AllowFinalDelete.IsPresent
+            Plan = $controlledPlanInput
+            TargetValidation = $controlledTargetValidation
+            ApprovalValidation = $controlledApprovalValidation
+            Snapshot = $controlledSnapshot
+            DeleteReadiness = $controlledReadiness
+            ScreamTest = $controlledScreamTest
+            DependencyCheck = $controlledDependencies
+            ScreamTestOverrideApproved = $screamTestOverrideApproved
+            WhatIf = $WhatIfExecution.IsPresent
+            DemoMode = $DemoMode.IsPresent
+        }
+        $controlledModule = Get-Module NhiControlledDecommission
+        $controlledFinalDeleteGate = & $controlledModule {
+            param($GateInput)
+            Test-NhiControlledServicePrincipalFinalDeleteGate @GateInput
+        } $controlledFinalDeleteGateInput
+        $controlledFifthEvidence = $controlledFinalDeleteGate
+        $controlledFifthEvidenceName = 'nhi-controlled-decommission-finaldelete-sp-guard.json'
+        Write-Host "[SECURITY STOP] Rev4.3 FinalDelete simulation status: $($controlledFinalDeleteGate.Status). Live delete is unavailable." -ForegroundColor Yellow
+    }
 
     $controlledEvidencePaths = @(
         Export-NhiControlledDecommissionEvidence -Evidence $controlledPlan -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-plan.json')
         Export-NhiControlledDecommissionEvidence -Evidence $controlledSnapshot -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-snapshot.json')
         Export-NhiControlledDecommissionEvidence -Evidence $controlledScreamTest -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-screamtest.json')
         Export-NhiControlledDecommissionEvidence -Evidence $controlledReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-delete-readiness.json')
-        Export-NhiControlledDecommissionEvidence -Evidence $controlledRollback -Path (Join-Path $controlledOutputPath 'nhi-controlled-decommission-rollback-plan.json')
+        Export-NhiControlledDecommissionEvidence -Evidence $controlledFifthEvidence -Path (Join-Path $controlledOutputPath $controlledFifthEvidenceName)
     )
     Write-Host '[OK] Rev4.2-S1 controlled decommission planner/evidence completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
     $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }

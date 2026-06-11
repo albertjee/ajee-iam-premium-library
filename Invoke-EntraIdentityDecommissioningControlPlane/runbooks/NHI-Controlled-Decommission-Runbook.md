@@ -97,6 +97,31 @@ secret, token, or certificate material.
 The S1 scream-test artifact is generated planner evidence. It does not prove a live Graph query,
 live monitoring period, or tenant observation occurred.
 
+## Rev4.3 Service Principal FinalDelete Guard Simulation
+
+Rev4.3 evaluates Service Principal FinalDelete gates and writes local evidence only. It does not
+include a Service Principal delete cmdlet or live Graph write path.
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+    -ExecuteNhiControlledDecommission `
+    -ExecutionStage FinalDelete `
+    -AllowFinalDelete `
+    -DecommissionPlanPath '.\samples\nhi-controlled-finaldelete-sp.sample.json' `
+    -ApprovalManifestPath '.\samples\nhi-controlled-finaldelete-sp.sample.json' `
+    -WhatIfExecution `
+    -OutputPath '.\out'
+```
+
+Expected FinalDelete-specific evidence replacing the rollback-plan artifact:
+
+- `nhi-controlled-decommission-finaldelete-sp-guard.json`
+- `Status = GuardSatisfiedSimulationOnly` when all gates pass
+- `LiveDeleteExecutable = false`
+- `DeleteCmdletAvailable = false`
+
+`-AllowFinalDelete` permits gate simulation only. It does not authorize or enable deletion.
+
 ## Fail-Closed Conditions
 
 Stop and correct the input or evidence when any of these conditions occurs:

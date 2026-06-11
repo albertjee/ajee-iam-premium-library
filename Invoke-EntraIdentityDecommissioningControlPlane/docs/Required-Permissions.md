@@ -38,6 +38,12 @@ The sample plan and approval files can be validated without tenant credentials:
 - `samples/nhi-controlled-decommission-plan.sample.json`
 - `samples/nhi-controlled-decommission-approval.sample.json`
 
+## Rev4.3 - Service Principal FinalDelete Guard Permissions
+
+Rev4.3 adds local FinalDelete gate evaluation and simulation evidence only. It requires no new
+Microsoft Graph permissions or write scopes. No Service Principal delete cmdlet is implemented.
+The test-tenant guard metadata in the sample is local evidence and does not authorize tenant access.
+
 ## Rev2.4 — No New Permissions Required
 
 Rev2.4 adds baseline comparison (`-BaselinePath`) and executive evidence pack (`-GenerateExecutivePack`)

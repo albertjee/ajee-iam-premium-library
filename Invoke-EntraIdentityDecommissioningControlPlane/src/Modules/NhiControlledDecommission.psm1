@@ -278,6 +278,59 @@ function Get-NhiControlledDeleteReadiness {
     }
 }
 
+function Test-NhiControlledServicePrincipalFinalDeleteGate {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$ExecutionStage,
+        [Parameter()][bool]$AllowFinalDelete = $false,
+        [Parameter(Mandatory)][object]$Plan,
+        [Parameter(Mandatory)][object]$TargetValidation,
+        [Parameter(Mandatory)][object]$ApprovalValidation,
+        [Parameter()][object]$Snapshot,
+        [Parameter(Mandatory)][object]$DeleteReadiness,
+        [Parameter(Mandatory)][object]$ScreamTest,
+        [Parameter(Mandatory)][object]$DependencyCheck,
+        [Parameter()][bool]$ScreamTestOverrideApproved = $false,
+        [Parameter()][bool]$WhatIf = $false,
+        [Parameter()][bool]$DemoMode = $false
+    )
+
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $testTenant = $Plan.PSObject.Properties['TestTenantGuard']
+    $testTenantValue = if ($null -ne $testTenant) { $testTenant.Value } else { $null }
+
+    if ($ExecutionStage -ne 'FinalDelete') { $reasons.Add('ExecutionStage FinalDelete is required.') }
+    if (-not $AllowFinalDelete) { $reasons.Add('AllowFinalDelete is required.') }
+    if ([string]$Plan.SchemaVersion -ne $script:ControlledSchemaVersion) { $reasons.Add('Valid decommission plan is required.') }
+    if ([string]$Plan.TargetType -ne 'ServicePrincipal') { $reasons.Add('Target type must be ServicePrincipal.') }
+    if (-not $TargetValidation.Passed) { $reasons.Add('Target validation failed.') }
+    if (-not $ApprovalValidation.Passed) { $reasons.Add('Exact FinalDelete approval is required.') }
+    if (-not $Snapshot -or -not $Snapshot.SHA256) { $reasons.Add('Snapshot evidence is required.') }
+    if ($DeleteReadiness.Status -ne 'Ready') { $reasons.Add('Delete-readiness must be Ready.') }
+    if ($ScreamTest.Status -ne 'Complete' -and -not $ScreamTestOverrideApproved) { $reasons.Add('Scream-test must be Complete or explicitly overridden.') }
+    if (-not $DependencyCheck.QuerySucceeded -or -not $DependencyCheck.Passed) { $reasons.Add('Dependency recheck must be clean.') }
+    if ($null -eq $testTenantValue -or $testTenantValue.IsTestTenant -ne $true -or [string]$testTenantValue.Environment -ne 'Test') {
+        $reasons.Add('Test-tenant guard metadata is required.')
+    }
+    if (-not $WhatIf -and -not $DemoMode) { $reasons.Add('Rev4.3 unattended build permits WhatIf or DemoMode simulation only.') }
+
+    [PSCustomObject]@{
+        SchemaVersion         = '4.3'
+        EvaluatedUtc          = [DateTime]::UtcNow.ToString('o')
+        TargetId              = [string]$Plan.TargetId
+        TargetType            = [string]$Plan.TargetType
+        ActionType            = 'FinalDeleteServicePrincipal'
+        GatesPassed           = $reasons.Count -eq 0
+        Status                = if ($reasons.Count -eq 0) { 'GuardSatisfiedSimulationOnly' } else { 'Blocked' }
+        SimulationOnly        = $true
+        LiveDeleteExecutable  = $false
+        DeleteCmdletAvailable = $false
+        WhatIf                = $WhatIf
+        DemoMode              = $DemoMode
+        Reasons               = @($reasons)
+    }
+}
+
 function New-NhiControlledRollbackPlan {
     [CmdletBinding()]
     param(
