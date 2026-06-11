@@ -128,6 +128,39 @@ foreach ($mod in $modulesToLoad) {
     Import-Module $modPath -Force -DisableNameChecking
 }
 
+# SelfTest early exit - no Graph connection, discovery, or remediation
+if ($SelfTest) {
+    $selfTestTimestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+    $selfTestRunFolder = Join-Path $OutputPath $selfTestTimestamp
+    New-Item -ItemType Directory -Path $selfTestRunFolder -Force | Out-Null
+    $selfTestContext = [PSCustomObject]@{
+        TenantId     = $TenantId
+        ClientId     = $ClientId
+        Mode         = $Mode
+        DemoMode     = $false
+        EngagementId = $EngagementId
+        ClientName   = $ClientName
+        Assessor     = $Assessor
+        Coverage     = $null
+        ToolVersion  = $script:ToolVersion
+        OutputPath   = $selfTestRunFolder
+    }
+    Write-DecomInfo "Running SelfTest / ReleaseValidation mode..."
+    $selfTestResult = Invoke-DecomReleaseValidation -Context $selfTestContext
+    if ($selfTestResult.Passed) {
+        Write-DecomOk "SelfTest PASSED"
+        if ($GenerateReleasePackage) {
+            Write-DecomInfo "Generating release package..."
+            New-DecomReleasePackage -Context $selfTestContext -OutputPath $ReleasePackagePath
+            Write-DecomOk "Release package generated at $ReleasePackagePath"
+        }
+        exit 0
+    }
+    Write-DecomError "SelfTest FAILED:"
+    $selfTestResult.Errors | ForEach-Object { Write-DecomError "  $_" }
+    exit 1
+}
+
 # ── Rev4.0 M35: NHI Execution Guard + Flow ────────────────────────────────────
 
 if ($ExecuteNhiDecommission) {
@@ -279,25 +312,6 @@ if ($ExecuteNhiDecommission) {
     if ($targetObjects[0].PSObject.Properties.Name -contains 'ObjectId') {
         foreach ($rec in $targetObjects) {
             $displayNameById[$rec.ObjectId] = if ($rec.DisplayName) { $rec.DisplayName } else { $rec.ObjectId }
-        }
-    }
-
-    # SelfTest early exit - no Graph connection, no discovery, no remediation
-    if ($SelfTest) {
-        Write-DecomInfo "Running SelfTest / ReleaseValidation mode..."
-        $selfTestResult = Invoke-DecomReleaseValidation -Context $Context
-        if ($selfTestResult.Passed) {
-            Write-DecomOk "SelfTest PASSED"
-            if ($GenerateReleasePackage) {
-                Write-DecomInfo "Generating release package..."
-                New-DecomReleasePackage -Context $Context -OutputPath $ReleasePackagePath
-                Write-DecomOk "Release package generated at $ReleasePackagePath"
-            }
-            exit 0
-        } else {
-            Write-DecomError "SelfTest FAILED:"
-            $selfTestResult.Errors | ForEach-Object { Write-DecomError "  $_" }
-            exit 1
         }
     }
 
