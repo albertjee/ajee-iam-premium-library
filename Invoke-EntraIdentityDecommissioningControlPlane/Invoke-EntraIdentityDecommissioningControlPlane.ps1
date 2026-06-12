@@ -58,7 +58,7 @@ param(
     [switch]$ExecuteNhiControlledDecommission,
     [switch]$ExecuteNhiControlledMetadataCleanup,
     [switch]$ExecuteNhiControlledGrantCleanup,
-    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','MetadataCleanupReadiness','GrantCleanupReadiness','ManagedIdentityReadiness','FinalDelete')]
+    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','MetadataCleanupReadiness','GrantCleanupReadiness','ManagedIdentityReadiness','E2EEvidencePack','FinalDelete')]
     [string]$ExecutionStage = 'ValidateOnly',
     [string]$DecommissionPlanPath,
     [ValidateRange(1,8760)][int]$ScreamTestWindowHours = 24,
@@ -228,6 +228,7 @@ if ($SelfTest) {
         'MetadataCleanupReadiness' { '4.5' }
         'GrantCleanupReadiness'    { '4.6' }
         'ManagedIdentityReadiness'  { '4.7' }
+        'E2EEvidencePack'          { '4.8' }
         default                    { '4.2' }
     }
     if ([string]$controlledPlanInput.SchemaVersion -ne $expectedControlledSchemaVersion) {
@@ -452,6 +453,33 @@ if ($SelfTest) {
             Export-NhiControlledDecommissionEvidence -Evidence $managedIdentityReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-managed-identity-readiness.json')
         )
         Write-Host '[OK] Rev4.7 managed identity readiness completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+        $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+        exit 0
+    }
+
+    if ($controlledFeatureStage -eq 'E2EEvidencePack') {
+        $e2eManagedIdentityReadiness = if ($null -ne $controlledPlanInput.ManagedIdentityReadiness) { $controlledPlanInput.ManagedIdentityReadiness } else { [PSCustomObject]@{ Status = 'SimulationOnly' } }
+        $e2eMetadataReadiness = if ($null -ne $controlledPlanInput.MetadataReadiness) { $controlledPlanInput.MetadataReadiness } else { [PSCustomObject]@{ Status = 'Simulated' } }
+        $e2eGrantReadiness = if ($null -ne $controlledPlanInput.GrantReadiness) { $controlledPlanInput.GrantReadiness } else { [PSCustomObject]@{ Status = 'Simulated' } }
+        $e2eDecision = if ($null -ne $controlledPlanInput.OperatorDecision) { $controlledPlanInput.OperatorDecision } else { [PSCustomObject]@{ Decision = 'SimulationOnly'; DecisionBy = 'local-planner'; Reason = 'No live tenant execution is allowed.'; Scope = 'Rev4.8'; IsSimulationOnly = $true } }
+        $e2eKnownWarnings = if ($null -ne $controlledPlanInput.KnownWarnings) { @($controlledPlanInput.KnownWarnings) } else { @('DemoMode traceability warning may still appear in legacy assessment paths.') }
+        $e2ePack = & $controlledModule {
+            param($Plan, $Approval, $Snapshot, $ScreamTest, $DependencyRecheck, $DeleteReadiness, $MetadataReadiness, $GrantReadiness, $ManagedIdentityReadiness, $OperatorDecision, $KnownWarnings)
+            New-NhiControlledE2EEvidencePack -Plan $Plan -Approval $Approval -Snapshot $Snapshot -ScreamTest $ScreamTest -DependencyRecheck $DependencyRecheck -DeleteReadiness $DeleteReadiness -MetadataReadiness $MetadataReadiness -GrantReadiness $GrantReadiness -ManagedIdentityReadiness $ManagedIdentityReadiness -OperatorDecision $OperatorDecision -KnownWarnings $KnownWarnings
+        } $controlledPlanInput $controlledApproval $controlledSnapshot $controlledScreamTest $controlledDependencies $controlledReadiness $e2eMetadataReadiness $e2eGrantReadiness $e2eManagedIdentityReadiness $e2eDecision $e2eKnownWarnings
+        $qaHandoffManifest = $e2ePack.QAHandoffManifest
+        $operatorDecisionLog = & $controlledModule {
+            param($Plan, $Decision)
+            New-NhiControlledOperatorDecisionLog -Plan $Plan -Decision $Decision.Decision -DecisionBy $Decision.DecisionBy -Reason $Decision.Reason -Scope $Decision.Scope
+        } $controlledPlanInput $e2eDecision
+        $controlledEvidencePaths = @(
+            Export-NhiControlledDecommissionEvidence -Evidence $e2ePack -Path (Join-Path $controlledOutputPath 'nhi-controlled-e2e-evidence-pack.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $qaHandoffManifest -Path (Join-Path $controlledOutputPath 'nhi-controlled-qa-handoff-manifest.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $operatorDecisionLog -Path (Join-Path $controlledOutputPath 'nhi-controlled-operator-decision-log.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $controlledSnapshot -Path (Join-Path $controlledOutputPath 'nhi-controlled-e2e-snapshot.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $controlledReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-e2e-readiness.json')
+        )
+        Write-Host '[OK] Rev4.8 controlled decommission evidence pack completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
         $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
         exit 0
     }

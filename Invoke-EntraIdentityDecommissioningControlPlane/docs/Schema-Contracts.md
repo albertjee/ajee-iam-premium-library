@@ -298,6 +298,35 @@ Sample: `samples/nhi-controlled-managed-identity-readiness.sample.json`
 
 ---
 
+## Rev4.8 E2E Evidence Pack Schemas
+
+Rev4.8 adds the end-to-end evidence pack and QA handoff manifest. It does not introduce live tenant execution,
+cleanup, Graph write, or delete operations.
+
+### E2E Evidence Pack
+
+**Core fields:** SchemaVersion, RunId, GeneratedAtUtc, ToolVersion, PlanIdentity, TargetCountsByType,
+ApprovalCoverage, SnapshotCoverage, ScreamTestSummary, DependencyRecheckSummary, DeleteReadinessSummary,
+CleanupReadinessSummary, RollbackLimitationSummary, OperatorDecisionState, LiveDeleteExecutable,
+LiveCleanupExecutable, GraphWritePathAvailable, FinalDeleteSimulationOnly, SafetyAssertions, ValidationResults,
+KnownWarnings, QAHandoffManifest
+
+### QA Handoff Manifest
+
+**Core fields:** ToolVersion, RunId, GeneratedAtUtc, EvidenceArtifacts, SafetyAssertions, ValidationResults,
+KnownWarnings, PushStatus
+
+### Operator Decision Log
+
+**Core fields:** SchemaVersion, RunId, Decision, DecisionBy, DecisionAtUtc, Reason, Scope, IsSimulationOnly
+
+Missing evidence must fail closed. `LiveDeleteExecutable`, `LiveCleanupExecutable`, and `GraphWritePathAvailable`
+remain `false`; `FinalDeleteSimulationOnly` remains `true`.
+
+Sample: `samples/nhi-controlled-e2e-evidence-pack.sample.json`
+
+---
+
 ## Schema Validation
 
 To validate any object against a contract programmatically:

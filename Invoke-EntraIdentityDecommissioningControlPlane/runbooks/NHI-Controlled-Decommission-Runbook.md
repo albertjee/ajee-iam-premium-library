@@ -106,6 +106,10 @@ Rev4.7 managed-identity readiness follows the same rule: the plan artifact can s
 while the gate artifact remains simulation-only. `ManagedIdentityReadinessSatisfiedSimulationOnly` is a
 local planning result, not live cleanup authorization.
 
+Rev4.8 adds the controlled end-to-end evidence pack and QA handoff manifest. The pack can summarize a run
+with `FinalDeleteSimulationOnly = true`, but that is still local evidence only. `GuardSatisfiedSimulationOnly`
+and `ManagedIdentityReadinessSatisfiedSimulationOnly` are not executable states.
+
 ## Rev4.3 Service Principal FinalDelete Guard Simulation
 
 Rev4.3 evaluates Service Principal FinalDelete gates and writes local evidence only. It does not

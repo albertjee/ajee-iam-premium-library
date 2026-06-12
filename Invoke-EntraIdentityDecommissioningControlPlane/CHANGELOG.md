@@ -1,5 +1,22 @@
 # Changelog
 
+## Rev4.8 - Controlled Decommission Evidence Pack
+
+### Summary
+Added an end-to-end controlled decommission evidence pack, QA handoff manifest, and operator decision log.
+Rev4.8 remains simulation-only and does not introduce live delete or cleanup execution.
+
+### Safety Boundary
+- `LiveDeleteExecutable`, `LiveCleanupExecutable`, and `GraphWritePathAvailable` remain `false`.
+- `FinalDeleteSimulationOnly` remains `true`.
+- No new Microsoft Graph permissions or live cleanup cmdlets were added.
+- Frozen modules remain untouched.
+
+### Tests
+- Added focused Rev4.8 evidence-pack and safety tests.
+
+---
+
 ## Rev4.7 - Managed Identity Controlled Decommission Readiness
 
 ### Summary

@@ -91,6 +91,11 @@ Rev4.7 adds managed identity readiness and simulation-only evidence. `SystemAssi
 parent resource evidence; `UserAssigned` identities require attachment evidence. No live Managed Identity
 deletion, Azure Resource Manager deletion, or role-assignment cleanup path is included.
 
+### Rev4.8 End-to-End Evidence Pack
+
+Rev4.8 adds the end-to-end evidence pack and QA handoff manifest. It summarizes the local simulation-only
+state across the controlled planner and readiness artifacts. It does not authorize live deletion or cleanup.
+
 ## Assessment Control Plane (Rev1.4)
 
 ### What it does

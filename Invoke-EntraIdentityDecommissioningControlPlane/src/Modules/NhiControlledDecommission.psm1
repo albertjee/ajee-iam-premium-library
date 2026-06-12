@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Rev4.6 controlled NHI decommission planner and evidence functions.
+    Rev4.8 controlled NHI decommission planner and evidence functions.
 
 .DESCRIPTION
     Additive, local-data-only planner. This module performs no Graph calls and
@@ -11,7 +11,7 @@
 
 $script:ControlledSchemaVersion = '4.2'
 $script:SupportedTargetTypes = @('ServicePrincipal', 'Application', 'ManagedIdentity')
-$script:SupportedStages = @('ValidateOnly', 'SnapshotOnly', 'TagOnly', 'DisableOnly', 'ScreamTestOnly', 'DeleteReadinessOnly', 'MetadataCleanupReadiness', 'GrantCleanupReadiness', 'FinalDelete')
+$script:SupportedStages = @('ValidateOnly', 'SnapshotOnly', 'TagOnly', 'DisableOnly', 'ScreamTestOnly', 'DeleteReadinessOnly', 'MetadataCleanupReadiness', 'GrantCleanupReadiness', 'ManagedIdentityReadiness', 'E2EEvidencePack', 'FinalDelete')
 $script:SensitivePropertyPattern = '(?i)(secret|token|privatekey|certificatevalue|keyvalue|password|credentialvalue)'
 
 function Get-NhiControlledDecommissionSha256 {
@@ -41,6 +41,9 @@ function Get-NhiControlledDecommissionSchema {
         MetadataCleanupSchemaVersion        = '4.5'
         GrantCleanupSchemaVersion           = '4.6'
         ManagedIdentitySchemaVersion        = '4.7'
+        E2EEvidencePackSchemaVersion        = '4.8'
+        QAHandoffSchemaVersion              = '4.8'
+        OperatorDecisionSchemaVersion       = '4.8'
         ActionLogSchemaVersion              = $script:ControlledSchemaVersion
         SnapshotSchemaVersion               = $script:ControlledSchemaVersion
         DeleteReadinessSchemaVersion        = $script:ControlledSchemaVersion
@@ -1067,6 +1070,216 @@ function New-NhiControlledManagedIdentityActionLog {
     }
 }
 
+function Get-NhiControlledTargetCountsByType {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Plan
+    )
+
+    $counts = [ordered]@{
+        ServicePrincipal = 0
+        Application      = 0
+        ManagedIdentity  = 0
+    }
+
+    $planCounts = $Plan.PSObject.Properties['TargetCountsByType']
+    if ($null -ne $planCounts -and $null -ne $planCounts.Value) {
+        $value = $planCounts.Value
+        foreach ($key in @('ServicePrincipal', 'Application', 'ManagedIdentity')) {
+            if ($value -is [System.Collections.IDictionary] -and $value.Contains($key)) {
+                $counts[$key] = [int]$value[$key]
+            } else {
+                $valueProperty = $value.PSObject.Properties[$key]
+                if ($null -ne $valueProperty) {
+                    $counts[$key] = [int]$valueProperty.Value
+                }
+            }
+        }
+    } else {
+        $targetType = [string]$Plan.TargetType
+        if ($counts.Contains($targetType)) {
+            $counts[$targetType] = 1
+        }
+    }
+
+    [PSCustomObject]$counts
+}
+
+function Get-NhiControlledStatusText {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [object]$Value,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$Default = 'Incomplete'
+    )
+
+    $status = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        $status = $Default
+    }
+
+    return $status
+}
+
+function New-NhiControlledE2EEvidencePack {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Plan,
+
+        [Parameter(Mandatory)]
+        [object]$Approval,
+
+        [Parameter(Mandatory)]
+        [object]$Snapshot,
+
+        [Parameter(Mandatory)]
+        [object]$ScreamTest,
+
+        [Parameter(Mandatory)]
+        [object]$DependencyRecheck,
+
+        [Parameter(Mandatory)]
+        [object]$DeleteReadiness,
+
+        [Parameter(Mandatory)]
+        [object]$MetadataReadiness,
+
+        [Parameter(Mandatory)]
+        [object]$GrantReadiness,
+
+        [Parameter(Mandatory)]
+        [object]$ManagedIdentityReadiness,
+
+        [Parameter(Mandatory)]
+        [object]$OperatorDecision,
+
+        [Parameter()]
+        [object[]]$KnownWarnings = @()
+    )
+
+    $targetCounts = Get-NhiControlledTargetCountsByType -Plan $Plan
+    $rollback = Get-NhiControlledRollbackLimitation -Evidence $Plan
+    [PSCustomObject]@{
+        SchemaVersion        = '4.8'
+        RunId                = [string]$Plan.RunId
+        GeneratedAtUtc       = [DateTime]::UtcNow.ToString('o')
+        ToolVersion          = 'Rev4.1'
+        PlanIdentity         = [PSCustomObject]@{
+            TargetId   = [string]$Plan.TargetId
+            TargetType = [string]$Plan.TargetType
+            SchemaVersion = [string]$Plan.SchemaVersion
+        }
+        TargetCountsByType   = $targetCounts
+        ApprovalCoverage     = [PSCustomObject]@{
+            ApprovedBy = [string]$Approval.ApprovedBy
+            Status     = Get-NhiControlledStatusText -Value $Approval.Status
+            ExactTarget = ($Approval.TargetId -eq $Plan.TargetId -and $Approval.TargetType -eq $Plan.TargetType)
+        }
+        SnapshotCoverage     = [PSCustomObject]@{
+            SHA256   = [string]$Snapshot.SHA256
+            Present  = [bool]$Snapshot.SHA256
+        }
+        ScreamTestSummary    = [PSCustomObject]@{
+            Status           = Get-NhiControlledStatusText -Value $ScreamTest.Status
+            IllustrativeOnly = $true
+            LiveMonitoring   = $false
+        }
+        DependencyRecheckSummary = [PSCustomObject]@{
+            Status = Get-NhiControlledStatusText -Value $DependencyRecheck.Status
+        }
+        DeleteReadinessSummary   = [PSCustomObject]@{
+            Status = Get-NhiControlledStatusText -Value $DeleteReadiness.Status
+        }
+        CleanupReadinessSummary  = [PSCustomObject]@{
+            Metadata = Get-NhiControlledStatusText -Value $MetadataReadiness.Status
+            Grants   = Get-NhiControlledStatusText -Value $GrantReadiness.Status
+            ManagedIdentity = Get-NhiControlledStatusText -Value $ManagedIdentityReadiness.Status
+        }
+        RollbackLimitationSummary = [PSCustomObject]@{
+            Classification = [string]$rollback.Classification
+        }
+        OperatorDecisionState    = $OperatorDecision
+        LiveDeleteExecutable     = $false
+        LiveCleanupExecutable    = $false
+        GraphWritePathAvailable  = $false
+        FinalDeleteSimulationOnly = $true
+        SafetyAssertions         = [PSCustomObject]@{
+            LiveDeleteExecutable    = $false
+            LiveCleanupExecutable   = $false
+            GraphWritePathAvailable = $false
+        }
+        ValidationResults        = [PSCustomObject]@{
+            ManagedIdentityStatus = Get-NhiControlledStatusText -Value $ManagedIdentityReadiness.Status
+            MetadataStatus        = Get-NhiControlledStatusText -Value $MetadataReadiness.Status
+            GrantsStatus          = Get-NhiControlledStatusText -Value $GrantReadiness.Status
+            DeleteReadinessStatus = Get-NhiControlledStatusText -Value $DeleteReadiness.Status
+        }
+        KnownWarnings            = @($KnownWarnings)
+        QAHandoffManifest        = [PSCustomObject]@{
+            ToolVersion        = 'Rev4.1'
+            RunId              = [string]$Plan.RunId
+            GeneratedAtUtc     = [DateTime]::UtcNow.ToString('o')
+            EvidenceArtifacts  = @(
+                'nhi-controlled-e2e-evidence-pack.json'
+                'nhi-controlled-qa-handoff-manifest.json'
+                'nhi-controlled-operator-decision-log.json'
+                'nhi-controlled-managed-identity-readiness.json'
+                'nhi-controlled-e2e-snapshot.json'
+            )
+            SafetyAssertions   = [PSCustomObject]@{
+                LiveDeleteExecutable    = $false
+                LiveCleanupExecutable   = $false
+                GraphWritePathAvailable = $false
+                FinalDeleteSimulationOnly = $true
+            }
+            ValidationResults   = [PSCustomObject]@{
+                ManagedIdentity = Get-NhiControlledStatusText -Value $ManagedIdentityReadiness.Status
+                Metadata        = Get-NhiControlledStatusText -Value $MetadataReadiness.Status
+                Grants          = Get-NhiControlledStatusText -Value $GrantReadiness.Status
+                DeleteReadiness = Get-NhiControlledStatusText -Value $DeleteReadiness.Status
+            }
+            KnownWarnings      = @($KnownWarnings)
+            PushStatus         = 'No'
+        }
+    }
+}
+
+function New-NhiControlledOperatorDecisionLog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Plan,
+
+        [Parameter()]
+        [string]$Decision = 'SimulationOnly',
+
+        [Parameter()]
+        [string]$DecisionBy = 'local-planner',
+
+        [Parameter()]
+        [string]$Reason = 'No live execution is allowed in unattended builds.',
+
+        [Parameter()]
+        [string]$Scope = 'Rev4.8'
+    )
+
+    [PSCustomObject]@{
+        SchemaVersion   = '4.8'
+        RunId           = [string]$Plan.RunId
+        Decision        = $Decision
+        DecisionBy      = $DecisionBy
+        DecisionAtUtc   = [DateTime]::UtcNow.ToString('o')
+        Reason          = $Reason
+        Scope           = $Scope
+        IsSimulationOnly = $true
+    }
+}
+
 function New-NhiControlledRollbackPlan {
     [CmdletBinding()]
     param(
@@ -1098,7 +1311,7 @@ function New-NhiControlledDecommissionPlan {
         [object]$Target,
 
         [Parameter(Mandatory)]
-        [ValidateSet('ValidateOnly', 'SnapshotOnly', 'TagOnly', 'DisableOnly', 'ScreamTestOnly', 'DeleteReadinessOnly', 'MetadataCleanupReadiness', 'GrantCleanupReadiness', 'ManagedIdentityReadiness', 'FinalDelete')]
+        [ValidateSet('ValidateOnly', 'SnapshotOnly', 'TagOnly', 'DisableOnly', 'ScreamTestOnly', 'DeleteReadinessOnly', 'MetadataCleanupReadiness', 'GrantCleanupReadiness', 'ManagedIdentityReadiness', 'E2EEvidencePack', 'FinalDelete')]
         [string]$ExecutionStage,
 
         [Parameter(Mandatory)]
