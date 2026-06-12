@@ -516,26 +516,49 @@ if ($SelfTest) {
         $productionReadinessInput = [PSCustomObject]@{
             RunId = [string]$controlledPlanInput.RunId
             BranchName = if ($controlledPlanInput.PSObject.Properties['BranchName']) { [string]$controlledPlanInput.BranchName } else { 'feature/rev42-controlled-nhi-decommission' }
-            LatestCommit = if ($controlledPlanInput.PSObject.Properties['LatestCommit']) { [string]$controlledPlanInput.LatestCommit } else { '238e2ca5281b76decee87b14ab31883d8fd2efa9' }
+            LatestCommit = if ($controlledPlanInput.PSObject.Properties['LatestCommit']) { [string]$controlledPlanInput.LatestCommit } else { 'dc1a214' }
             GitStatusClean = if ($controlledPlanInput.PSObject.Properties['GitStatusClean']) { [bool]$controlledPlanInput.GitStatusClean } else { $true }
             FrozenFileDiffClean = if ($controlledPlanInput.PSObject.Properties['FrozenFileDiffClean']) { [bool]$controlledPlanInput.FrozenFileDiffClean } else { $true }
-            Rev42PlannerEvidence = if ($controlledPlanInput.PSObject.Properties['Rev42PlannerEvidence']) { $controlledPlanInput.Rev42PlannerEvidence } else { [PSCustomObject]@{ Status = 'Complete'; LocalOnly = $true } }
-            Rev43ServicePrincipalFinalDeleteSimulationEvidence = if ($controlledPlanInput.PSObject.Properties['Rev43ServicePrincipalFinalDeleteSimulationEvidence']) { $controlledPlanInput.Rev43ServicePrincipalFinalDeleteSimulationEvidence } else { [PSCustomObject]@{ Status = 'Blocked'; SimulationOnly = $true; LocalOnly = $true } }
-            Rev44ApplicationReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev44ApplicationReadinessEvidence']) { $controlledPlanInput.Rev44ApplicationReadinessEvidence } else { [PSCustomObject]@{ Status = 'Blocked'; SimulationOnly = $true; LocalOnly = $true } }
-            Rev45MetadataCleanupReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev45MetadataCleanupReadinessEvidence']) { $controlledPlanInput.Rev45MetadataCleanupReadinessEvidence } else { [PSCustomObject]@{ Status = 'Ready'; SimulationOnly = $true; LocalOnly = $true } }
-            Rev46GrantsCleanupReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev46GrantsCleanupReadinessEvidence']) { $controlledPlanInput.Rev46GrantsCleanupReadinessEvidence } else { [PSCustomObject]@{ Status = 'Ready'; SimulationOnly = $true; LocalOnly = $true } }
-            Rev47ManagedIdentityReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev47ManagedIdentityReadinessEvidence']) { $controlledPlanInput.Rev47ManagedIdentityReadinessEvidence } else { [PSCustomObject]@{ Status = 'ManagedIdentityReadinessSatisfiedSimulationOnly'; SimulationOnly = $true; LocalOnly = $true } }
-            Rev48E2EEvidencePackEvidence = if ($controlledPlanInput.PSObject.Properties['Rev48E2EEvidencePackEvidence']) { $controlledPlanInput.Rev48E2EEvidencePackEvidence } else { [PSCustomObject]@{ Status = 'Approved'; SimulationOnly = $true; LocalOnly = $true } }
-            ExternalQaApprovalEvidence = if ($controlledApproval.PSObject.Properties['ApprovedBy']) { [PSCustomObject]@{ Approved = $true; Status = 'Approved'; ApprovedBy = [string]$controlledApproval.ApprovedBy; ApprovalId = [string]$controlledApproval.ApprovalId; LocalOnly = $true } } else { [PSCustomObject]@{ Approved = $false; Status = 'Missing'; LocalOnly = $true } }
-            FullPesterEvidence = if ($controlledPlanInput.PSObject.Properties['FullPesterEvidence']) { $controlledPlanInput.FullPesterEvidence } else { [PSCustomObject]@{ Passed = $true; Status = 'Passed'; LocalOnly = $true } }
-            SafetyScanEvidence = if ($controlledPlanInput.PSObject.Properties['SafetyScanEvidence']) { $controlledPlanInput.SafetyScanEvidence } else { [PSCustomObject]@{ Passed = $true; Status = 'Passed'; LocalOnly = $true } }
-            FrozenFileDiffEvidence = if ($controlledPlanInput.PSObject.Properties['FrozenFileDiffEvidence']) { $controlledPlanInput.FrozenFileDiffEvidence } else { [PSCustomObject]@{ Clean = $true; Status = 'Clean'; LocalOnly = $true } }
-            GitStatusEvidence = if ($controlledPlanInput.PSObject.Properties['GitStatusEvidence']) { $controlledPlanInput.GitStatusEvidence } else { [PSCustomObject]@{ Clean = $true; Status = 'Clean'; LocalOnly = $true } }
+            Rev42PlannerEvidence = if ($controlledPlanInput.PSObject.Properties['Rev42PlannerEvidence']) { $controlledPlanInput.Rev42PlannerEvidence } else { $null }
+            Rev43ServicePrincipalFinalDeleteSimulationEvidence = if ($controlledPlanInput.PSObject.Properties['Rev43ServicePrincipalFinalDeleteSimulationEvidence']) { $controlledPlanInput.Rev43ServicePrincipalFinalDeleteSimulationEvidence } else { $null }
+            Rev44ApplicationReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev44ApplicationReadinessEvidence']) { $controlledPlanInput.Rev44ApplicationReadinessEvidence } else { $null }
+            Rev45MetadataCleanupReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev45MetadataCleanupReadinessEvidence']) { $controlledPlanInput.Rev45MetadataCleanupReadinessEvidence } else { $null }
+            Rev46GrantsCleanupReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev46GrantsCleanupReadinessEvidence']) { $controlledPlanInput.Rev46GrantsCleanupReadinessEvidence } else { $null }
+            Rev47ManagedIdentityReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev47ManagedIdentityReadinessEvidence']) { $controlledPlanInput.Rev47ManagedIdentityReadinessEvidence } else { $null }
+            Rev48E2EEvidencePackEvidence = if ($controlledPlanInput.PSObject.Properties['Rev48E2EEvidencePackEvidence']) { $controlledPlanInput.Rev48E2EEvidencePackEvidence } else { $null }
+            ExternalQaApprovalEvidence = if ($controlledPlanInput.PSObject.Properties['ExternalQaApprovalEvidence']) { $controlledPlanInput.ExternalQaApprovalEvidence } else { $null }
+            FullPesterEvidence = if ($controlledPlanInput.PSObject.Properties['FullPesterEvidence']) { $controlledPlanInput.FullPesterEvidence } else { $null }
+            SafetyScanEvidence = if ($controlledPlanInput.PSObject.Properties['SafetyScanEvidence']) { $controlledPlanInput.SafetyScanEvidence } else { $null }
+            FrozenFileDiffEvidence = if ($controlledPlanInput.PSObject.Properties['FrozenFileDiffEvidence']) { $controlledPlanInput.FrozenFileDiffEvidence } else { $null }
+            GitStatusEvidence = if ($controlledPlanInput.PSObject.Properties['GitStatusEvidence']) { $controlledPlanInput.GitStatusEvidence } else { $null }
             P0Findings = if ($controlledPlanInput.PSObject.Properties['P0Findings']) { @($controlledPlanInput.P0Findings) } else { @() }
             P1Findings = if ($controlledPlanInput.PSObject.Properties['P1Findings']) { @($controlledPlanInput.P1Findings) } else { @() }
             P2Findings = if ($controlledPlanInput.PSObject.Properties['P2Findings']) { @($controlledPlanInput.P2Findings) } else { @() }
             KnownWarnings = if ($controlledPlanInput.PSObject.Properties['KnownWarnings']) { @($controlledPlanInput.KnownWarnings) } else { @() }
             OperatorMergeDecision = if ($controlledPlanInput.PSObject.Properties['OperatorMergeDecision']) { $controlledPlanInput.OperatorMergeDecision } else { $null }
+        }
+        $missingProductionReadinessEvidence = @()
+        foreach ($evidenceName in @(
+            'Rev42PlannerEvidence',
+            'Rev43ServicePrincipalFinalDeleteSimulationEvidence',
+            'Rev44ApplicationReadinessEvidence',
+            'Rev45MetadataCleanupReadinessEvidence',
+            'Rev46GrantsCleanupReadinessEvidence',
+            'Rev47ManagedIdentityReadinessEvidence',
+            'Rev48E2EEvidencePackEvidence',
+            'ExternalQaApprovalEvidence',
+            'FullPesterEvidence',
+            'SafetyScanEvidence',
+            'FrozenFileDiffEvidence',
+            'GitStatusEvidence'
+        )) {
+            if ($null -eq $productionReadinessInput.PSObject.Properties[$evidenceName] -or $null -eq $productionReadinessInput.$evidenceName) {
+                $missingProductionReadinessEvidence += $evidenceName
+            }
+        }
+        if ($missingProductionReadinessEvidence.Count -gt 0) {
+            Write-Host "[SECURITY STOP] Rev4.9 production readiness plan is missing required evidence: $($missingProductionReadinessEvidence -join ', ')." -ForegroundColor Red
+            exit 1
         }
         $productionPack = & $controlledModule {
             param($Payload)
@@ -549,7 +572,11 @@ if ($SelfTest) {
             Export-NhiControlledDecommissionEvidence -Evidence $productionPack.FinalSafetyAssertions -Path (Join-Path $controlledOutputPath 'nhi-controlled-final-safety-assertions.json')
         )
         Export-NhiControlledDecommissionEvidence -Evidence $productionPack.OperatorMergeDecision -Path (Join-Path $controlledOutputPath 'nhi-controlled-operator-merge-decision.json') | Out-Null
-        Write-Host '[OK] Rev4.9 production readiness guardrails completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+        if ($productionPack.ProductionReadyForReview) {
+            Write-Host '[OK] Rev4.9 production readiness guardrails completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+        } else {
+            Write-Host '[WARN] Rev4.9 production readiness gate is blocked. No Graph connection or tenant mutation performed.' -ForegroundColor Yellow
+        }
         $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
         Write-Host "  $(Join-Path $controlledOutputPath 'nhi-controlled-operator-merge-decision.json')" -ForegroundColor Gray
         exit 0

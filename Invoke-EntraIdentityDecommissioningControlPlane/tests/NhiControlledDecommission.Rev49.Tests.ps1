@@ -53,6 +53,29 @@ BeforeAll {
         [PSCustomObject]$input
     }
 
+    function New-Rev49PlanFile {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Path,
+
+            [string[]]$RemoveProperties = @(),
+
+            [hashtable]$Overrides = @{}
+        )
+
+        $plan = $script:RawSample | ConvertFrom-Json
+        $payload = [ordered]@{}
+        foreach ($property in $plan.PSObject.Properties.Name) {
+            if ($property -notin $RemoveProperties) {
+                $payload[$property] = $plan.$property
+            }
+        }
+
+        $json = $payload | ConvertTo-Json -Depth 20
+        Set-Content -LiteralPath $Path -Value $json -Encoding utf8
+        return $Path
+    }
+
     function Invoke-Rev49Module {
         param(
             [scriptblock]$ScriptBlock,
@@ -222,6 +245,13 @@ Describe 'Rev4.9 production readiness contract' {
         $pack.FinalSafetyAssertions.ArmWritePathAvailable | Should -BeFalse
     }
 
+    It 'blocks readiness when FullPesterEvidence is explicitly failed' {
+        $gate = Invoke-Rev49Module { param($Payload) New-NhiControlledProductionReadinessGate -Input $Payload } (New-Rev49Input -Overrides @{ FullPesterEvidence = [PSCustomObject]@{ Passed = $false; Status = 'Failed'; LocalOnly = $true } })
+        $gate.ProductionReadyForReview | Should -BeFalse
+        $gate.Status | Should -Be 'Blocked'
+        $gate.Reasons -join ' ' | Should -Match 'Full Pester evidence must pass'
+    }
+
     It 'records operator merge decision without executing it' {
         $pack = Invoke-Rev49Module { param($Payload) New-NhiControlledProductionReadinessEvidencePack -Input $Payload } (New-Rev49Input)
         $pack.OperatorMergeDecision.Decision | Should -Be 'ReadyForReview'
@@ -275,6 +305,32 @@ Describe 'Rev4.9 production readiness contract' {
         $null = & pwsh -NoProfile -ExecutionPolicy Bypass -File $script:EntryPointPath -ExecuteNhiControlledDecommission -ExecutionStage ProductionReadiness -DecommissionPlanPath $script:SamplePath -ApprovalManifestPath $script:SamplePath -WhatIfExecution -OutputPath $outputPath 2>&1
         $artifactPath = Join-Path $outputPath 'controlled-decommission-RUN-REV49-PROD-001\nhi-controlled-production-readiness.json'
         (Get-Content -LiteralPath $artifactPath -Raw | ConvertFrom-Json).SchemaVersion | Should -Be '4.9'
+    }
+
+    It 'fails closed when the production readiness plan omits Rev42PlannerEvidence' {
+        $planPath = Join-Path $TestDrive 'rev49-missing-rev42.json'
+        $approvalPath = Join-Path $TestDrive 'rev49-approval.json'
+        New-Rev49PlanFile -Path $planPath -RemoveProperties @('Rev42PlannerEvidence') | Out-Null
+        New-Rev49PlanFile -Path $approvalPath | Out-Null
+
+        $outputPath = Join-Path $TestDrive 'rev49-missing-rev42-output'
+        $output = & pwsh -NoProfile -ExecutionPolicy Bypass -File $script:EntryPointPath -ExecuteNhiControlledDecommission -ExecutionStage ProductionReadiness -DecommissionPlanPath $planPath -ApprovalManifestPath $approvalPath -WhatIfExecution -OutputPath $outputPath 2>&1
+        $LASTEXITCODE | Should -Be 1
+        ($output -join "`n") | Should -Match '\[SECURITY STOP\]'
+        ($output -join "`n") | Should -Not -Match 'ReadyForReview'
+    }
+
+    It 'fails closed when the production readiness plan omits FullPesterEvidence' {
+        $planPath = Join-Path $TestDrive 'rev49-missing-full-pester.json'
+        $approvalPath = Join-Path $TestDrive 'rev49-approval.json'
+        New-Rev49PlanFile -Path $planPath -RemoveProperties @('FullPesterEvidence') | Out-Null
+        New-Rev49PlanFile -Path $approvalPath | Out-Null
+
+        $outputPath = Join-Path $TestDrive 'rev49-missing-full-pester-output'
+        $output = & pwsh -NoProfile -ExecutionPolicy Bypass -File $script:EntryPointPath -ExecuteNhiControlledDecommission -ExecutionStage ProductionReadiness -DecommissionPlanPath $planPath -ApprovalManifestPath $approvalPath -WhatIfExecution -OutputPath $outputPath 2>&1
+        $LASTEXITCODE | Should -Be 1
+        ($output -join "`n") | Should -Match '\[SECURITY STOP\]'
+        ($output -join "`n") | Should -Not -Match 'ReadyForReview'
     }
 
     It 'keeps default Assessment out of the controlled readiness path' {

@@ -1723,7 +1723,7 @@ function New-NhiControlledReleaseMergeGateManifest {
     [PSCustomObject]@{
         SchemaVersion = '4.9'
         BranchName = if ($ManifestInput -and $ManifestInput.PSObject.Properties['BranchName']) { [string]$ManifestInput.BranchName } else { 'feature/rev42-controlled-nhi-decommission' }
-        LatestCommit = if ($ManifestInput -and $ManifestInput.PSObject.Properties['LatestCommit']) { [string]$ManifestInput.LatestCommit } else { '238e2ca5281b76decee87b14ab31883d8fd2efa9' }
+        LatestCommit = if ($ManifestInput -and $ManifestInput.PSObject.Properties['LatestCommit']) { [string]$ManifestInput.LatestCommit } else { 'dc1a214' }
         GitStatusClean = if ($ManifestInput -and $ManifestInput.PSObject.Properties['GitStatusClean']) { [bool]$ManifestInput.GitStatusClean } else { $true }
         FrozenFileDiffClean = if ($ManifestInput -and $ManifestInput.PSObject.Properties['FrozenFileDiffClean']) { [bool]$ManifestInput.FrozenFileDiffClean } else { $true }
         PushStatus = 'No'
