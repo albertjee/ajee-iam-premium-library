@@ -80,6 +80,12 @@ function Invoke-NhiPermissionScan {
     }
 
     foreach ($sp in $ServicePrincipals) {
+        $null = Set-DecomFindingTraceContext -SourceObject $sp -ClassificationSource 'NhiPermission'
+        $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $sp
+        if ($platformClassification.MicrosoftPlatform) {
+            continue
+        }
+
         $spId = $sp.Id
         $totalUnits = 0
         if ($permUnitsMap.ContainsKey($spId)) {
@@ -174,6 +180,7 @@ function Invoke-NhiPermissionScan {
         }
     }
 
+    Clear-DecomFindingTraceContext
     return $findings
 }
 

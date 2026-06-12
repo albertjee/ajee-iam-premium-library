@@ -51,6 +51,9 @@ Describe 'NhiGovernance.Rev35 — NHI Governance Finding Generation' {
                 VerifiedPublisherName     = $null
                 PublisherName             = 'TestCorp'
                 FirstPartyMicrosoftApp    = $false
+                MicrosoftFirstParty       = $false
+                MicrosoftPlatform         = $false
+                MicrosoftPlatformReason    = ''
                 CoverageMode              = 'Full'
                 CoverageLimitations       = @()
                 RiskScoreMayBeUnderstated = $false
@@ -110,6 +113,40 @@ Describe 'NhiGovernance.Rev35 — NHI Governance Finding Generation' {
 
         It 'DEC-NHI-001 carries ClassificationScore' {
             $script:F001.ClassificationScore | Should -BeGreaterOrEqual 0
+        }
+    }
+
+    Context 'Microsoft platform evidence-only suppression' {
+        It 'Microsoft platform identities generate only evidence-only inventory findings' {
+            $obj = script:New-AnalyzedNhiObject -DisplayName 'Microsoft Graph' -Classification 'MicrosoftPlatform' -IsAgentic $false
+            $obj.MicrosoftPlatform = $true
+            $obj.MicrosoftFirstParty = $true
+            $obj.MicrosoftPlatformReason = 'MicrosoftOwnerTenant'
+            $obj.FirstPartyMicrosoftApp = $true
+            $findings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects @($obj) -Context $script:GovCtx
+
+            $findings.Count | Should -Be 1
+            $findings[0].FindingId | Should -Be 'DEC-NHI-001'
+            $findings[0].Classification | Should -Be 'MicrosoftPlatform'
+            $findings[0].RemediationMode | Should -Be 'InformationOnly'
+            $findings[0].EvidenceOnly | Should -Be $true
+            $findings[0].MicrosoftPlatform | Should -Be $true
+            $findings[0].FirstPartyMicrosoftApp | Should -Be $true
+            $findings[0].RecommendedAction | Should -Match '^Evidence only'
+            $findings[0].ClassificationSource | Should -Not -BeNullOrEmpty
+            $findings[0].NormalizedAppId | Should -BeNullOrEmpty
+        }
+
+        It 'Microsoft platform identities do not generate owner or agent remediation findings' {
+            $obj = script:New-AnalyzedNhiObject -DisplayName 'Microsoft Graph' -Classification 'MicrosoftPlatform' -IsAgentic $false
+            $obj.MicrosoftPlatform = $true
+            $obj.MicrosoftFirstParty = $true
+            $obj.MicrosoftPlatformReason = 'MicrosoftOwnerTenant'
+            $obj.FirstPartyMicrosoftApp = $true
+            $findings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects @($obj) -Context $script:GovCtx
+
+            ($findings | Where-Object { $_.FindingId -in @('DEC-NHI-002','DEC-NHI-003','DEC-NHI-004','DEC-NHI-007','DEC-NHI-009','DEC-NHI-010','DEC-NHI-012','DEC-AGENT-001','DEC-AGENT-003','DEC-AGENT-004','DEC-AGENT-005') }).Count | Should -Be 0
+            ($findings | Where-Object { $_.RecommendedAction -match 'Assign accountable owner|AddApplicationOwner|Revoke consent|Verify publisher|Reduce permission scope' }).Count | Should -Be 0
         }
     }
 

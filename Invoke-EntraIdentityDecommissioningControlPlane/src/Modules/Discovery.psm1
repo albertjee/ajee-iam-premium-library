@@ -3,6 +3,8 @@
     'aadconnect','cloudsync','svc-','service-'
 )
 
+$null = Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
+
 function Get-DecomAvailableCommand {
     param([string[]]$Names)
 
@@ -766,6 +768,7 @@ function Invoke-DecomAssessmentDiscovery {
     $staleThreshold = (Get-Date).AddDays(-90)
     $disabledUsers = @()
     $apps          = @()
+    Clear-DecomFindingTraceContext
 
     # --- DEC-USER-001: Disabled users with group memberships ---
     try {
@@ -823,6 +826,7 @@ function Invoke-DecomAssessmentDiscovery {
         Write-DecomInfo "Application discovery: OK ($($apps.Count) applications)"
 
         foreach ($app in $apps) {
+            $null = Set-DecomFindingTraceContext -SourceObject $app -ClassificationSource 'Discovery/Application'
             try {
                 $owners = @(Get-MgApplicationOwner -ApplicationId $app.Id -ErrorAction Stop | Where-Object { $null -ne $_ })
                 if ($owners.Count -eq 0) {
@@ -914,7 +918,8 @@ function Invoke-DecomAssessmentDiscovery {
     $warningDays = 90
     $today       = Get-Date
 
-    foreach ($app in $apps) {
+        foreach ($app in $apps) {
+            $null = Set-DecomFindingTraceContext -SourceObject $app -ClassificationSource 'Discovery/Application'
         try {
             $owners = @(Get-MgApplicationOwner -ApplicationId $app.Id -ErrorAction Stop | Where-Object { $null -ne $_ })
 
@@ -1037,16 +1042,17 @@ function Invoke-DecomAssessmentDiscovery {
         }
     }
     } # end if ($apps.Count -gt 0)
+    Clear-DecomFindingTraceContext
 
     # --- DEC-SPN-001: Service principals with no owner ---
     try {
         $spns = @(Get-MgServicePrincipal `
             -Filter "tags/any(t:t eq 'WindowsAzureActiveDirectoryIntegratedApp')" `
-            -Select Id,DisplayName,AppId,Tags `
+            -Select Id,DisplayName,AppId,Tags,AppOwnerOrganizationId,PublisherName,VerifiedPublisher,ServicePrincipalType `
             -All -ErrorAction Stop)
 
         if ($spns.Count -eq 0) {
-            $spns = @(Get-MgServicePrincipal -Select Id,DisplayName,AppId,Tags -All -ErrorAction Stop |
+            $spns = @(Get-MgServicePrincipal -Select Id,DisplayName,AppId,Tags,AppOwnerOrganizationId,PublisherName,VerifiedPublisher,ServicePrincipalType -All -ErrorAction Stop |
                 Where-Object { $_.Tags -contains 'WindowsAzureActiveDirectoryIntegratedApp' })
         }
 
@@ -1055,6 +1061,11 @@ function Invoke-DecomAssessmentDiscovery {
 
         foreach ($spn in $spns) {
             try {
+                $null = Set-DecomFindingTraceContext -SourceObject $spn -ClassificationSource 'Discovery/ServicePrincipal'
+                $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $spn
+                if ($platformClassification.MicrosoftPlatform) {
+                    continue
+                }
                 $spOwners = @(Get-MgServicePrincipalOwner -ServicePrincipalId $spn.Id -ErrorAction Stop)
                 if ($spOwners.Count -eq 0) {
                     $findings.Add((New-DecomFinding `
@@ -1081,6 +1092,7 @@ function Invoke-DecomAssessmentDiscovery {
     } catch {
         Write-DecomWarn "Service principal discovery unavailable: $_"
     }
+    Clear-DecomFindingTraceContext
 
     # --- DEC-USER-002: Disabled users with app role assignments ---
     if ($disabledUsers.Count -gt 0) {

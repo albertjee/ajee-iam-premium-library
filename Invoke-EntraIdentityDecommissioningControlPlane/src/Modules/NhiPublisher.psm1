@@ -13,6 +13,12 @@ function Invoke-NhiPublisherScan {
     $findings = @()
 
     foreach ($sp in $ServicePrincipals) {
+        $null = Set-DecomFindingTraceContext -SourceObject $sp -ClassificationSource 'NhiPublisher'
+        $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $sp
+        if ($platformClassification.MicrosoftPlatform) {
+            continue
+        }
+
         $appReg = $null
         if ($AppRegistrationByAppId -and $AppRegistrationByAppId.ContainsKey($sp.AppId)) {
             $appReg = $AppRegistrationByAppId[$sp.AppId]
@@ -81,6 +87,7 @@ function Invoke-NhiPublisherScan {
         }
     }
 
+    Clear-DecomFindingTraceContext
     return $findings
 }
 

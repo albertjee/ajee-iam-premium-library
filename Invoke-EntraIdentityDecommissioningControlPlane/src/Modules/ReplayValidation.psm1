@@ -4,6 +4,10 @@
 # ExecutionLog, ExecutionEvidence, and manifest files WITHOUT connecting to Graph.
 # No write cmdlets. No Graph connection. Entirely offline.
 
+if (-not (Get-Command Get-DecomToolVersion -ErrorAction SilentlyContinue)) {
+    function Get-DecomToolVersion { 'Rev4.10' }
+}
+
 function Invoke-DecomReplayValidation {
     <#
     .SYNOPSIS
@@ -53,6 +57,22 @@ function Invoke-DecomReplayValidation {
         $warnings.Add('ExecutionEvidence not provided — execution consistency checks skipped')
     }
 
+    if ($null -eq $WhatIfReport -and $null -eq $ApprovalManifest -and $null -eq $ExecutionEvidence) {
+        return [pscustomobject]@{
+            SchemaVersion = '3.6'
+            ToolVersion   = Get-DecomToolVersion
+            RunId         = $RunId
+            ValidatedUtc   = (Get-Date).ToUniversalTime().ToString('o')
+            Passed        = $null
+            CheckCount    = 0
+            PassedChecks  = 0
+            FailedChecks  = 0
+            Findings      = @()
+            Warnings      = $warnings.ToArray()
+            Status        = 'SkippedNoReplayInputs'
+        }
+    }
+
     # ── Check 1: WhatIfRunId in approval matches WhatIf report RunId ─────────
 
     if ($null -ne $WhatIfReport -and $null -ne $ApprovalManifest) {
@@ -91,7 +111,7 @@ function Invoke-DecomReplayValidation {
 
     return [pscustomobject]@{
         SchemaVersion = '3.6'
-        ToolVersion = 'Rev4.1'
+        ToolVersion = Get-DecomToolVersion
         RunId         = $RunId
         ValidatedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Passed        = $overallPassed
@@ -617,7 +637,13 @@ function Export-DecomReplayValidationReportMarkdown {
     $fileName = "replay-validation-report-$runIdSafe-$timestamp.md"
     $filePath = Join-Path $OutputPath $fileName
 
-    $overallStr = if ($ValidationResult.Passed) { 'PASS' } else { 'FAIL' }
+    $overallStr = if ($ValidationResult.Status -eq 'SkippedNoReplayInputs') {
+        'SKIPPED'
+    } elseif ($ValidationResult.Passed) {
+        'PASS'
+    } else {
+        'FAIL'
+    }
 
     $md = @"
 # Replay Validation Report

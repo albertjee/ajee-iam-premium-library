@@ -64,6 +64,20 @@ function New-DecomClientHandoffPackage {
     $warnings        = @()
     $sensitiveFiles  = @()
     $clientSafeFiles = @()
+    $clientHandoffFiles = @()
+
+    $packageFilePatterns = @{
+        ExecutiveSummary       = 'executive-summary|execsummary'
+        ClientHandoffArtifacts = 'client-handoff|handoff-manifest|handoff-index|handoff-checklist'
+        FindingsExports        = 'findings'
+        RemediationPlan        = 'remediation-plan'
+        WhatIfApprovalEvidence = 'whatif|approval'
+        ExecutionEvidence      = 'execution'
+        TraceabilityReport     = 'traceability'
+        ReplayValidation       = 'replay-validation|replay'
+        Runbooks               = 'runbook'
+        AssessmentReports      = 'assessment|report|manifest|readiness'
+    }
 
     # Helper: classify a file path as sensitive or client-safe
     # Redacted files are always client-safe. FindingsFiles contain identifiers.
@@ -82,6 +96,7 @@ function New-DecomClientHandoffPackage {
     # Build the sections ordered dictionary
     $sections = [ordered]@{
         ExecutiveSummary       = @()
+        ClientHandoffArtifacts = @()
         AssessmentReports      = @()
         FindingsExports        = @()
         RemediationPlan        = @()
@@ -93,11 +108,51 @@ function New-DecomClientHandoffPackage {
         Runbooks               = @()
     }
 
+    if (Test-Path -LiteralPath $PackagePath) {
+        $discoveredFiles = @(Get-ChildItem -LiteralPath $PackagePath -File -Recurse -ErrorAction SilentlyContinue | Where-Object {
+            $_.Extension -in @('.json','.csv','.md','.html')
+        })
+
+        foreach ($file in $discoveredFiles) {
+            $pathValue = $file.FullName
+            $relativePath = $pathValue.Substring($PackagePath.Length).TrimStart('\', '/')
+            if ($relativePath -match '(^|\\)temp(\\|$)') {
+                continue
+            }
+            if ($pathValue -match '\\redacted\\') {
+                if ($RedactedFiles -notcontains $pathValue) { $RedactedFiles += $pathValue }
+                continue
+            }
+
+            if ($AssessmentFiles.Count -eq 0 -and $FindingsFiles.Count -eq 0 -and $RemediationPlanFiles.Count -eq 0 -and $WhatIfFiles.Count -eq 0 -and
+                $ApprovalFiles.Count -eq 0 -and $ExecutionEvidenceFiles.Count -eq 0 -and $TraceabilityFiles.Count -eq 0 -and $ReplayValidationFiles.Count -eq 0 -and
+                $RunbookFiles.Count -eq 0) {
+                switch -Regex ($file.Name) {
+                    $packageFilePatterns.ExecutiveSummary       { if ($AssessmentFiles -notcontains $pathValue) { $AssessmentFiles += $pathValue }; break }
+                    $packageFilePatterns.ClientHandoffArtifacts { if ($clientHandoffFiles -notcontains $pathValue) { $clientHandoffFiles += $pathValue }; break }
+                    $packageFilePatterns.FindingsExports        { if ($FindingsFiles -notcontains $pathValue) { $FindingsFiles += $pathValue }; break }
+                    $packageFilePatterns.RemediationPlan        { if ($RemediationPlanFiles -notcontains $pathValue) { $RemediationPlanFiles += $pathValue }; break }
+                    $packageFilePatterns.WhatIfApprovalEvidence { if ($WhatIfFiles -notcontains $pathValue) { $WhatIfFiles += $pathValue }; break }
+                    $packageFilePatterns.ExecutionEvidence      { if ($ExecutionEvidenceFiles -notcontains $pathValue) { $ExecutionEvidenceFiles += $pathValue }; break }
+                    $packageFilePatterns.TraceabilityReport     { if ($TraceabilityFiles -notcontains $pathValue) { $TraceabilityFiles += $pathValue }; break }
+                    $packageFilePatterns.ReplayValidation       { if ($ReplayValidationFiles -notcontains $pathValue) { $ReplayValidationFiles += $pathValue }; break }
+                    $packageFilePatterns.Runbooks               { if ($RunbookFiles -notcontains $pathValue) { $RunbookFiles += $pathValue }; break }
+                    default                                     { if ($AssessmentFiles -notcontains $pathValue) { $AssessmentFiles += $pathValue } }
+                }
+            }
+        }
+    }
+
     # Populate AssessmentReports
     foreach ($f in $AssessmentFiles) {
         $sections.AssessmentReports += $f
         $class = _ClassifyFile -FilePath $f
         if ($class -eq 'Sensitive') { $sensitiveFiles += $f } else { $clientSafeFiles += $f }
+    }
+
+    foreach ($f in $clientHandoffFiles) {
+        $sections.ClientHandoffArtifacts += $f
+        $clientSafeFiles += $f
     }
 
     # Populate FindingsExports — raw findings are always sensitive (contain identifiers)

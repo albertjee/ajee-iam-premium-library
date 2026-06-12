@@ -1,3 +1,9 @@
+#Requires -Version 5.1
+
+if (-not (Get-Command Get-DecomToolVersion -ErrorAction SilentlyContinue)) {
+    function Get-DecomToolVersion { 'Rev4.10' }
+}
+
 function New-DecomRev35ReadinessReport {
     <#
     .SYNOPSIS
@@ -16,7 +22,7 @@ function New-DecomRev35ReadinessReport {
     # Build the base report — NhiDetectorsImplemented MUST be $false in Rev3.4
     $report = [pscustomobject]@{
         SchemaVersion                  = '3.6'
-        ToolVersion = 'Rev4.1'
+        ToolVersion = Get-DecomToolVersion
         GeneratedUtc                   = (Get-Date).ToUniversalTime().ToString('o')
         ReadinessScore                 = 0
         TotalChecks                    = 0

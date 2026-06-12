@@ -226,6 +226,38 @@ Describe 'Rev2.2 PIM Detection Logic' {
             $pim003s.Count | Should -Be 1
         }
     }
+
+    It 'Microsoft platform service principals are excluded from DEC-SPN-001' {
+        InModuleScope Discovery {
+            function Get-MgUser                     { param($Filter,$Property,$Select,[switch]$All,$ErrorAction) @() }
+            function Get-MgApplication              { param($Select,[switch]$All,$ErrorAction) @() }
+            function Get-MgServicePrincipal         { param($Filter,$Select,[switch]$All,$ErrorAction,$Top) @(
+                [PSCustomObject]@{
+                    Id                    = 'sp-ms-001'
+                    DisplayName           = 'Microsoft Graph PowerShell'
+                    AppId                 = '1b730954-1685-4b74-9bfd-dac224a7b894'
+                    Tags                  = @('WindowsAzureActiveDirectoryIntegratedApp')
+                    AppOwnerOrganizationId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+                    PublisherName         = $null
+                    VerifiedPublisher     = [PSCustomObject]@{ displayName = 'Microsoft' }
+                    ServicePrincipalType   = 'Application'
+                }
+            ) }
+            function Get-MgDirectoryRole            { param($ErrorAction) @() }
+            function Get-MgUserMemberOf             { param($UserId,[switch]$All,$ErrorAction) @() }
+            function Get-MgUserAppRoleAssignment    { param($UserId,[switch]$All,$ErrorAction) @() }
+            function Get-MgIdentityConditionalAccessPolicy { param($ErrorAction) @() }
+            function Get-MgAuditLogSignIn           { param($Top,$ErrorAction) throw 'unavailable' }
+            function Get-MgGroup                    { param($Top,$GroupId,$Select,$ErrorAction) @() }
+            function Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance { param([switch]$All,$ErrorAction) @() }
+            function Get-MgEntitlementManagementAssignment { param([switch]$All,$ErrorAction) @() }
+            function Get-MgServicePrincipalOwner    { param($ServicePrincipalId,$ErrorAction) @() }
+
+            $ctx = [PSCustomObject]@{ TenantId='test'; Mode='Assessment'; DemoMode=$false; Coverage=$null }
+            $result = Invoke-DecomAssessmentDiscovery -Context $ctx
+            ($result | Where-Object { $_.FindingId -eq 'DEC-SPN-001' }) | Should -BeNullOrEmpty
+        }
+    }
 }
 
 Describe 'Rev2.2 AP Detection Logic' {

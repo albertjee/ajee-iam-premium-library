@@ -124,7 +124,7 @@ function Invoke-DecomNhiExportInventoryJson {
         $path = Join-Path $Context.OutputPath "nhi-inventory-$timestamp.json"
     }
 
-    $jsonData = $NhiInventory | ConvertTo-Json -Depth 4
+    $jsonData = $NhiInventory | ConvertTo-Json -Depth 10
     $jsonData | Out-File -FilePath $path -Encoding UTF8
     Write-DecomInfo "NHI inventory JSON exported to $path"
     return $path

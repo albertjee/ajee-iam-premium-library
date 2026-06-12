@@ -8,6 +8,20 @@ function Export-DecomRemediationPlan {
     $modeDisplay = $Context.Mode
 
     $safeFindings = @($Findings | Where-Object { $null -ne $_ })
+    $suppressedPlatformFindings = @($safeFindings | Where-Object {
+            $_.SuppressCustomerRemediation -eq $true -or
+            $_.MicrosoftPlatform -eq $true -or
+            $_.Classification -in @('MicrosoftPlatform', 'ExternalVendorPlatform') -or
+            $_.RemediationMode -in @('InformationOnly', 'EvidenceOnly') -or
+            $_.EvidenceOnly -eq $true
+        })
+    $actionableFindings = @($safeFindings | Where-Object {
+            $_.SuppressCustomerRemediation -ne $true -and
+            $_.MicrosoftPlatform -ne $true -and
+            $_.Classification -notin @('MicrosoftPlatform', 'ExternalVendorPlatform') -and
+            $_.RemediationMode -notin @('InformationOnly', 'EvidenceOnly') -and
+            $_.EvidenceOnly -ne $true
+        })
 
     $header = @"
 # Entra Identity Decommissioning — Remediation Plan
@@ -29,7 +43,7 @@ function Export-DecomRemediationPlan {
 "@
 
     # --- Immediate Actions (Critical + High) ---
-    $critHighItems = @($safeFindings |
+    $critHighItems = @($actionableFindings |
         Where-Object { $_.Severity -in 'Critical','High' } |
         Sort-Object { -$_.RiskScore })
 
@@ -70,7 +84,7 @@ function Export-DecomRemediationPlan {
     }
 
     # --- Review Queue (Medium) ---
-    $mediumItems = @($safeFindings |
+    $mediumItems = @($actionableFindings |
         Where-Object { $_.Severity -eq 'Medium' } |
         Sort-Object { -$_.RiskScore })
 
@@ -106,7 +120,7 @@ function Export-DecomRemediationPlan {
     }
 
     # --- Monitor / Hygiene (Low + Informational) ---
-    $monitorItems = @($safeFindings |
+    $monitorItems = @($actionableFindings |
         Where-Object { $_.Severity -in 'Low','Informational' } |
         Sort-Object { -$_.RiskScore })
 
@@ -124,6 +138,20 @@ function Export-DecomRemediationPlan {
         $null = $monitorBlock.Append("`n")
     }
 
+    $platformAppendix = [System.Text.StringBuilder]::new()
+    $null = $platformAppendix.Append("## Evidence-Only / Suppressed Platform Findings`n`n")
+
+    if ($suppressedPlatformFindings.Count -eq 0) {
+        $null = $platformAppendix.Append("_No suppressed platform findings identified._`n`n")
+    } else {
+        $null = $platformAppendix.Append("| FindingId | DisplayName | Classification | RemediationMode | Suppressed | Evidence |`n")
+        $null = $platformAppendix.Append("|-----------|-------------|----------------|-----------------|------------|----------|`n")
+        foreach ($finding in $suppressedPlatformFindings) {
+            $null = $platformAppendix.Append("| $($finding.FindingId) | $($finding.DisplayName) | $($finding.Classification) | $($finding.RemediationMode) | $($finding.SuppressCustomerRemediation) | $($finding.Evidence) |`n")
+        }
+        $null = $platformAppendix.Append("`n")
+    }
+
     $footer = @"
 ---
 
@@ -137,6 +165,6 @@ function Export-DecomRemediationPlan {
 *Entra Identity Decommissioning Control Plane Rev1.2 — Consultant Advisory Tool*
 "@
 
-    $content = $header + $immediateBlocks.ToString() + $reviewBlocks.ToString() + $monitorBlock.ToString() + $footer
+    $content = $header + $immediateBlocks.ToString() + $reviewBlocks.ToString() + $monitorBlock.ToString() + $platformAppendix.ToString() + $footer
     Set-Content -Path $Path -Value $content -Encoding UTF8
 }

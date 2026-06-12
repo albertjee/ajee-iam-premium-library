@@ -1,3 +1,7 @@
+if (-not (Get-Command Get-DecomToolVersion -ErrorAction SilentlyContinue)) {
+    function Get-DecomToolVersion { 'Rev4.10' }
+}
+
 function New-DecomRedactionProfile {
     <#
     .SYNOPSIS
@@ -221,7 +225,7 @@ function Export-DecomRedactionReportJson {
         [string]$RunId = '',
 
         [Parameter(Mandatory = $false)]
-        [string]$ToolVersion = 'Rev4.1',
+        [string]$ToolVersion = (Get-DecomToolVersion),
 
         [Parameter(Mandatory = $false)]
         [int]$RedactedFileCount = 0
@@ -282,7 +286,7 @@ function Export-DecomRedactionReportMarkdown {
         [string]$RunId = '',
 
         [Parameter(Mandatory = $false)]
-        [string]$ToolVersion = 'Rev4.1',
+        [string]$ToolVersion = (Get-DecomToolVersion),
 
         [Parameter(Mandatory = $false)]
         [int]$RedactedFileCount = 0

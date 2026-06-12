@@ -1248,7 +1248,7 @@ function New-NhiControlledE2EEvidencePack {
         SchemaVersion        = '4.8'
         RunId                = [string]$Plan.RunId
         GeneratedAtUtc       = [DateTime]::UtcNow.ToString('o')
-        ToolVersion          = 'Rev4.1'
+        ToolVersion          = Get-DecomToolVersion
         PlanIdentity         = [PSCustomObject]@{
             TargetId   = [string]$Plan.TargetId
             TargetType = [string]$Plan.TargetType
@@ -1301,7 +1301,7 @@ function New-NhiControlledE2EEvidencePack {
         }
         KnownWarnings            = @($KnownWarnings)
         QAHandoffManifest        = [PSCustomObject]@{
-            ToolVersion        = 'Rev4.1'
+            ToolVersion        = Get-DecomToolVersion
             RunId              = [string]$Plan.RunId
             GeneratedAtUtc     = [DateTime]::UtcNow.ToString('o')
             EvidenceArtifacts  = @(

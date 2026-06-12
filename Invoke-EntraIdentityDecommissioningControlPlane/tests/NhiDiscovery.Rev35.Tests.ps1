@@ -136,6 +136,132 @@ Describe 'NhiDiscovery.Rev35 — NHI Discovery Module' {
         }
     }
 
+    Context 'Live-shaped Microsoft metadata normalization' {
+        It 'Recognizes Microsoft platform service principal from nested live metadata' {
+            $sp = [PSCustomObject]@{
+                id                    = 'sp-live-001'
+                appId                 = '1b730954-1685-4b74-9bfd-dac224a7b894'
+                displayName           = 'Microsoft Graph PowerShell'
+                appDisplayName        = 'Microsoft Graph PowerShell'
+                servicePrincipalType   = 'Application'
+                publisherName         = $null
+                verifiedPublisher     = [PSCustomObject]@{ displayName = 'Microsoft' }
+                signInAudience        = 'AzureADMyOrg'
+                accountEnabled        = $true
+                createdDateTime       = '2024-01-01T00:00:00Z'
+                tags                  = @('WindowsAzureActiveDirectoryIntegratedApp')
+                homepage              = 'https://example.invalid'
+                appOwnerOrganizationId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+                keyCredentials        = @()
+                passwordCredentials   = @()
+            }
+
+            Mock Get-MgServicePrincipal { @($sp) } -ModuleName NhiDiscovery
+            Mock Get-MgApplication { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOwner { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalAppRoleAssignment { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOauth2PermissionGrant { @() } -ModuleName NhiDiscovery
+
+            $ctx = [PSCustomObject]@{ DemoMode = $false; OutputPath = $env:TEMP }
+            $results = Invoke-DecomNhiDiscovery -Context $ctx
+            $msft = $results | Where-Object { $_.ObjectId -eq 'sp-live-001' }
+
+            $msft | Should -Not -BeNullOrEmpty
+            $msft.MicrosoftPlatform | Should -Be $true
+            $msft.MicrosoftFirstParty | Should -Be $true
+            $msft.VerifiedPublisherName | Should -Be 'Microsoft'
+            $msft.AppOwnerOrganizationId | Should -Be 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+        }
+
+        It 'Recognizes exact live Microsoft platform app IDs and preserves Apple vendor attribution' {
+            $liveServicePrincipals = @(
+                [PSCustomObject]@{
+                    id                    = 'sp-live-graph'
+                    appId                 = '14d82eec-204b-4c2f-b7e8-296a70dab67e'
+                    displayName           = 'Microsoft Graph PowerShell'
+                    appDisplayName        = 'Microsoft Graph PowerShell'
+                    servicePrincipalType   = 'Application'
+                    publisherName         = ''
+                    verifiedPublisher     = [PSCustomObject]@{ displayName = 'Microsoft Corporation' }
+                    appOwnerOrganizationId = '72f988bf-86f1-41af-91ab-2d7cd011db47'
+                    tags                  = @('WindowsAzureActiveDirectoryIntegratedApp')
+                    signInAudience        = 'AzureADMyOrg'
+                    accountEnabled        = $true
+                    createdDateTime       = '2024-01-01T00:00:00Z'
+                    keyCredentials        = @()
+                    passwordCredentials   = @()
+                },
+                [PSCustomObject]@{
+                    id                    = 'sp-live-tech'
+                    appId                 = '09213cdc-9f30-4e82-aa6f-9b6e8d82dab3'
+                    displayName           = 'Microsoft Tech Community'
+                    appDisplayName        = 'Microsoft Tech Community'
+                    servicePrincipalType   = 'Application'
+                    publisherName         = ''
+                    verifiedPublisher     = $null
+                    appOwnerOrganizationId = 'cdc5aeea-15c5-4db6-b079-fcadd2505dc2'
+                    tags                  = @()
+                    signInAudience        = 'AzureADMyOrg'
+                    accountEnabled        = $true
+                    createdDateTime       = '2024-01-01T00:00:00Z'
+                    keyCredentials        = @()
+                    passwordCredentials   = @()
+                },
+                [PSCustomObject]@{
+                    id                    = 'sp-live-flipgrid'
+                    appId                 = 'f1143447-b07a-4557-b878-b78df8d45c13'
+                    displayName           = 'Flipgrid'
+                    appDisplayName        = 'Flipgrid'
+                    servicePrincipalType   = 'Application'
+                    publisherName         = ''
+                    verifiedPublisher     = $null
+                    appOwnerOrganizationId = '1bf12738-0df6-4c07-97c3-0b0642a2f1a0'
+                    tags                  = @()
+                    signInAudience        = 'AzureADMyOrg'
+                    accountEnabled        = $true
+                    createdDateTime       = '2024-01-01T00:00:00Z'
+                    keyCredentials        = @()
+                    passwordCredentials   = @()
+                },
+                [PSCustomObject]@{
+                    id                    = 'sp-live-ios'
+                    appId                 = 'f8d98a96-0999-43f5-8af3-69971c7bb423'
+                    displayName           = 'iOS Accounts'
+                    appDisplayName        = 'iOS Accounts'
+                    servicePrincipalType   = 'Application'
+                    publisherName         = ''
+                    verifiedPublisher     = [PSCustomObject]@{ displayName = 'Apple Inc.' }
+                    appOwnerOrganizationId = 'e0fad04c-a04c-41ab-b35e-dc523af755a1'
+                    tags                  = @()
+                    signInAudience        = 'AzureADMyOrg'
+                    accountEnabled        = $true
+                    createdDateTime       = '2024-01-01T00:00:00Z'
+                    keyCredentials        = @()
+                    passwordCredentials   = @()
+                }
+            )
+
+            Mock Get-MgServicePrincipal { @($liveServicePrincipals) } -ModuleName NhiDiscovery
+            Mock Get-MgApplication { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOwner { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalAppRoleAssignment { @() } -ModuleName NhiDiscovery
+            Mock Get-MgServicePrincipalOauth2PermissionGrant { @() } -ModuleName NhiDiscovery
+
+            $ctx = [PSCustomObject]@{ DemoMode = $false; OutputPath = $env:TEMP }
+            $results = Invoke-DecomNhiDiscovery -Context $ctx
+
+            ($results | Where-Object { $_.AppId -eq '14d82eec-204b-4c2f-b7e8-296a70dab67e' }).MicrosoftPlatform | Should -Be $true
+            ($results | Where-Object { $_.AppId -eq '09213cdc-9f30-4e82-aa6f-9b6e8d82dab3' }).MicrosoftPlatform | Should -Be $true
+            ($results | Where-Object { $_.AppId -eq 'f1143447-b07a-4557-b878-b78df8d45c13' }).MicrosoftPlatform | Should -Be $true
+            ($results | Where-Object { $_.AppId -eq '14d82eec-204b-4c2f-b7e8-296a70dab67e' }).MicrosoftPlatformReason | Should -Not -BeNullOrEmpty
+
+            $ios = $results | Where-Object { $_.AppId -eq 'f8d98a96-0999-43f5-8af3-69971c7bb423' }
+            $ios.MicrosoftPlatform | Should -Be $false
+            $ios.MicrosoftFirstParty | Should -Be $false
+            $ios.VerifiedPublisherName | Should -Be 'Apple Inc.'
+        }
+    }
+
     # ── High-risk permission detection ─────────────────────────────────────────
 
     Context 'Get-DecomNhiHighRiskPermissions detection' {

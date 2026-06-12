@@ -251,13 +251,34 @@ function Invoke-DecomNhiAnalysis {
     $analyzedObjects = @()
 
     foreach ($nhiObject in $NhiObjects) {
-        # Skip Microsoft first-party SPNs entirely
-        if ($nhiObject.FirstPartyMicrosoftApp -eq $true) {
-            Write-Verbose "Excluded Microsoft first-party SPN '$($nhiObject.DisplayName)' (reason: MicrosoftFirstParty)"
-            continue
-        }
-
         try {
+            $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $nhiObject
+            if ($platformClassification.MicrosoftPlatform) {
+                $analyzedObjects += ($nhiObject | Add-Member -NotePropertyName MicrosoftFirstParty -NotePropertyValue $platformClassification.MicrosoftFirstParty -Force -PassThru |
+                    Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $platformClassification.MicrosoftPlatform -Force -PassThru |
+    Add-Member -NotePropertyName MicrosoftPlatformReason -NotePropertyValue $platformClassification.Reason -Force -PassThru |
+    Add-Member -NotePropertyName SuppressCustomerRemediation -NotePropertyValue $platformClassification.SuppressCustomerRemediation -Force -PassThru |
+                    Add-Member -NotePropertyName ClassificationSource -NotePropertyValue 'MicrosoftPlatformOverride' -Force -PassThru |
+                    Add-Member -NotePropertyName ClassificationScore -NotePropertyValue 0 -Force -PassThru |
+                    Add-Member -NotePropertyName Classification -NotePropertyValue 'MicrosoftPlatform' -Force -PassThru |
+                    Add-Member -NotePropertyName ClassificationConfidence -NotePropertyValue 'High' -Force -PassThru |
+                    Add-Member -NotePropertyName ClassificationSignals -NotePropertyValue @('Microsoft platform identity') -Force -PassThru |
+                    Add-Member -NotePropertyName NormalizedAppId -NotePropertyValue $nhiObject.NormalizedAppId -Force -PassThru |
+                    Add-Member -NotePropertyName NormalizedPublisherName -NotePropertyValue $nhiObject.NormalizedPublisherName -Force -PassThru |
+                    Add-Member -NotePropertyName NormalizedVerifiedPublisherName -NotePropertyValue $nhiObject.NormalizedVerifiedPublisherName -Force -PassThru |
+                    Add-Member -NotePropertyName NormalizedAppOwnerOrganizationId -NotePropertyValue $nhiObject.NormalizedAppOwnerOrganizationId -Force -PassThru |
+                    Add-Member -NotePropertyName NormalizedServicePrincipalType -NotePropertyValue $nhiObject.NormalizedServicePrincipalType -Force -PassThru |
+                    Add-Member -NotePropertyName NormalizedTags -NotePropertyValue $nhiObject.NormalizedTags -Force -PassThru |
+                    Add-Member -NotePropertyName NhiCandidate -NotePropertyValue $true -Force -PassThru |
+                    Add-Member -NotePropertyName AgenticCandidate -NotePropertyValue $false -Force -PassThru |
+                    Add-Member -NotePropertyName AutomationCandidate -NotePropertyValue $false -Force -PassThru |
+                    Add-Member -NotePropertyName WorkloadCandidate -NotePropertyValue $false -Force -PassThru |
+                    Add-Member -NotePropertyName RiskScore -NotePropertyValue 0 -Force -PassThru |
+                    Add-Member -NotePropertyName Severity -NotePropertyValue 'Informational' -Force -PassThru |
+                    Add-Member -NotePropertyName CoverageMode -NotePropertyValue 'EvidenceOnly' -Force -PassThru)
+                continue
+            }
+
             # P1-04: Calculate OAuth fields first
             $tenantWideConsent = $false
             $highRiskOAuthGrantCount = 0
@@ -306,6 +327,17 @@ function Invoke-DecomNhiAnalysis {
                 Add-Member -NotePropertyName 'Classification' -NotePropertyValue $classificationResult.Classification -Force -PassThru |
                 Add-Member -NotePropertyName 'ClassificationConfidence' -NotePropertyValue $classificationResult.ClassificationConfidence -Force -PassThru |
                 Add-Member -NotePropertyName 'ClassificationSignals' -NotePropertyValue $classificationResult.ClassificationSignals -Force -PassThru |
+                Add-Member -NotePropertyName 'ClassificationSource' -NotePropertyValue 'HeuristicAnalysis' -Force -PassThru |
+                Add-Member -NotePropertyName 'MicrosoftFirstParty' -NotePropertyValue ([bool]$nhiObject.MicrosoftFirstParty) -Force -PassThru |
+                Add-Member -NotePropertyName 'MicrosoftPlatform' -NotePropertyValue ([bool]$nhiObject.MicrosoftPlatform) -Force -PassThru |
+    Add-Member -NotePropertyName 'MicrosoftPlatformReason' -NotePropertyValue $nhiObject.MicrosoftPlatformReason -Force -PassThru |
+    Add-Member -NotePropertyName 'SuppressCustomerRemediation' -NotePropertyValue ([bool]$nhiObject.SuppressCustomerRemediation) -Force -PassThru |
+                Add-Member -NotePropertyName 'NormalizedAppId' -NotePropertyValue $nhiObject.NormalizedAppId -Force -PassThru |
+                Add-Member -NotePropertyName 'NormalizedPublisherName' -NotePropertyValue $nhiObject.NormalizedPublisherName -Force -PassThru |
+                Add-Member -NotePropertyName 'NormalizedVerifiedPublisherName' -NotePropertyValue $nhiObject.NormalizedVerifiedPublisherName -Force -PassThru |
+                Add-Member -NotePropertyName 'NormalizedAppOwnerOrganizationId' -NotePropertyValue $nhiObject.NormalizedAppOwnerOrganizationId -Force -PassThru |
+                Add-Member -NotePropertyName 'NormalizedServicePrincipalType' -NotePropertyValue $nhiObject.NormalizedServicePrincipalType -Force -PassThru |
+                Add-Member -NotePropertyName 'NormalizedTags' -NotePropertyValue $nhiObject.NormalizedTags -Force -PassThru |
                 Add-Member -NotePropertyName 'NhiCandidate' -NotePropertyValue $isNhiCandidate -Force -PassThru |
                 Add-Member -NotePropertyName 'AgenticCandidate' -NotePropertyValue $isAgenticCandidate -Force -PassThru |
                 Add-Member -NotePropertyName 'AutomationCandidate' -NotePropertyValue $isAutomationCandidate -Force -PassThru |

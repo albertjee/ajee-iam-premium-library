@@ -26,9 +26,8 @@ Rev4.2-S1 adds an additive, local-only controlled NHI decommission planner and e
 It supports `WhatIf` and `DemoMode` planning only. It does not connect to Microsoft Graph, request
 new Graph write scopes, or mutate tenant objects.
 
-The entry-point `ToolVersion` remains `Rev4.1` for compatibility with the frozen release-validation
-contract. Rev4.2-S1 traceability is provided by its schema version, branch, commit, documentation,
-module, samples, and focused tests.
+The entry-point `ToolVersion` is `Rev4.10`. Rev4.10 traceability is provided by its schema version,
+branch, commit, documentation, module, samples, and focused tests.
 
 Safety boundary:
 
@@ -221,7 +220,7 @@ Run the built-in release validation without connecting to Graph:
 ```
 
 Validates:
-- Tool version consistency (`ToolVersion = Rev2.5` in entry point)
+- Tool version consistency (`ToolVersion = Rev4.10` in entry point)
 - No write verbs or write scopes in read-only modules
 - Remediation.psm1 contains only Rev2.0 executable actions
 

@@ -67,7 +67,7 @@ param(
 )
 
 # Tool version - update this single constant each release
-$script:ToolVersion = 'Rev4.1'
+$script:ToolVersion = 'Rev4.10'
 
 if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
     Write-Host "[ERROR] ExecuteRemediation cannot run in DemoMode." -ForegroundColor Red
@@ -1261,10 +1261,10 @@ if ($GenerateNhiGovernancePack -or $DemoMode -or $IncludeAgentActivityAudit) {
 
     # Flatten raw SPs from NhiAnalyzed for scan functions (consistent with owner/agent/publisher scans)
     # Note: NhiInventory includes Microsoft Graph (sp-004) which is filtered out by NhiAnalysis; use NhiAnalyzed for SP list
-    $nhiScanSpIds = @($NhiAnalyzed | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.ObjectId })
-    $nhiCredentialSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawServicePrincipal })
-    $nhiPermissionAras = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawAppRoleAssignments } | Where-Object { $_ })
-    $nhiPermissionGrants = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawOAuthGrants } | Where-Object { $_ })
+    $nhiScanSpIds = @($NhiAnalyzed | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.MicrosoftPlatform -ne $true } | ForEach-Object { $_.ObjectId })
+    $nhiCredentialSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.MicrosoftPlatform -ne $true -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawServicePrincipal })
+    $nhiPermissionAras = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.MicrosoftPlatform -ne $true -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawAppRoleAssignments } | Where-Object { $_ })
+    $nhiPermissionGrants = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.MicrosoftPlatform -ne $true -and $_.ObjectId -in $nhiScanSpIds } | ForEach-Object { $_.RawOAuthGrants } | Where-Object { $_ })
 
     # NHI-CRED scan
     $nhiCredentialFindings = @()
@@ -1298,13 +1298,13 @@ if ($GenerateNhiGovernancePack -or $DemoMode -or $IncludeAgentActivityAudit) {
     Write-DecomInfo "Running NHI owner, publisher, and agent scans..."
 
     # Flatten raw SPs from NhiInventory for scan functions
-    $nhiScanSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' } | ForEach-Object { $_.RawServicePrincipal })
+    $nhiScanSps = @($NhiInventory | Where-Object { $_.ObjectType -eq 'ServicePrincipal' -and $_.MicrosoftPlatform -ne $true } | ForEach-Object { $_.RawServicePrincipal })
 
     # Extract owner data for NhiOwner
     $ownersByObjectId = @{}
     $ownerLookupSucceeded = $true
     foreach ($nhiObj in $NhiInventory) {
-        if ($nhiObj.ObjectType -eq 'ServicePrincipal') {
+        if ($nhiObj.ObjectType -eq 'ServicePrincipal' -and $nhiObj.MicrosoftPlatform -ne $true) {
             if ($nhiObj.RawOwners) {
                 $ownersByObjectId[$nhiObj.ObjectId] = @($nhiObj.RawOwners)
             } else {
@@ -1628,7 +1628,12 @@ if ($GenerateRev35Readiness) {
 if ($GenerateClientHandoff) {
     try {
         Import-Module (Join-Path $script:ModulesPath 'ClientHandoff.psm1') -Force -DisableNameChecking -ErrorAction Stop
-        $chPkg = New-DecomClientHandoffPackage -Context $Context -RunId $hardeningRunId -PackagePath $RunFolder
+        $redactedArtifactFiles = @(
+            Get-ChildItem -Path (Join-Path $RunFolder 'redacted') -File -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -in @('.json','.csv','.html','.md') } |
+                Select-Object -ExpandProperty FullName
+        )
+        $chPkg = New-DecomClientHandoffPackage -Context $Context -RunId $hardeningRunId -PackagePath $RunFolder -RedactedFiles $redactedArtifactFiles
         $chManifestPath = Join-Path $RunFolder "client-handoff-manifest-$hardeningTimestamp.json"
         Export-DecomClientHandoffManifestJson -Package $chPkg -Path $chManifestPath
         $chIndexPath = Join-Path $RunFolder "client-handoff-index-$hardeningTimestamp.md"
@@ -1756,7 +1761,7 @@ if ($GenerateRedactedPackage) {
                     Write-DecomWarn "Redaction failed for $($_.FullName): $($_.Exception.Message)"
                     $redactionErrors += @{ File = $_.FullName; Error = $_.Exception.Message }
                 }
-            }
+        }
 
         $rdPath = Join-Path $RunFolder "redaction-report-$hardeningTimestamp.json"
         Export-DecomRedactionReportJson -Profile $redactionProfileObj -Path $rdPath -RunId $hardeningRunId -ToolVersion $script:ToolVersion -RedactedFileCount $redactedCount
@@ -1787,7 +1792,7 @@ if ($GenerateEvidenceBundle -or $GenerateRedactedPackage -or $GenerateTraceabili
         Import-Module (Join-Path $script:ModulesPath 'OutputManifest.psm1') -Force -DisableNameChecking -ErrorAction Stop
         $om = New-DecomOutputManifest -Context $Context -RunId $hardeningRunId -OutputRoot $RunFolder
         Get-ChildItem -Path $RunFolder -File -Recurse | Where-Object { $_.FullName -notmatch '\\temp\\' -and $_.Extension -in @('.json','.csv','.html','.md') } | ForEach-Object {
-            $sensitivity = if ($_.Name -match 'redact') { 'ClientSafe' } else { 'Confidential' }
+            $sensitivity = if ($_.FullName -match '\\redacted\\' -or $_.Name -match 'redact') { 'ClientSafe' } else { 'Confidential' }
             $category = switch -Regex ($_.Name) {
                 'readiness'    { 'Rev35Readiness';    break }
                 'handoff'      { 'ClientHandoff';     break }
@@ -1802,6 +1807,24 @@ if ($GenerateEvidenceBundle -or $GenerateRedactedPackage -or $GenerateTraceabili
         Export-DecomOutputManifestJson -Manifest $om -Path $omPath
         Write-DecomOk "Output manifest: $omPath"
     } catch { Write-DecomWarn "Output manifest skipped: $_" }
+}
+
+if ($GenerateClientHandoff) {
+    try {
+        Import-Module (Join-Path $script:ModulesPath 'ClientHandoff.psm1') -Force -DisableNameChecking -ErrorAction Stop
+        $redactedArtifactFiles = @(
+            Get-ChildItem -Path (Join-Path $RunFolder 'redacted') -File -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -in @('.json','.csv','.html','.md') } |
+                Select-Object -ExpandProperty FullName
+        )
+        $chPkg = New-DecomClientHandoffPackage -Context $Context -RunId $hardeningRunId -PackagePath $RunFolder -RedactedFiles $redactedArtifactFiles
+        $chManifestPath = Join-Path $RunFolder "client-handoff-manifest-$hardeningTimestamp.json"
+        Export-DecomClientHandoffManifestJson -Package $chPkg -Path $chManifestPath
+        $chIndexPath = Join-Path $RunFolder "client-handoff-index-$hardeningTimestamp.md"
+        Export-DecomClientHandoffIndexMarkdown -Package $chPkg -Path $chIndexPath
+        Write-DecomOk "Client handoff manifest refreshed: $chManifestPath"
+        Write-DecomOk "Client handoff index refreshed: $chIndexPath"
+    } catch { Write-DecomWarn "Client handoff refresh skipped: $_" }
 }
 
 # ── Rev3.5 NHI Governance Pack ────────────────────────────────────────────────

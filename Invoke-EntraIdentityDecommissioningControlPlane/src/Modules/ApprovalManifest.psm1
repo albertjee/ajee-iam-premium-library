@@ -250,6 +250,11 @@ function Resolve-DecomExecutableTargets {
         ErrorDetail   = ''
     }
 
+    if ($Finding.SuppressCustomerRemediation -eq $true -or $Finding.MicrosoftPlatform -eq $true -or $Finding.FirstPartyMicrosoftApp -eq $true -or $Finding.EvidenceOnly -eq $true -or $Finding.Classification -in @('MicrosoftPlatform', 'ExternalVendorPlatform')) {
+        $result.ErrorDetail = 'Microsoft platform identity is evidence-only; executable targets are suppressed.'
+        return $result
+    }
+
     try {
         switch ($Finding.FindingId) {
 
@@ -561,6 +566,15 @@ function New-DecomWhatIfActionPlan {
     foreach ($finding in @($sortedFindings)) {
         if ($null -eq $finding) { continue }
         if (-not $script:ExecutionMap.ContainsKey($finding.FindingId)) { continue }
+        if ($finding.SuppressCustomerRemediation -eq $true -or $finding.MicrosoftPlatform -eq $true -or $finding.FirstPartyMicrosoftApp -eq $true -or $finding.EvidenceOnly -eq $true -or $finding.Classification -in @('MicrosoftPlatform', 'ExternalVendorPlatform')) {
+            $skipped += [pscustomobject]@{
+                FindingId = $finding.FindingId
+                DisplayName = $finding.DisplayName
+                Reason = 'Customer remediation suppressed for platform identity'
+                Classification = $finding.Classification
+            }
+            continue
+        }
 
         if ($finding.ProtectedObject -eq $true) {
             $skipped.Add([ordered]@{
