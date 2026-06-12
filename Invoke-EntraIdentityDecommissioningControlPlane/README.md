@@ -106,6 +106,196 @@ Sample input:
 
 - `samples/nhi-controlled-production-readiness.sample.json`
 
+## Rev4.9 / Rev4.10 Session Summary — Platform Identity Classification and Client-Actionable Remediation Suppression
+
+### 1. Purpose
+
+Rev4.9 and Rev4.10 hardened the assessment and planning pipeline so Microsoft-owned platform identities and known external vendor platform identities are not incorrectly presented as customer-actionable decommissioning or remediation work.
+
+The live examples that drove this work were:
+
+- Microsoft Graph PowerShell
+- Microsoft Tech Community
+- Flipgrid
+- iOS Accounts
+
+Microsoft Graph PowerShell, Microsoft Tech Community, and Flipgrid are treated as `MicrosoftPlatform` when catalog and live metadata support that classification. iOS Accounts is treated as `ExternalVendorPlatform`, not `MicrosoftPlatform`. External vendor platform identities are also suppressed from customer-actionable remediation when catalog or metadata marks them as platform-owned.
+
+### 2. Important schema/output changes
+
+The following fields are now present on findings and/or trace output and are important for QA and defensibility:
+
+- `Classification`
+- `FirstPartyMicrosoftApp`
+- `MicrosoftPlatform`
+- `SuppressCustomerRemediation`
+- `RemediationMode`
+- `EvidenceOnly`
+- `ClassificationSource`
+- `ClassificationSignals`
+- `MicrosoftPlatformReason`
+- `NormalizedAppId`
+- `NormalizedPublisherName`
+- `NormalizedVerifiedPublisherName`
+- `NormalizedAppOwnerOrganizationId`
+- `NormalizedServicePrincipalType`
+- `NormalizedTags`
+
+These fields matter because they make classification explainable, prevent hidden suppression logic, and let QA verify whether a finding is customer-actionable, information-only, or evidence-only. They also support consultant-ready reporting and client defensibility when live platform identities are encountered.
+
+### 3. Platform identity catalog
+
+Known platform identities are now stored in:
+
+- `config/platform-identity-catalog.json`
+
+The catalog is used to identify platform identities using stable metadata such as:
+
+- `AppId`
+- `AppOwnerOrganizationId`
+- `VerifiedPublisherName`
+- `DisplayName`
+- `Platform classification`
+- `Suppression behavior`
+
+Catalog-driven classification is preferred over fragile display-name-only matching.
+
+Known live entries:
+
+- Microsoft Graph PowerShell
+  - AppId: `14d82eec-204b-4c2f-b7e8-296a70dab67e`
+  - AppOwnerOrganizationId: `72f988bf-86f1-41af-91ab-2d7cd011db47`
+  - Classification: `MicrosoftPlatform`
+- Microsoft Tech Community
+  - AppId: `09213cdc-9f30-4e82-aa6f-9b6e8d82dab3`
+  - AppOwnerOrganizationId: `cdc5aeea-15c5-4db6-b079-fcadd2505dc2`
+  - Classification: `MicrosoftPlatform`
+- Flipgrid
+  - AppId: `f1143447-b07a-4557-b878-b78df8d45c13`
+  - AppOwnerOrganizationId: `1bf12738-0df6-4c07-97c3-0b0642a2f1a0`
+  - Classification: `MicrosoftPlatform`
+- iOS Accounts
+  - AppId: `f8d98a96-0999-43f5-8af3-69971c7bb423`
+  - AppOwnerOrganizationId: `e0fad04c-a04c-41ab-b35e-dc523af755a1`
+  - VerifiedPublisherName: `Apple Inc.`
+  - Classification: `ExternalVendorPlatform`
+  - `MicrosoftPlatform = false`
+  - `FirstPartyMicrosoftApp = false`
+  - `SuppressCustomerRemediation = true`
+
+### 4. Remediation behavior change
+
+Suppressed platform identities must not appear in customer-actionable `ACT-*` remediation sections.
+
+Suppressed findings include any finding where one or more of these are true:
+
+- `SuppressCustomerRemediation = true`
+- `Classification = MicrosoftPlatform`
+- `Classification = ExternalVendorPlatform`
+- `MicrosoftPlatform = true`
+- `RemediationMode = InformationOnly`
+- `RemediationMode = EvidenceOnly`
+- `EvidenceOnly = true`
+
+Expected behavior:
+
+- Platform identities may remain visible as evidence-only or information-only appendix rows.
+- They must not produce `AddApplicationOwner`, `Assign owner`, `Verify publisher`, `Revoke consent`, `Reduce permission scope`, `ManualApprovalRequired`, or executable approval actions.
+- Customer-owned, lab, and third-party identities remain actionable when appropriate.
+
+### 5. Validation performed
+
+Before commit `835e8dd`, the following validation passed:
+
+- `Reporting.Tests.ps1` passed
+- Focused Rev4.10 slice passed
+- Platform identity catalog tests passed
+- `SuppressCustomerRemediation` regression tests passed
+- Full safety subset passed: 304 passed, 0 failed
+- Live read-only tenant validation passed
+- Live findings JSON check passed
+- Live remediation-plan leak check passed
+- No tenant write/delete/cleanup execution flags were used
+
+Live read-only safety note:
+
+The validation run did not use:
+
+- `-ExecuteNhiDecommission`
+- `-ExecuteNhiControlledDecommission`
+- `-ExecuteNhiControlledGrantCleanup`
+- `-ExecuteNhiControlledMetadataCleanup`
+- `-AllowFinalDelete`
+- rollback execution
+- final delete
+
+### 6. QA commands for future verification
+
+Run the full safety subset:
+
+```powershell
+Invoke-Pester -Path @(
+'.\tests\DestructiveCmdletGuard.Rev40.Tests.ps1',
+'.\tests\NhiExecution.Rev40.Tests.ps1',
+'.\tests\NhiExecutionSchema.Rev40.Tests.ps1',
+'.\tests\NhiSafety.Rev35.Tests.ps1',
+'.\tests\Safety.Tests.ps1',
+'.\tests\Safety.Rev42.Tests.ps1',
+'.\tests\Safety.Rev43.Tests.ps1',
+'.\tests\Safety.Rev44.Tests.ps1',
+'.\tests\Safety.Rev45.Tests.ps1',
+'.\tests\Safety.Rev46.Tests.ps1',
+'.\tests\Safety.Rev47.Tests.ps1',
+'.\tests\Safety.Rev48.Tests.ps1',
+'.\tests\Safety.Rev49.Tests.ps1'
+)
+```
+
+Run focused validation:
+
+```powershell
+Invoke-Pester -Path '.\tests\Reporting.Tests.ps1'
+Invoke-Pester -Path '.\tests\PlatformIdentityCatalog.Rev410.Tests.ps1'
+Invoke-Pester -Path '.\tests\Rev410.MicrosoftPlatform.Tests.ps1'
+Invoke-Pester -Path '.\tests\SuppressCustomerRemediation.Rev410.Tests.ps1'
+```
+
+Live read-only validation template:
+
+```powershell
+# Read-only only: do not add execution flags.
+Invoke-EntraIdentityDecommissioningControlPlane.ps1 -WhatIfMode -OutputPath '.\out'
+```
+
+### 7. Final expected live output
+
+For Microsoft Graph PowerShell, Microsoft Tech Community, and Flipgrid:
+
+- `Classification = MicrosoftPlatform`
+- `FirstPartyMicrosoftApp = true`
+- `MicrosoftPlatform = true`
+- `SuppressCustomerRemediation = true`
+- `RemediationMode = InformationOnly` or `EvidenceOnly`
+- No actionable `ACT-*` remediation section
+
+For iOS Accounts:
+
+- `Classification = ExternalVendorPlatform`
+- `FirstPartyMicrosoftApp = false`
+- `MicrosoftPlatform = false`
+- `SuppressCustomerRemediation = true`
+- `RemediationMode = InformationOnly` or `EvidenceOnly`
+- No actionable `ACT-*` remediation section
+
+### 8. Maintenance guidance
+
+- Add new known platform identities to `config/platform-identity-catalog.json`, not by hard-coded display-name-only matching.
+- Treat Microsoft-looking names as suspicious unless metadata confirms Microsoft ownership.
+- Treat external vendor platform apps separately from Microsoft platform apps.
+- Never suppress unknown customer-created apps merely because their display name looks official.
+- When adding a catalog entry, add or update Pester tests.
+- Always confirm the remediation plan does not leak customer-actionable guidance for suppressed platform identities.
+
 ## Assessment Control Plane (Rev1.4)
 
 ### What it does
