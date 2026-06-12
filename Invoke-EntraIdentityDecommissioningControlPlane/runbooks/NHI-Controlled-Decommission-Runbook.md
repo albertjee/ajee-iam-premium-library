@@ -110,6 +110,23 @@ Rev4.8 adds the controlled end-to-end evidence pack and QA handoff manifest. The
 with `FinalDeleteSimulationOnly = true`, but that is still local evidence only. `GuardSatisfiedSimulationOnly`
 and `ManagedIdentityReadinessSatisfiedSimulationOnly` are not executable states.
 
+## Rev4.9 Production Readiness Guardrails
+
+Rev4.9 adds the final local-only merge gate and production-readiness evidence layer. It records
+external QA approval evidence, branch/commit cleanliness evidence, warning inventory, P0/P1/P2
+disposition summaries, and final safety assertions.
+
+The Rev4.9 artifacts are review evidence only:
+
+- `nhi-controlled-production-readiness.json`
+- `nhi-controlled-release-manifest.json`
+- `nhi-controlled-merge-gate.json`
+- `nhi-controlled-known-warnings.json`
+- `nhi-controlled-final-safety-assertions.json`
+
+Rev4.9 does not enable production execution, live delete, live cleanup, or any branch/tag/push/delete
+operation.
+
 ## Rev4.3 Service Principal FinalDelete Guard Simulation
 
 Rev4.3 evaluates Service Principal FinalDelete gates and writes local evidence only. It does not

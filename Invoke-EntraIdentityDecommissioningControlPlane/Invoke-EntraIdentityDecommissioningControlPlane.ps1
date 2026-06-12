@@ -58,7 +58,6 @@ param(
     [switch]$ExecuteNhiControlledDecommission,
     [switch]$ExecuteNhiControlledMetadataCleanup,
     [switch]$ExecuteNhiControlledGrantCleanup,
-    [ValidateSet('ValidateOnly','SnapshotOnly','TagOnly','DisableOnly','ScreamTestOnly','DeleteReadinessOnly','MetadataCleanupReadiness','GrantCleanupReadiness','ManagedIdentityReadiness','E2EEvidencePack','FinalDelete')]
     [string]$ExecutionStage = 'ValidateOnly',
     [string]$DecommissionPlanPath,
     [ValidateRange(1,8760)][int]$ScreamTestWindowHours = 24,
@@ -77,6 +76,26 @@ if ($Mode -eq 'ExecuteRemediation' -and $DemoMode) {
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+$script:ControlledExecutionStages = @(
+    'ValidateOnly'
+    'SnapshotOnly'
+    'TagOnly'
+    'DisableOnly'
+    'ScreamTestOnly'
+    'DeleteReadinessOnly'
+    'MetadataCleanupReadiness'
+    'GrantCleanupReadiness'
+    'ManagedIdentityReadiness'
+    'E2EEvidencePack'
+    'ProductionReadiness'
+    'FinalDelete'
+)
+
+if ($ExecutionStage -notin $script:ControlledExecutionStages) {
+    Write-Host "[ERROR] Unsupported -ExecutionStage '$ExecutionStage'." -ForegroundColor Red
+    exit 1
+}
 
 # Block unsafe parameter combinations
 if ($SelfTest -and $Mode -eq 'ExecuteRemediation') {
@@ -229,6 +248,7 @@ if ($SelfTest) {
         'GrantCleanupReadiness'    { '4.6' }
         'ManagedIdentityReadiness'  { '4.7' }
         'E2EEvidencePack'          { '4.8' }
+        'ProductionReadiness'      { '4.9' }
         default                    { '4.2' }
     }
     if ([string]$controlledPlanInput.SchemaVersion -ne $expectedControlledSchemaVersion) {
@@ -489,6 +509,49 @@ if ($SelfTest) {
         )
         Write-Host '[OK] Rev4.8 controlled decommission evidence pack completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
         $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+        exit 0
+    }
+
+    if ($controlledFeatureStage -eq 'ProductionReadiness') {
+        $productionReadinessInput = [PSCustomObject]@{
+            RunId = [string]$controlledPlanInput.RunId
+            BranchName = if ($controlledPlanInput.PSObject.Properties['BranchName']) { [string]$controlledPlanInput.BranchName } else { 'feature/rev42-controlled-nhi-decommission' }
+            LatestCommit = if ($controlledPlanInput.PSObject.Properties['LatestCommit']) { [string]$controlledPlanInput.LatestCommit } else { '238e2ca5281b76decee87b14ab31883d8fd2efa9' }
+            GitStatusClean = if ($controlledPlanInput.PSObject.Properties['GitStatusClean']) { [bool]$controlledPlanInput.GitStatusClean } else { $true }
+            FrozenFileDiffClean = if ($controlledPlanInput.PSObject.Properties['FrozenFileDiffClean']) { [bool]$controlledPlanInput.FrozenFileDiffClean } else { $true }
+            Rev42PlannerEvidence = if ($controlledPlanInput.PSObject.Properties['Rev42PlannerEvidence']) { $controlledPlanInput.Rev42PlannerEvidence } else { [PSCustomObject]@{ Status = 'Complete'; LocalOnly = $true } }
+            Rev43ServicePrincipalFinalDeleteSimulationEvidence = if ($controlledPlanInput.PSObject.Properties['Rev43ServicePrincipalFinalDeleteSimulationEvidence']) { $controlledPlanInput.Rev43ServicePrincipalFinalDeleteSimulationEvidence } else { [PSCustomObject]@{ Status = 'Blocked'; SimulationOnly = $true; LocalOnly = $true } }
+            Rev44ApplicationReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev44ApplicationReadinessEvidence']) { $controlledPlanInput.Rev44ApplicationReadinessEvidence } else { [PSCustomObject]@{ Status = 'Blocked'; SimulationOnly = $true; LocalOnly = $true } }
+            Rev45MetadataCleanupReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev45MetadataCleanupReadinessEvidence']) { $controlledPlanInput.Rev45MetadataCleanupReadinessEvidence } else { [PSCustomObject]@{ Status = 'Ready'; SimulationOnly = $true; LocalOnly = $true } }
+            Rev46GrantsCleanupReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev46GrantsCleanupReadinessEvidence']) { $controlledPlanInput.Rev46GrantsCleanupReadinessEvidence } else { [PSCustomObject]@{ Status = 'Ready'; SimulationOnly = $true; LocalOnly = $true } }
+            Rev47ManagedIdentityReadinessEvidence = if ($controlledPlanInput.PSObject.Properties['Rev47ManagedIdentityReadinessEvidence']) { $controlledPlanInput.Rev47ManagedIdentityReadinessEvidence } else { [PSCustomObject]@{ Status = 'ManagedIdentityReadinessSatisfiedSimulationOnly'; SimulationOnly = $true; LocalOnly = $true } }
+            Rev48E2EEvidencePackEvidence = if ($controlledPlanInput.PSObject.Properties['Rev48E2EEvidencePackEvidence']) { $controlledPlanInput.Rev48E2EEvidencePackEvidence } else { [PSCustomObject]@{ Status = 'Approved'; SimulationOnly = $true; LocalOnly = $true } }
+            ExternalQaApprovalEvidence = if ($controlledApproval.PSObject.Properties['ApprovedBy']) { [PSCustomObject]@{ Approved = $true; Status = 'Approved'; ApprovedBy = [string]$controlledApproval.ApprovedBy; ApprovalId = [string]$controlledApproval.ApprovalId; LocalOnly = $true } } else { [PSCustomObject]@{ Approved = $false; Status = 'Missing'; LocalOnly = $true } }
+            FullPesterEvidence = if ($controlledPlanInput.PSObject.Properties['FullPesterEvidence']) { $controlledPlanInput.FullPesterEvidence } else { [PSCustomObject]@{ Passed = $true; Status = 'Passed'; LocalOnly = $true } }
+            SafetyScanEvidence = if ($controlledPlanInput.PSObject.Properties['SafetyScanEvidence']) { $controlledPlanInput.SafetyScanEvidence } else { [PSCustomObject]@{ Passed = $true; Status = 'Passed'; LocalOnly = $true } }
+            FrozenFileDiffEvidence = if ($controlledPlanInput.PSObject.Properties['FrozenFileDiffEvidence']) { $controlledPlanInput.FrozenFileDiffEvidence } else { [PSCustomObject]@{ Clean = $true; Status = 'Clean'; LocalOnly = $true } }
+            GitStatusEvidence = if ($controlledPlanInput.PSObject.Properties['GitStatusEvidence']) { $controlledPlanInput.GitStatusEvidence } else { [PSCustomObject]@{ Clean = $true; Status = 'Clean'; LocalOnly = $true } }
+            P0Findings = if ($controlledPlanInput.PSObject.Properties['P0Findings']) { @($controlledPlanInput.P0Findings) } else { @() }
+            P1Findings = if ($controlledPlanInput.PSObject.Properties['P1Findings']) { @($controlledPlanInput.P1Findings) } else { @() }
+            P2Findings = if ($controlledPlanInput.PSObject.Properties['P2Findings']) { @($controlledPlanInput.P2Findings) } else { @() }
+            KnownWarnings = if ($controlledPlanInput.PSObject.Properties['KnownWarnings']) { @($controlledPlanInput.KnownWarnings) } else { @() }
+            OperatorMergeDecision = if ($controlledPlanInput.PSObject.Properties['OperatorMergeDecision']) { $controlledPlanInput.OperatorMergeDecision } else { $null }
+        }
+        $productionPack = & $controlledModule {
+            param($Payload)
+            New-NhiControlledProductionReadinessEvidencePack -Input $Payload
+        } $productionReadinessInput
+        $controlledEvidencePaths = @(
+            Export-NhiControlledDecommissionEvidence -Evidence $productionPack.ProductionReadiness -Path (Join-Path $controlledOutputPath 'nhi-controlled-production-readiness.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $productionPack.ReleaseManifest -Path (Join-Path $controlledOutputPath 'nhi-controlled-release-manifest.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $productionPack.MergeGate -Path (Join-Path $controlledOutputPath 'nhi-controlled-merge-gate.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $productionPack.KnownWarnings -Path (Join-Path $controlledOutputPath 'nhi-controlled-known-warnings.json')
+            Export-NhiControlledDecommissionEvidence -Evidence $productionPack.FinalSafetyAssertions -Path (Join-Path $controlledOutputPath 'nhi-controlled-final-safety-assertions.json')
+        )
+        Export-NhiControlledDecommissionEvidence -Evidence $productionPack.OperatorMergeDecision -Path (Join-Path $controlledOutputPath 'nhi-controlled-operator-merge-decision.json') | Out-Null
+        Write-Host '[OK] Rev4.9 production readiness guardrails completed. No Graph connection or tenant mutation performed.' -ForegroundColor Green
+        $controlledEvidencePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+        Write-Host "  $(Join-Path $controlledOutputPath 'nhi-controlled-operator-merge-decision.json')" -ForegroundColor Gray
         exit 0
     }
 

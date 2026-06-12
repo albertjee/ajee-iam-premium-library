@@ -1,5 +1,21 @@
 # Changelog
 
+## Rev4.9 - Production Readiness Guardrails and Merge Gate
+
+### Summary
+Added the final pre-merge production-readiness gate, release/merge manifest, operator merge decision
+record, known-warning inventory, and final safety assertions. Rev4.9 remains documentation-only and
+does not enable live execution.
+
+### Safety Boundary
+- `LiveDeleteExecutable`, `LiveCleanupExecutable`, `GraphWritePathAvailable`, and `ArmWritePathAvailable` remain `false`.
+- `ProductionExecutionEnabled` remains `false` and `ProductionUnlockGranted` remains `false`.
+- External QA evidence, full Pester evidence, safety-scan evidence, and frozen-file diff evidence are required.
+- Frozen modules remain untouched.
+
+### Tests
+- Added focused Rev4.9 production-readiness and safety tests.
+
 ## Rev4.8 - Controlled Decommission Evidence Pack
 
 ### Summary

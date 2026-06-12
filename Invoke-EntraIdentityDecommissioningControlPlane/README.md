@@ -96,6 +96,17 @@ deletion, Azure Resource Manager deletion, or role-assignment cleanup path is in
 Rev4.8 adds the end-to-end evidence pack and QA handoff manifest. It summarizes the local simulation-only
 state across the controlled planner and readiness artifacts. It does not authorize live deletion or cleanup.
 
+### Rev4.9 Production Readiness Guardrails
+
+Rev4.9 adds the final pre-merge production-readiness gate, merge-gate manifest, known-warning inventory,
+and final safety assertions. It records branch/commit cleanliness, external QA evidence, full Pester
+evidence, safety-scan evidence, and frozen-file diff evidence. It does not enable production execution,
+live delete, live cleanup, or any tenant mutation path.
+
+Sample input:
+
+- `samples/nhi-controlled-production-readiness.sample.json`
+
 ## Assessment Control Plane (Rev1.4)
 
 ### What it does
