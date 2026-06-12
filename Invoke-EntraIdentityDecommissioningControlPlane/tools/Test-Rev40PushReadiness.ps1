@@ -78,7 +78,7 @@ foreach ($m in $modulesToCheck) {
     $modName = [System.IO.Path]::GetFileNameWithoutExtension($m)
     Remove-Module $modName -Force -ErrorAction SilentlyContinue
     $importErr = $null
-    Import-Module $modPath -Force -DisableNameChecking 2>
+    Import-Module $modPath -Force -DisableNameChecking 2>$null
 $importErr | Out-Null
     if ($importErr) {
         Write-Host "  FAIL: $m — import warning/error" -ForegroundColor Red
