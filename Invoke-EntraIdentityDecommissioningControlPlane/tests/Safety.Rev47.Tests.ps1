@@ -21,6 +21,11 @@ Describe 'Rev4.7 safety scan' {
         }
     }
 
+    It 'does not synthesize managed identity evidence defaults in the controlled branch' {
+        $script:ControlledBranch | Should -Not -Match 'Present\s*=\s*\$true;\s*ParentResourceId\s*=\s*\[string\]\$controlledPlanInput\.TargetId'
+        $script:ControlledBranch | Should -Not -Match 'Present\s*=\s*\$true;\s*ResourceId\s*=\s*\[string\]\$controlledPlanInput\.TargetId'
+    }
+
     It 'exposes the Rev4.7 stage string and sample schema' {
         $script:ControlledBranch | Should -Match 'ManagedIdentityReadiness'
         $script:Sample | Should -Match '"SchemaVersion"\s*:\s*"4\.7"'

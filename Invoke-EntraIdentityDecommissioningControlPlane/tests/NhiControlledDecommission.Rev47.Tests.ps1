@@ -155,6 +155,25 @@ BeforeAll {
         } $InputObject
     }
 
+    function Invoke-Rev47EntryPoint {
+        param(
+            [string]$PlanPath,
+            [string]$ApprovalPath,
+            [string]$Stage = 'ManagedIdentityReadiness'
+        )
+
+        $stdout = [System.IO.Path]::GetTempFileName()
+        $stderr = [System.IO.Path]::GetTempFileName()
+        $command = "& '.\Invoke-EntraIdentityDecommissioningControlPlane.ps1' -ExecuteNhiControlledDecommission -ExecutionStage '$Stage' -DecommissionPlanPath '$PlanPath' -ApprovalManifestPath '$ApprovalPath' -WhatIfExecution"
+        $process = Start-Process -FilePath 'C:\Program Files\PowerShell\7\pwsh.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $command) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+
+        [PSCustomObject]@{
+            ExitCode = $process.ExitCode
+            StdOut = Get-Content -LiteralPath $stdout -Raw
+            StdErr = Get-Content -LiteralPath $stderr -Raw
+        }
+    }
+
     function New-Rev47DirectGateInput {
         param(
             [string]$ManagedIdentityType = 'SystemAssigned',
@@ -344,11 +363,65 @@ Describe 'Rev4.7 managed identity contract' {
         $result.WhatIf | Should -BeTrue
     }
 
+    It 'fails closed from the entry point when system-assigned parent evidence is missing' {
+        $plan = (New-Rev47Plan -Overrides @{ ParentResourceEvidence = $null })
+        $planPath = Join-Path $TestDrive 'rev47-systemassigned-missing-parent.plan.json'
+        $approvalPath = Join-Path $TestDrive 'rev47-systemassigned-missing-parent.approval.json'
+        $plan | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $planPath -Encoding utf8
+        (New-Rev47Approval) | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $approvalPath -Encoding utf8
+
+        $result = Invoke-Rev47EntryPoint -PlanPath $planPath -ApprovalPath $approvalPath
+        $result.ExitCode | Should -Be 1
+        $result.StdOut | Should -Match '\[SECURITY STOP\] SystemAssigned managed identity requires ParentResourceEvidence'
+        $result.StdOut | Should -Not -Match 'managed identity readiness completed'
+    }
+
+    It 'fails closed from the entry point when user-assigned attachment evidence is missing' {
+        $plan = (New-Rev47Plan -Overrides @{ ManagedIdentityType = 'UserAssigned'; AttachmentEvidence = $null })
+        $approval = [PSCustomObject]@{
+            SchemaVersion = '4.7'
+            RunId = 'RUN-REV47-MI-SAMPLE-001'
+            Status = 'Approved'
+            ApprovedBy = 'managed-identity-approver@example.com'
+            ExpiresUtc = '2099-01-01T00:00:00Z'
+            Reusable = $false
+            ApprovalId = 'APP-REV47-MI-001'
+            TargetId = 'mi-rev47-test-001'
+            TargetType = 'ManagedIdentity'
+            ManagedIdentityType = 'UserAssigned'
+            TargetObjectIds = @('mi-rev47-test-001')
+            ApprovedActions = @('ManagedIdentityReadiness')
+            LiveCleanupApproved = $false
+            LiveCleanupExecutable = $false
+        }
+        $planPath = Join-Path $TestDrive 'rev47-userassigned-missing-attachment.plan.json'
+        $approvalPath = Join-Path $TestDrive 'rev47-userassigned-missing-attachment.approval.json'
+        $plan | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $planPath -Encoding utf8
+        $approval | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $approvalPath -Encoding utf8
+
+        $result = Invoke-Rev47EntryPoint -PlanPath $planPath -ApprovalPath $approvalPath
+        $result.ExitCode | Should -Be 1
+        $result.StdOut | Should -Match '\[SECURITY STOP\] UserAssigned managed identity requires AttachmentEvidence'
+        $result.StdOut | Should -Not -Match 'managed identity readiness completed'
+    }
+
     It 'keeps readiness simulation-only and non-executable' {
         $result = Invoke-Rev47Gate (New-Rev47GateInput -WhatIf $true)
         $result.LiveCleanupExecutable | Should -BeFalse
         $result.CleanupCmdletAvailable | Should -BeFalse
         $result.SimulationOnly | Should -BeTrue
+    }
+
+    It 'passes the entry point when supplied managed identity evidence is present' {
+        $plan = New-Rev47Plan
+        $planPath = Join-Path $TestDrive 'rev47-valid.plan.json'
+        $approvalPath = Join-Path $TestDrive 'rev47-valid.approval.json'
+        $plan | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $planPath -Encoding utf8
+        (New-Rev47Approval) | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $approvalPath -Encoding utf8
+
+        $result = Invoke-Rev47EntryPoint -PlanPath $planPath -ApprovalPath $approvalPath
+        $result.ExitCode | Should -Be 0
+        $result.StdOut | Should -Match 'Rev4.7 managed identity readiness completed'
     }
 
     It 'requires explicit status normalization for missing text' {

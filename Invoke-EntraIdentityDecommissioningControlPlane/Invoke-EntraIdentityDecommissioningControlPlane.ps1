@@ -417,8 +417,16 @@ if ($SelfTest) {
         }
         $managedIdentityRoleAssignmentEvidence = if ($null -ne $controlledPlanInput.RoleAssignmentEvidence) { $controlledPlanInput.RoleAssignmentEvidence } else { [PSCustomObject]@{ ActiveRoleAssignmentCount = 0 } }
         $managedIdentityFederatedCredentialEvidence = if ($null -ne $controlledPlanInput.FederatedCredentialEvidence) { $controlledPlanInput.FederatedCredentialEvidence } else { [PSCustomObject]@{ ActiveDependencyCount = 0; AppRelationshipDependencyCount = 0 } }
-        $managedIdentityParentEvidence = if ($null -ne $controlledPlanInput.ParentResourceEvidence) { $controlledPlanInput.ParentResourceEvidence } else { [PSCustomObject]@{ Present = $true; ParentResourceId = [string]$controlledPlanInput.TargetId; ParentResourceType = 'AzureResource'; LocalOnly = $true } }
-        $managedIdentityAttachmentEvidence = if ($null -ne $controlledPlanInput.AttachmentEvidence) { $controlledPlanInput.AttachmentEvidence } else { [PSCustomObject]@{ Present = $true; ResourceId = [string]$controlledPlanInput.TargetId; Attached = $true; LocalOnly = $true } }
+        $managedIdentityParentEvidence = $controlledPlanInput.ParentResourceEvidence
+        $managedIdentityAttachmentEvidence = $controlledPlanInput.AttachmentEvidence
+        if ($controlledPlanInput.ManagedIdentityType -eq 'SystemAssigned' -and $null -eq $managedIdentityParentEvidence) {
+            Write-Host '[SECURITY STOP] SystemAssigned managed identity requires ParentResourceEvidence. ManagedIdentityReadiness is blocked.' -ForegroundColor Red
+            exit 1
+        }
+        if ($controlledPlanInput.ManagedIdentityType -eq 'UserAssigned' -and $null -eq $managedIdentityAttachmentEvidence) {
+            Write-Host '[SECURITY STOP] UserAssigned managed identity requires AttachmentEvidence. ManagedIdentityReadiness is blocked.' -ForegroundColor Red
+            exit 1
+        }
         $managedIdentityReadiness = & $controlledModule {
             param($GateInput)
             Test-NhiControlledManagedIdentityReadinessGate @GateInput
