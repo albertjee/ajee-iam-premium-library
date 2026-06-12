@@ -1,8 +1,22 @@
 #Requires -Modules Pester
 
 BeforeAll {
-    $script:EntryPointLines = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1')
-    $script:ControlledBranch = ($script:EntryPointLines[176..445] -join [Environment]::NewLine)
+    $script:EntryPoint = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1') -Raw
+
+    $branchStart = $script:EntryPoint.IndexOf('# Rev4.2-S1 controlled NHI decommission planner/evidence flow')
+    if ($branchStart -lt 0) {
+        throw 'Controlled branch start marker was not found in Invoke-EntraIdentityDecommissioningControlPlane.ps1.'
+    }
+
+    $branchEnd = $script:EntryPoint.IndexOf('Rev4.0 M35: NHI Execution Guard + Flow', $branchStart)
+    if ($branchEnd -lt 0) {
+        $branchEnd = $script:EntryPoint.IndexOf('if ($ExecuteNhiDecommission)', $branchStart)
+    }
+    if ($branchEnd -lt 0 -or $branchEnd -le $branchStart) {
+        throw 'Controlled branch end marker was not found after the start marker in Invoke-EntraIdentityDecommissioningControlPlane.ps1.'
+    }
+
+    $script:ControlledBranch = $script:EntryPoint.Substring($branchStart, $branchEnd - $branchStart)
     $script:Module = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\src\Modules\NhiControlledDecommission.psm1') -Raw
     $script:Sample = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\samples\nhi-controlled-managed-identity-readiness.sample.json') -Raw
 }

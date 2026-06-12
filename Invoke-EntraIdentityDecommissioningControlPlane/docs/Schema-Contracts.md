@@ -286,13 +286,24 @@ Azure Resource Manager deletion, or any live role-assignment cleanup path.
 AttachmentEvidence, RoleAssignmentEvidence, FederatedCredentialEvidence, DeleteReadiness, DependencyRecheck,
 SnapshotSHA256, RollbackLimitation, LiveCleanupEnabled, PlanningOnly, Status, EvidenceKind
 
+`RollbackLimitation` uses the shared controlled-classification set from earlier schemas: `Reversible`, `Limited`,
+`NotAvailable`, and `EvidenceOnly`. If the source evidence does not provide a recognized value, the runtime falls back
+to `EvidenceOnly`.
+
+`EvidenceKind` identifies the Rev4.7 readiness evidence family emitted by the module. The current code sets
+`EvidenceKind` to `ManagedIdentityReadiness` for the managed-identity readiness plan, and no other Rev4.7
+`EvidenceKind` values are emitted by the current implementation.
+
 ### Managed Identity Action Log
 
 **Core fields:** SchemaVersion, RunId, TargetId, TargetType, ManagedIdentityType, SnapshotSHA256, DeleteReadiness,
 LiveCleanupExecuted, Result, Notes
 
-Managed identity evidence is simulation-only. `SystemAssigned` identities require parent resource evidence.
-`UserAssigned` identities require attachment evidence.
+`Test-NhiControlledManagedIdentityReadinessGate` enforces fail-closed simulation-only readiness:
+
+- `SystemAssigned` readiness is blocked when `ParentResourceEvidence` is missing.
+- `UserAssigned` readiness is blocked when `AttachmentEvidence` is missing.
+- This gate does not perform live delete or cleanup, and it remains simulation-only.
 
 Sample: `samples/nhi-controlled-managed-identity-readiness.sample.json`
 
@@ -310,6 +321,10 @@ ApprovalCoverage, SnapshotCoverage, ScreamTestSummary, DependencyRecheckSummary,
 CleanupReadinessSummary, RollbackLimitationSummary, OperatorDecisionState, LiveDeleteExecutable,
 LiveCleanupExecutable, GraphWritePathAvailable, FinalDeleteSimulationOnly, SafetyAssertions, ValidationResults,
 KnownWarnings, QAHandoffManifest
+
+`PlanIdentity` maps the evidence pack back to the originating plan/run identity. In the current code and sample output it
+contains `TargetId`, `TargetType`, and `SchemaVersion` from the plan object. The pack also carries the top-level `RunId`
+for traceability across the controlled path.
 
 ### QA Handoff Manifest
 

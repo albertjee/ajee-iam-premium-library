@@ -291,7 +291,7 @@ if ($SelfTest) {
         exit 1
     }
 
-    $controlledApprovalValidation = Confirm-NhiControlledApproval -Approval $controlledApproval -RunId ([string]$controlledPlanInput.RunId) -TargetId ([string]$controlledPlanInput.TargetId) -ActionType $controlledFeatureStage -ExpectedSchemaVersion $expectedControlledSchemaVersion
+    $controlledApprovalValidation = Confirm-NhiControlledApproval -Approval $controlledApproval -RunId ([string]$controlledPlanInput.RunId) -TargetId ([string]$controlledPlanInput.TargetId) -ActionType $controlledFeatureStage -ExpectedSchemaVersion $expectedControlledSchemaVersion -AllowFinalDeleteSimulation ($AllowFinalDelete.IsPresent -and ($WhatIfExecution.IsPresent -or $DemoMode.IsPresent))
     if (-not $controlledApprovalValidation.Passed) {
         Write-Host "[SECURITY STOP] Approval validation failed: $($controlledApprovalValidation.Reasons -join '; ')" -ForegroundColor Red
         exit 1

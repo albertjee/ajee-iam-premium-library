@@ -8,9 +8,12 @@ BeforeAll {
     $script:Source = Get-Content -LiteralPath $script:EntryPoint -Raw
 
     $branchStart = $script:Source.IndexOf('# Rev4.2-S1 controlled NHI decommission planner/evidence flow')
-    $branchEnd = $script:Source.IndexOf('# -- Rev4.0 M35:', $branchStart)
-    if ($branchEnd -lt 0) {
-        $branchEnd = $script:Source.IndexOf('if ($ExecuteNhiDecommission)', $branchStart)
+    if ($branchStart -lt 0) {
+        throw 'Controlled branch start marker was not found in Invoke-EntraIdentityDecommissioningControlPlane.ps1.'
+    }
+    $branchEnd = $script:Source.IndexOf('if ($ExecuteNhiDecommission)', $branchStart)
+    if ($branchEnd -lt 0 -or $branchEnd -le $branchStart) {
+        throw 'Controlled branch end marker was not found after the start marker in Invoke-EntraIdentityDecommissioningControlPlane.ps1.'
     }
     $script:ControlledBranch = $script:Source.Substring($branchStart, $branchEnd - $branchStart)
 

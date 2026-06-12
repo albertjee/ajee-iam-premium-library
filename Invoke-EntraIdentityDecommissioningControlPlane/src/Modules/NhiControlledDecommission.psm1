@@ -32,6 +32,66 @@ function Get-NhiControlledDecommissionSha256 {
     }
 }
 
+function ConvertTo-NhiControlledSanitizedValue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Value,
+
+        [Parameter()]
+        [string]$PropertyName
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($PropertyName -and $PropertyName -match $script:SensitivePropertyPattern) {
+        return $null
+    }
+
+    if ($Value -is [string]) {
+        if ($Value -match $script:SensitivePropertyPattern -or $Value -match 'must-not-export') {
+            return '[REDACTED]'
+        }
+        return $Value
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $copy = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $keyName = [string]$key
+            if ($keyName -match $script:SensitivePropertyPattern) {
+                continue
+            }
+            $copy[$keyName] = ConvertTo-NhiControlledSanitizedValue -Value $Value[$key] -PropertyName $keyName
+        }
+        return [PSCustomObject]$copy
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+        $items = @()
+        foreach ($item in @($Value)) {
+            $items += ,(ConvertTo-NhiControlledSanitizedValue -Value $item)
+        }
+        return $items
+    }
+
+    $properties = @($Value.PSObject.Properties | Where-Object { $_.MemberType -in @('NoteProperty', 'Property') })
+    if ($properties.Count -gt 0) {
+        $copy = [ordered]@{}
+        foreach ($property in $properties) {
+            if ($property.Name -match $script:SensitivePropertyPattern) {
+                continue
+            }
+            $copy[$property.Name] = ConvertTo-NhiControlledSanitizedValue -Value $property.Value -PropertyName $property.Name
+        }
+        return [PSCustomObject]$copy
+    }
+
+    return $Value
+}
+
 function Get-NhiControlledDecommissionSchema {
     [CmdletBinding()]
     param()
@@ -74,13 +134,10 @@ function ConvertTo-NhiControlledSnapshot {
 
     $sanitized = [ordered]@{}
     foreach ($property in $Target.PSObject.Properties) {
-        if ($property.Name -eq 'AdditionalProperties') {
-            continue
-        }
         if ($property.Name -in @('KeyCredentials', 'PasswordCredentials', 'Certificates', 'Credentials')) {
             $metadata = @()
             foreach ($credential in @($property.Value)) {
-                $metadata += [ordered]@{
+                $credentialMetadata = [ordered]@{
                     KeyId             = [string]$credential.KeyId
                     CredentialId      = [string]$credential.CredentialId
                     Id                = [string]$credential.Id
@@ -90,6 +147,10 @@ function ConvertTo-NhiControlledSnapshot {
                     EndDateTime       = [string]$credential.EndDateTime
                     DisplayName       = [string]$credential.DisplayName
                 }
+                if ($credential.PSObject.Properties['AdditionalProperties']) {
+                    $credentialMetadata['AdditionalProperties'] = ConvertTo-NhiControlledSanitizedValue -Value $credential.AdditionalProperties -PropertyName 'AdditionalProperties'
+                }
+                $metadata += [PSCustomObject]$credentialMetadata
             }
             $sanitized[$property.Name] = $metadata
             continue
@@ -97,7 +158,7 @@ function ConvertTo-NhiControlledSnapshot {
         if ($property.Name -match $script:SensitivePropertyPattern) {
             continue
         }
-        $sanitized[$property.Name] = $property.Value
+        $sanitized[$property.Name] = ConvertTo-NhiControlledSanitizedValue -Value $property.Value -PropertyName $property.Name
     }
 
     $snapshotBody = [ordered]@{
@@ -156,6 +217,9 @@ function Confirm-NhiControlledApproval {
         [string]$ExpectedSchemaVersion = $script:ControlledSchemaVersion,
 
         [Parameter()]
+        [bool]$AllowFinalDeleteSimulation = $false,
+
+        [Parameter()]
         [DateTime]$NowUtc = [DateTime]::UtcNow
     )
 
@@ -177,6 +241,10 @@ function Confirm-NhiControlledApproval {
     $approvedTargets = @($Approval.TargetObjectIds)
     if ($TargetId -notin $approvedTargets) { $reasons.Add('Target is not approved.') }
     $approvedActions = @($Approval.ApprovedActions)
+    if ($script:ControlledSchemaVersion -eq '4.2' -and $ActionType -eq 'FinalDelete' -and -not $AllowFinalDeleteSimulation) {
+        $reasons.Add('FinalDelete is not permitted in Rev4.2-S1.')
+        $approvedActions = @()
+    }
     if ($ActionType -notin $approvedActions) { $reasons.Add('Action is not approved.') }
 
     [PSCustomObject]@{
@@ -246,11 +314,19 @@ function Test-NhiControlledDependencies {
     )
 
     $critical = @($Dependencies | Where-Object { $_.Severity -in @('Critical', 'High') -or $_.Blocking -eq $true })
+    $status = if (-not $QuerySucceeded) {
+        'Unknown'
+    } elseif ($critical.Count -eq 0 -and @($RecentActivity).Count -eq 0) {
+        'Clean'
+    } else {
+        'Blocked'
+    }
     [PSCustomObject]@{
         QuerySucceeded        = $QuerySucceeded
         DependencyCount      = @($Dependencies).Count
         CriticalDependencyCount = $critical.Count
         RecentActivityCount  = @($RecentActivity).Count
+        Status               = $status
         Passed               = $QuerySucceeded -and $critical.Count -eq 0 -and @($RecentActivity).Count -eq 0
     }
 }
@@ -1348,6 +1424,7 @@ function New-NhiControlledDecommissionPlan {
         DemoMode      = $DemoMode
         PlanningOnly  = $true
         LiveMutationEnabled = $false
+        FinalDeleteLiveEnabled = $false
         Status        = if ($blocked) { 'Blocked' } else { 'Planned' }
         BlockReason   = $reason
         Actions       = @(

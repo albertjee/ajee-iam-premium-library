@@ -156,6 +156,30 @@ Describe 'ConvertTo-NhiControlledSnapshot' {
         $script:Snapshot.Target.PasswordCredentials[0].DisplayName | Should -Be 'metadata-only'
         ($script:Snapshot.Target.PasswordCredentials[0].PSObject.Properties.Name -contains 'SecretText') | Should -BeFalse
     }
+
+    It 'redacts nested secrets in AdditionalProperties' {
+        $target = New-Rev42Target
+        $target | Add-Member -NotePropertyName AdditionalProperties -NotePropertyValue ([PSCustomObject]@{
+            NestedSecret = 'must-not-export'
+            Inner = [PSCustomObject]@{
+                ChildToken = 'must-not-export'
+            }
+        }) -Force
+        $target.PasswordCredentials[0] | Add-Member -NotePropertyName AdditionalProperties -NotePropertyValue ([PSCustomObject]@{
+            NestedSecret = 'must-not-export'
+            Inner = [PSCustomObject]@{
+                ChildToken = 'must-not-export'
+            }
+        }) -Force
+
+        $snapshot = ConvertTo-NhiControlledSnapshot -Target $target -RunId 'RUN-REV42-002'
+        $snapshotJson = $snapshot | ConvertTo-Json -Depth 20
+
+        $snapshot.Target.AdditionalProperties.PSObject.Properties.Name | Should -Not -Contain 'NestedSecret'
+        $snapshot.Target.AdditionalProperties.Inner.PSObject.Properties.Name | Should -Not -Contain 'ChildToken'
+        $snapshot.Target.PasswordCredentials[0].AdditionalProperties.PSObject.Properties.Name | Should -Not -Contain 'NestedSecret'
+        $snapshotJson | Should -Not -Match 'must-not-export'
+    }
 }
 
 Describe 'Test-NhiControlledTarget' {
@@ -222,6 +246,13 @@ Describe 'Confirm-NhiControlledApproval' {
         (Confirm-NhiControlledApproval -Approval (New-Rev42Approval) -RunId 'RUN-REV42-001' -TargetId other -ActionType 'SnapshotOnly').Passed | Should -BeFalse
         (Confirm-NhiControlledApproval -Approval (New-Rev42Approval) -RunId 'RUN-REV42-001' -TargetId 'sp-rev42-001' -ActionType 'DisableOnly').Passed | Should -BeFalse
     }
+
+    It 'blocks FinalDelete even when approval includes it' {
+        $approval = New-Rev42Approval -ApprovedActions @('SnapshotOnly', 'DeleteReadinessOnly', 'FinalDelete')
+        $result = Confirm-NhiControlledApproval -Approval $approval -RunId 'RUN-REV42-001' -TargetId 'sp-rev42-001' -ActionType 'FinalDelete'
+        $result.Passed | Should -BeFalse
+        ($result.Reasons -join ' ') | Should -Match 'FinalDelete is not permitted in Rev4\.2-S1'
+    }
 }
 
 Describe 'Get-NhiControlledScreamTestStatus' {
@@ -282,6 +313,7 @@ Describe 'Planner, rollback, and evidence exports' {
         $plan.Status | Should -Be 'Planned'
         $plan.PlanningOnly | Should -BeTrue
         $plan.LiveMutationEnabled | Should -BeFalse
+        $plan.FinalDeleteLiveEnabled | Should -BeFalse
     }
 
     It 'blocks FinalDelete in all S1 plans' {
