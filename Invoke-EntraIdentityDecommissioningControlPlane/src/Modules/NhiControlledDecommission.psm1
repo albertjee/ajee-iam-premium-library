@@ -1444,6 +1444,184 @@ function New-NhiControlledDecommissionPlan {
     }
 }
 
+function Test-NhiControlledLabLiveReversibleDisableReadiness {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Target,
+
+        [Parameter(Mandatory)]
+        [object]$Approval,
+
+        [Parameter()]
+        [string]$ApprovalManifestPath,
+
+        [Parameter()]
+        [object]$Snapshot,
+
+        [Parameter()]
+        [object]$RollbackEvidence,
+
+        [Parameter()]
+        [object]$ObservationMetadata,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$RunId,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$TargetId,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$ActionType = 'DisableOnly',
+
+        [Parameter()]
+        [string]$ExpectedSchemaVersion = $script:ControlledSchemaVersion
+    )
+
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $warnings = [System.Collections.Generic.List[string]]::new()
+
+    if ([string]::IsNullOrWhiteSpace([string]$TargetId)) { $reasons.Add('TargetId is required.') }
+    if ([string]::IsNullOrWhiteSpace([string]$RunId)) { $reasons.Add('RunId is required.') }
+
+    $targetValidation = Test-NhiControlledTarget -Target $Target
+    if (-not $targetValidation.Passed) {
+        foreach ($reason in @($targetValidation.Reasons)) {
+            $reasons.Add([string]$reason)
+        }
+    }
+
+    $targetLabOnly = (
+        [string]$Target.Environment -eq 'Lab' -or
+        [bool]$Target.IsLabTarget -eq $true -or
+        [string]$Target.TenantScope -eq 'Lab'
+    )
+    if (-not $targetLabOnly) {
+        $reasons.Add('Target must be explicitly marked as lab-only.')
+    }
+    if ($Target.LabValidationApproved -ne $true) {
+        $reasons.Add('LabValidationApproved must be true.')
+    }
+    if ($TargetId -ne [string]$Target.ObjectId) {
+        $reasons.Add('TargetId does not match the target object.')
+    }
+
+    if ($Target.MicrosoftPlatform -eq $true -or
+        $Target.FirstPartyMicrosoftApp -eq $true -or
+        $Target.SuppressCustomerRemediation -eq $true -or
+        [string]$Target.Classification -in @('MicrosoftPlatform', 'ExternalVendorPlatform') -or
+        [string]$Target.RemediationMode -in @('InformationOnly', 'EvidenceOnly')) {
+        $reasons.Add('Platform or suppressed identities are not eligible for live disable readiness.')
+    }
+
+    $allowedActions = @('DisableOnly', 'DisableServicePrincipal', 'DisableNhi', 'ControlledDisable', 'ReversibleDisable')
+    if ($ActionType -notin $allowedActions) {
+        $reasons.Add('Only reversible disable actions are allowed.')
+    }
+
+    if ($null -eq $Approval) {
+        $reasons.Add('Approval is required.')
+    } else {
+        try {
+            $approvalValidation = Confirm-NhiControlledApproval -Approval $Approval -RunId $RunId -TargetId $TargetId -ActionType 'DisableOnly' -ExpectedSchemaVersion $ExpectedSchemaVersion
+            if (-not $approvalValidation.Passed) {
+                foreach ($reason in @($approvalValidation.Reasons)) {
+                    $reasons.Add([string]$reason)
+                }
+            }
+        } catch {
+            $reasons.Add("Approval validation failed: $($_.Exception.Message)")
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ApprovalManifestPath)) {
+        $reasons.Add('ApprovalManifestPath is required.')
+    } else {
+        $manifestValidator = Get-Command Confirm-NhiApprovedManifest -ErrorAction SilentlyContinue
+        if ($null -eq $manifestValidator) {
+            $reasons.Add('Approval manifest integrity validation is unavailable.')
+        } else {
+            try {
+                Confirm-NhiApprovedManifest -ManifestPath $ApprovalManifestPath -EngagementId $RunId -TargetObjectIds @($TargetId) -PhaseLimit 2
+            } catch {
+                $reasons.Add("Approval manifest validation failed: $($_.Exception.Message)")
+            }
+        }
+    }
+
+    if ($null -eq $Snapshot -or -not $Snapshot.SHA256) {
+        $reasons.Add('Snapshot evidence is required.')
+    } else {
+        if ($Snapshot.Target -and $Snapshot.Target.ObjectId -and [string]$Snapshot.Target.ObjectId -ne $TargetId) {
+            $reasons.Add('Snapshot must bind to the target object.')
+        }
+    }
+
+    if ($null -eq $RollbackEvidence) {
+        $reasons.Add('Rollback readiness evidence is required.')
+    } else {
+        foreach ($name in @('TargetObjectId', 'PreActionAccountEnabled', 'PlannedAction', 'RollbackActionName', 'ApprovalId', 'RunId', 'CapturedUtc')) {
+            $property = $RollbackEvidence.PSObject.Properties[$name]
+            if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+                $reasons.Add("Rollback readiness evidence is missing $name.")
+            }
+        }
+        if ($RollbackEvidence.PSObject.Properties['PlannedAction'] -and [string]$RollbackEvidence.PlannedAction -notin $allowedActions) {
+            $reasons.Add('Rollback planned action must be reversible disable only.')
+        }
+        if ($RollbackEvidence.PSObject.Properties['RollbackActionName'] -and [string]$RollbackEvidence.RollbackActionName -notin @('RollbackDisable', 'ReversibleRollbackDisable')) {
+            $reasons.Add('Rollback action name is invalid.')
+        }
+    }
+
+    if ($null -eq $ObservationMetadata) {
+        $reasons.Add('Observation metadata is required.')
+    } else {
+        foreach ($name in @('ScreamTestWindowMinutes', 'MonitoringOwner', 'RollbackContact', 'ObservationStartUtc', 'ObservationEndUtc')) {
+            $property = $ObservationMetadata.PSObject.Properties[$name]
+            if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+                $reasons.Add("Observation metadata is missing $name.")
+            }
+        }
+        $startProp = $ObservationMetadata.PSObject.Properties['ObservationStartUtc']
+        $endProp = $ObservationMetadata.PSObject.Properties['ObservationEndUtc']
+        if ($null -ne $startProp -and $null -ne $endProp) {
+            try {
+                $startUtc = [DateTime]$startProp.Value
+                $endUtc = [DateTime]$endProp.Value
+                if ($startUtc -ge $endUtc) {
+                    $reasons.Add('Observation end must be after observation start.')
+                }
+            } catch {
+                $reasons.Add('Observation metadata timestamps are invalid.')
+            }
+        }
+    }
+
+    [PSCustomObject]@{
+        SchemaVersion      = '4.12'
+        RunId              = $RunId
+        TargetId           = $TargetId
+        TargetType         = [string]$Target.ObjectType
+        RequestedAction    = $ActionType
+        AllowedAction      = if ($reasons.Count -eq 0) { 'DisableOnly' } else { $null }
+        Ready              = $reasons.Count -eq 0
+        Blockers           = @($reasons)
+        Warnings           = @($warnings)
+        TenantWritePlanned = $false
+        FinalDeleteAllowed = $false
+        PlanningOnly       = $true
+        LabOnly            = [bool]$targetLabOnly
+        ApprovalValidated  = $null -ne $Approval -and [string]::IsNullOrWhiteSpace([string]$ApprovalManifestPath) -eq $false
+        SnapshotValidated  = $null -ne $Snapshot -and [bool]$Snapshot.SHA256
+        RollbackValidated  = $null -ne $RollbackEvidence
+        ObservationValidated = $null -ne $ObservationMetadata
+    }
+}
+
 function Export-NhiControlledDecommissionEvidence {
     [CmdletBinding()]
     param(
@@ -1888,5 +2066,6 @@ Export-ModuleMember -Function @(
     'Get-NhiControlledDeleteReadiness',
     'New-NhiControlledRollbackPlan',
     'New-NhiControlledDecommissionPlan',
+    'Test-NhiControlledLabLiveReversibleDisableReadiness',
     'Export-NhiControlledDecommissionEvidence'
 )

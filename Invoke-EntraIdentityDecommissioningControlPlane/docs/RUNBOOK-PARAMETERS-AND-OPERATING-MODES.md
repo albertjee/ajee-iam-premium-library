@@ -482,6 +482,39 @@ It does not prove:
 
 No live tenant write was performed for Rev4.11. The next forward-looking step remains Run #4C, which is a live reversible lab disable in a lab-only tenant.
 
+### 4.12 Rev4.12 lab live reversible disable readiness gate
+
+Rev4.12 is an offline readiness gate for a future lab-only live reversible disable attempt.
+
+It proves:
+
+- The target is explicitly lab-only.
+- The approval manifest is present and integrity-checked.
+- The approval metadata is complete and unexpired.
+- The requested action is reversible disable only.
+- Snapshot evidence, rollback readiness evidence, and observation metadata are present.
+- Platform identities, suppressed identities, unapproved targets, and cleanup or final-delete requests remain blocked.
+
+It does not prove:
+
+- Live tenant mutation.
+- Actual disable execution.
+- Rollback execution.
+- Final-delete execution.
+- Grant cleanup or metadata cleanup authorization.
+
+No live tenant write was performed for Rev4.12. No actual disable was performed. No rollback was performed. No final delete was performed.
+
+Before any future Run #4C live lab disable, the following must be present:
+
+- Explicit lab-only target marking.
+- Approved manifest with valid integrity hash.
+- Complete, unexpired approval metadata.
+- Pre-action snapshot evidence.
+- Rollback readiness evidence.
+- Observation or scream-test window metadata.
+- No platform or suppressed identity classification.
+
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.
