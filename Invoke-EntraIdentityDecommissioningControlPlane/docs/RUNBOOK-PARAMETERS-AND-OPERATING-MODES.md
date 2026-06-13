@@ -607,6 +607,88 @@ No rollback execution statement:
 
 - Rev4.14 is a rollback drill package only. It does not execute rollback, and it remains separate from any future Run #4C live lab operation.
 
+### 4.15 Run #4C lab live reversible disable
+
+Run #4C is the first controlled live-write milestone. It is lab-only, reversible-disable only, and must remain narrow enough to touch exactly one approved target.
+
+It proves:
+
+- A single approved lab target can pass the live gate after the offline readiness, dry-run, and rollback drill artifacts are present.
+- The live wrapper records execution evidence locally.
+- The execution path can be blocked cleanly when approval, snapshot, rollback, observation, or target eligibility is missing.
+
+It does not prove:
+
+- Production execution.
+- Multiple-target execution.
+- Final delete.
+- Grant cleanup.
+- Metadata cleanup.
+- Credential deletion.
+- Rollback execution.
+
+Required inputs:
+
+- One lab-only approved service principal target.
+- Approval manifest artifact.
+- Pre-action snapshot artifact.
+- Rev4.12 readiness verdict.
+- Rev4.13 dry-run package.
+- Rev4.14 rollback drill package.
+- Observation / scream-test plan.
+
+Generated artifacts:
+
+- Local execution evidence JSON.
+- Optional command preview in the console or local evidence record.
+
+Safety boundaries:
+
+- Do not run against production or customer-critical targets.
+- Do not run against MicrosoftPlatform, ExternalVendorPlatform, suppressed, evidence-only, or information-only targets.
+- Do not run `-AllowFinalDelete`, `-ExecuteNhiDecommission`, `-ExecuteNhiControlledGrantCleanup`, or `-ExecuteNhiControlledMetadataCleanup`.
+- Do not call remove, grant cleanup, metadata cleanup, or credential deletion paths.
+- Do not execute rollback unless a separate, explicit failure response is approved later.
+
+Preflight example:
+
+```powershell
+$run4c = Invoke-NhiControlledLabLiveReversibleDisable `
+  -Target @($target) `
+  -ApprovalManifest $approvalManifest `
+  -ApprovalManifestPath '.\out\run4c\approval-manifest.json' `
+  -Snapshot $snapshot `
+  -ReadinessResult $readinessVerdict `
+  -DryRunPackage $dryRunPackage `
+  -RollbackPackage $rollbackPackage `
+  -ObservationMetadata $observationPlan `
+  -RunId 'RUN4C-LAB-001' `
+  -OutputPath '.\out\run4c' `
+  -LabExecutionApproved $false `
+  -RequestedOperations @('ReversibleDisable') `
+  -WhatIf
+```
+
+Do not run the following without final go/no-go approval:
+
+```powershell
+Invoke-NhiControlledLabLiveReversibleDisable `
+  -Target @($target) `
+  -ApprovalManifest $approvalManifest `
+  -ApprovalManifestPath '.\out\run4c\approval-manifest.json' `
+  -Snapshot $snapshot `
+  -ReadinessResult $readinessVerdict `
+  -DryRunPackage $dryRunPackage `
+  -RollbackPackage $rollbackPackage `
+  -ObservationMetadata $observationPlan `
+  -RunId 'RUN4C-LAB-001' `
+  -OutputPath '.\out\run4c' `
+  -LabExecutionApproved $true `
+  -RequestedOperations @('ReversibleDisable')
+```
+
+Run #4C remains separate from the offline Rev4.13 and Rev4.14 packages, and it should not be attempted until the operator has completed the preflight review and given an explicit final go/no-go.
+
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.

@@ -2674,6 +2674,395 @@ function New-NhiControlledLabRollbackDrillPackage {
     }
 }
 
+function Invoke-NhiControlledLabLiveReversibleDisable {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Target,
+
+        [Parameter()]
+        [object]$ApprovalManifest,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ApprovalManifestPath,
+
+        [Parameter()]
+        [object]$Snapshot,
+
+        [Parameter()]
+        [object]$ReadinessResult,
+
+        [Parameter()]
+        [object]$DryRunPackage,
+
+        [Parameter()]
+        [object]$RollbackPackage,
+
+        [Parameter()]
+        [object]$ObservationMetadata,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$RunId,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$OutputPath,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$EngagementId,
+
+        [Parameter()]
+        [bool]$LabExecutionApproved = $false,
+
+        [Parameter()]
+        [string[]]$RequestedOperations = @('ReversibleDisable')
+    )
+
+    if ([string]::IsNullOrWhiteSpace($EngagementId)) {
+        $EngagementId = $RunId
+    }
+
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $warnings = [System.Collections.Generic.List[string]]::new()
+    $targetObject = $null
+
+    if ($null -eq $Target -or @($Target).Count -ne 1) {
+        $reasons.Add('Exactly one target is required.')
+    } else {
+        $targetObject = @($Target)[0]
+        $targetValidation = Test-NhiControlledTarget -Target $targetObject
+        if (-not $targetValidation.Passed) {
+            foreach ($reason in @($targetValidation.Reasons)) {
+                $reasons.Add([string]$reason)
+            }
+        }
+
+        $targetType = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType'))
+        if ($targetType -ne 'ServicePrincipal') {
+            $reasons.Add('Run #4C execution is limited to ServicePrincipal targets.')
+        }
+
+        $targetClassification = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification'))
+        if ($targetClassification -in @('MicrosoftPlatform', 'ExternalVendorPlatform')) {
+            $reasons.Add('Platform targets are blocked.')
+        }
+        if ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) -eq $true) {
+            $reasons.Add('SuppressCustomerRemediation targets are blocked.')
+        }
+        if ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -eq $true) {
+            $reasons.Add('EvidenceOnly targets are blocked.')
+        }
+        if ([string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -in @('InformationOnly', 'EvidenceOnly')) {
+            $reasons.Add('InformationOnly and EvidenceOnly targets are blocked.')
+        }
+        if ([string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment')) -ne 'Lab' -and
+            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -ne $true -and
+            [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -ne 'Lab' -and
+            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -ne $true) {
+            $reasons.Add('Target is not explicitly marked as lab-only.')
+        }
+    }
+
+    if ($LabExecutionApproved -ne $true) {
+        $reasons.Add('LabExecutionApproved must be true.')
+    }
+
+    $requestedOperations = @($RequestedOperations)
+    if ($requestedOperations.Count -eq 0) {
+        $reasons.Add('At least one requested operation is required.')
+    } else {
+        foreach ($requestedOperation in $requestedOperations) {
+            if ([string]::IsNullOrWhiteSpace([string]$requestedOperation)) {
+                $reasons.Add('Requested operations cannot be empty.')
+                continue
+            }
+
+            if ([string]$requestedOperation -ne 'ReversibleDisable') {
+                $reasons.Add("Requested operation '$requestedOperation' is blocked.")
+            }
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $ApprovalManifestPath -PathType Leaf)) {
+        $reasons.Add('Approval manifest file is required.')
+    }
+
+    $approvalManifestFromFile = $null
+    if (Test-Path -LiteralPath $ApprovalManifestPath -PathType Leaf) {
+        try {
+            $approvalManifestFromFile = Get-Content -LiteralPath $ApprovalManifestPath -Raw | ConvertFrom-Json
+        } catch {
+            $reasons.Add('Approval manifest file is not valid JSON.')
+        }
+    }
+
+    if ($null -eq $ApprovalManifest) {
+        $reasons.Add('Approval manifest object is required.')
+    }
+
+    $approvalId = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalId', 'Id'))
+    $approvedAction = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovedAction', 'ActionType'))
+    $approvedBy = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovedBy', 'Approver'))
+    $approvalReason = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalReason', 'BusinessJustification', 'Reason'))
+    $approvalExpiresUtc = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalExpiresUtc', 'ExpiresUtc'))
+    $approvalHash = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalManifestHash', 'ManifestHash', 'SHA256'))
+    $manifestTargetObjectId = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('TargetObjectId'))
+    $manifestTargetDisplayName = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('TargetDisplayName'))
+    $manifestTargetType = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('TargetType'))
+
+    if ([string]::IsNullOrWhiteSpace($approvalId)) { $reasons.Add('ApprovalId is required.') }
+    if ([string]::IsNullOrWhiteSpace($approvedAction)) { $reasons.Add('ApprovedAction is required.') }
+    if ($approvedAction -ne 'ReversibleDisable') { $reasons.Add('ApprovedAction must be ReversibleDisable.') }
+    if ([string]::IsNullOrWhiteSpace($approvedBy)) { $reasons.Add('ApprovedBy is required.') }
+    if ([string]::IsNullOrWhiteSpace($approvalReason)) { $reasons.Add('ApprovalReason or BusinessJustification is required.') }
+    if ([string]::IsNullOrWhiteSpace($approvalExpiresUtc)) { $reasons.Add('ApprovalExpiresUtc is required.') }
+    if ($null -eq $approvalManifestFromFile) {
+        $reasons.Add('Approval manifest contents could not be loaded.')
+    } else {
+        if ([string]::IsNullOrWhiteSpace([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('ApprovalId', 'Id')))) { $reasons.Add('Approval manifest file is missing ApprovalId.') }
+        if ([string]::IsNullOrWhiteSpace([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('TargetObjectId')))) { $reasons.Add('Approval manifest file is missing TargetObjectId.') }
+        if ([string]::IsNullOrWhiteSpace([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('TargetDisplayName')))) { $reasons.Add('Approval manifest file is missing TargetDisplayName.') }
+        if ([string]::IsNullOrWhiteSpace([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('TargetType')))) { $reasons.Add('Approval manifest file is missing TargetType.') }
+        if ([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('ApprovedAction', 'ActionType')) -ne 'ReversibleDisable') { $reasons.Add('Approval manifest file must approve ReversibleDisable only.') }
+        if ([string]::IsNullOrWhiteSpace([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('ApprovedBy', 'Approver')))) { $reasons.Add('Approval manifest file is missing ApprovedBy.') }
+        if ([string]::IsNullOrWhiteSpace([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('ApprovalReason', 'BusinessJustification', 'Reason')))) { $reasons.Add('Approval manifest file is missing ApprovalReason or BusinessJustification.') }
+        if ([string]::IsNullOrWhiteSpace([string](Get-NhiControlledPropertyValue -InputObject $approvalManifestFromFile -PropertyNames @('ApprovalExpiresUtc', 'ExpiresUtc')))) { $reasons.Add('Approval manifest file is missing ApprovalExpiresUtc.') }
+    }
+
+    if ($null -ne $targetObject) {
+        if ($manifestTargetObjectId -and $manifestTargetObjectId -ne [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId'))) {
+            $reasons.Add('Approval manifest target object id must match the live target.')
+        }
+        if ($manifestTargetDisplayName -and $manifestTargetDisplayName -ne [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('DisplayName'))) {
+            $reasons.Add('Approval manifest target display name must match the live target.')
+        }
+        if ($manifestTargetType -and $manifestTargetType -ne [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType'))) {
+            $reasons.Add('Approval manifest target type must match the live target.')
+        }
+    }
+
+    if ($approvalExpiresUtc) {
+        try {
+            if ([DateTime]::Parse($approvalExpiresUtc).ToUniversalTime() -le [DateTime]::UtcNow) {
+                $reasons.Add('Approval is expired.')
+            }
+        } catch {
+            $reasons.Add('ApprovalExpiresUtc is not parseable.')
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($approvalHash)) {
+        $warnings.Add('Approval manifest hash is missing.')
+    }
+
+    if ($null -eq $Snapshot) {
+        $reasons.Add('Snapshot is required.')
+    }
+    if ($null -eq $ReadinessResult) {
+        $reasons.Add('Readiness result is required.')
+    }
+    if ($null -eq $DryRunPackage) {
+        $reasons.Add('Dry-run package is required.')
+    }
+    if ($null -eq $RollbackPackage) {
+        $reasons.Add('Rollback package is required.')
+    }
+    if ($null -eq $ObservationMetadata) {
+        $reasons.Add('Observation metadata is required.')
+    }
+
+    $snapshotId = [string](Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('SnapshotId', 'Id'))
+    $snapshotPath = [string](Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('SnapshotPath', 'Path'))
+    $capturedUtc = [string](Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('CapturedUtc', 'SnapshotTimestamp'))
+    $preActionEnabledState = Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('PreActionEnabledState', 'AccountEnabled')
+    $preActionCredentialCount = Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('PreActionCredentialCount', 'CredentialCount')
+    $preActionOwnerCount = Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('PreActionOwnerCount', 'OwnerCount')
+    $preActionAppRoleAssignmentsCount = Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('PreActionAppRoleAssignmentsCount', 'AppRoleAssignmentsCount')
+    $preActionOAuthGrantCount = Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('PreActionOAuthGrantCount', 'OAuthGrantCount')
+    if ([string]::IsNullOrWhiteSpace($snapshotId) -and [string]::IsNullOrWhiteSpace($snapshotPath)) { $reasons.Add('SnapshotId or SnapshotPath is required.') }
+    if ([string]::IsNullOrWhiteSpace($capturedUtc)) { $reasons.Add('Snapshot CapturedUtc is required.') }
+    if ($null -eq $preActionEnabledState) { $reasons.Add('Pre-action enabled state is required.') }
+    if ($null -eq $preActionCredentialCount) { $warnings.Add('Pre-action credential count is missing.') }
+    if ($null -eq $preActionOwnerCount) { $warnings.Add('Pre-action owner count is missing.') }
+    if ($null -eq $preActionAppRoleAssignmentsCount) { $warnings.Add('Pre-action app role assignments count is missing.') }
+    if ($null -eq $preActionOAuthGrantCount) { $warnings.Add('Pre-action OAuth grant count is missing.') }
+
+    $readinessReady = [bool](Get-NhiControlledPropertyValue -InputObject $ReadinessResult -PropertyNames @('Ready') -Default $false)
+    $readinessBlockers = @($ReadinessResult.Blockers)
+    $readinessAllowedAction = [string](Get-NhiControlledPropertyValue -InputObject $ReadinessResult -PropertyNames @('AllowedAction', 'RequestedAction', 'ActionType'))
+    $readinessFinalDeleteAllowed = [bool](Get-NhiControlledPropertyValue -InputObject $ReadinessResult -PropertyNames @('FinalDeleteAllowed') -Default $true)
+    if ($readinessReady -ne $true) { $reasons.Add('Readiness result must be Ready.') }
+    if ($readinessAllowedAction -ne 'ReversibleDisable') { $reasons.Add('Readiness result must allow ReversibleDisable only.') }
+    if ($readinessFinalDeleteAllowed -ne $false) { $reasons.Add('Readiness result must not allow final delete.') }
+    if ($null -ne $readinessBlockers -and @($readinessBlockers).Count -gt 0 -and [string]::IsNullOrWhiteSpace([string]$readinessBlockers[0]) -eq $false) {
+        $warnings.Add('Readiness blockers were supplied and should be reviewed before live execution.')
+    }
+
+    $dryRunReady = [bool](Get-NhiControlledPropertyValue -InputObject $DryRunPackage -PropertyNames @('Ready') -Default $false)
+    $dryRunTenantWritePlanned = [bool](Get-NhiControlledPropertyValue -InputObject $DryRunPackage -PropertyNames @('TenantWritePlanned') -Default $true)
+    $dryRunExecutionPerformed = [bool](Get-NhiControlledPropertyValue -InputObject $DryRunPackage -PropertyNames @('ExecutionPerformed') -Default $true)
+    $dryRunFinalDeleteAllowed = [bool](Get-NhiControlledPropertyValue -InputObject $DryRunPackage -PropertyNames @('FinalDeleteAllowed') -Default $true)
+    $dryRunPlannedAction = [string](Get-NhiControlledPropertyValue -InputObject $DryRunPackage -PropertyNames @('PlannedAction', 'PlannedActionType'))
+    if ($dryRunReady -ne $true) { $reasons.Add('Dry-run package must be ready.') }
+    if ($dryRunTenantWritePlanned -ne $false) { $reasons.Add('Dry-run package must not plan tenant writes.') }
+    if ($dryRunExecutionPerformed -ne $false) { $reasons.Add('Dry-run package must not have executed.') }
+    if ($dryRunFinalDeleteAllowed -ne $false) { $reasons.Add('Dry-run package must not allow final delete.') }
+    if ($dryRunPlannedAction -ne 'ReversibleDisable') { $reasons.Add('Dry-run package must plan ReversibleDisable only.') }
+
+    $rollbackExecuted = [bool](Get-NhiControlledPropertyValue -InputObject $RollbackPackage -PropertyNames @('RollbackExecuted') -Default $true)
+    $rollbackActionName = [string](Get-NhiControlledPropertyValue -InputObject $RollbackPackage -PropertyNames @('RollbackAction', 'RollbackActionName'))
+    $rollbackWhatIf = [bool](Get-NhiControlledPropertyValue -InputObject $RollbackPackage -PropertyNames @('WhatIf') -Default $false)
+    $rollbackHumanApprovalRequired = [bool](Get-NhiControlledPropertyValue -InputObject $RollbackPackage -PropertyNames @('HumanApprovalRequired') -Default $false)
+    if ($rollbackExecuted -ne $false) { $reasons.Add('Rollback package must not have executed.') }
+    if ($rollbackActionName -ne 'ReEnableServicePrincipal') { $reasons.Add('Rollback action must be re-enable only.') }
+    if ($rollbackWhatIf -ne $true) { $reasons.Add('Rollback package must be WhatIf only.') }
+    if ($rollbackHumanApprovalRequired -ne $true) { $reasons.Add('Rollback package must require human approval.') }
+
+    $observationWindowMinutes = Get-NhiControlledPropertyValue -InputObject $ObservationMetadata -PropertyNames @('ObservationWindowMinutes', 'ScreamTestWindowMinutes')
+    $monitoringOwner = [string](Get-NhiControlledPropertyValue -InputObject $ObservationMetadata -PropertyNames @('MonitoringOwner'))
+    $rollbackContact = [string](Get-NhiControlledPropertyValue -InputObject $ObservationMetadata -PropertyNames @('RollbackContact'))
+    $successCriteria = [string](Get-NhiControlledPropertyValue -InputObject $ObservationMetadata -PropertyNames @('SuccessCriteria'))
+    $failureCriteria = [string](Get-NhiControlledPropertyValue -InputObject $ObservationMetadata -PropertyNames @('FailureCriteria'))
+    $rollbackTriggerCriteria = Get-NhiControlledPropertyValue -InputObject $ObservationMetadata -PropertyNames @('RollbackTriggerCriteria')
+    if ($null -eq $observationWindowMinutes) { $reasons.Add('Observation window minutes is required.') }
+    if ([string]::IsNullOrWhiteSpace($monitoringOwner)) { $reasons.Add('Monitoring owner is required.') }
+    if ([string]::IsNullOrWhiteSpace($rollbackContact)) { $reasons.Add('Rollback contact is required.') }
+    if ([string]::IsNullOrWhiteSpace($successCriteria)) { $reasons.Add('Success criteria is required.') }
+    if ([string]::IsNullOrWhiteSpace($failureCriteria)) { $reasons.Add('Failure criteria is required.') }
+    if ($null -eq $rollbackTriggerCriteria -or @($rollbackTriggerCriteria).Count -eq 0) { $reasons.Add('Rollback trigger criteria is required.') }
+
+    $liveCommandPreview = $null
+    if ($null -ne $targetObject) {
+        $liveCommandPreview = "Invoke-NhiDisable -ObjectId $([string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId'))) -ObjectType ServicePrincipal -EngagementId $EngagementId -ExecutionRunId $RunId -ExecutionOutputPath `"$OutputPath`" -ScreamTestDays 0"
+    }
+
+    $ready = $reasons.Count -eq 0
+    $executionPerformed = $false
+    $postActionEnabledState = $null
+    $executionError = $null
+
+    if ($ready -and $LabExecutionApproved -eq $true -and -not $WhatIfPreference) {
+        try {
+            Invoke-NhiDisable -ObjectId ([string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId'))) `
+                -ObjectType 'ServicePrincipal' `
+                -EngagementId $EngagementId `
+                -ExecutionRunId $RunId `
+                -ExecutionOutputPath $OutputPath `
+                -ScreamTestDays 0
+            $executionPerformed = $true
+            $getServicePrincipal = Get-Command Get-MgServicePrincipal -ErrorAction SilentlyContinue
+            if ($getServicePrincipal) {
+                try {
+                    $liveState = Get-MgServicePrincipal -ServicePrincipalId ([string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId'))) -Property 'AccountEnabled' -ErrorAction Stop
+                    $postActionEnabledState = $liveState.AccountEnabled
+                } catch {
+                    $warnings.Add('Post-action enabled state could not be captured.')
+                }
+            }
+        } catch {
+            $executionError = $_.Exception.Message
+            $reasons.Add('Live execution failed.')
+        }
+    }
+
+    $evidence = [PSCustomObject]@{
+        SchemaVersion = '4.15'
+        RunId = $RunId
+        EngagementId = $EngagementId
+        CreatedUtc = [DateTime]::UtcNow.ToString('o')
+        Mode = 'Run4CLiveReversibleDisable'
+        LabExecutionApproved = $LabExecutionApproved
+        WhatIf = [bool]$WhatIfPreference
+        Ready = $ready
+        Blockers = @($reasons)
+        Warnings = @($warnings)
+        Target = if ($targetObject) {
+            [PSCustomObject]@{
+                TargetDisplayName = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('DisplayName'))
+                TargetObjectId = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId'))
+                TargetAppId = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId'))
+                TargetType = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType'))
+                Classification = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification'))
+                LabTargetMarker = if ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
+            }
+        } else { $null }
+        ApprovalManifest = [PSCustomObject]@{
+            ApprovalId = $approvalId
+            TargetObjectId = $manifestTargetObjectId
+            TargetDisplayName = $manifestTargetDisplayName
+            TargetType = $manifestTargetType
+            ApprovedAction = $approvedAction
+            ApprovedBy = $approvedBy
+            ApprovalReason = $approvalReason
+            ApprovalExpiresUtc = $approvalExpiresUtc
+            ApprovalManifestHash = $approvalHash
+        }
+        PreActionSnapshot = [PSCustomObject]@{
+            SnapshotId = $snapshotId
+            SnapshotPath = $snapshotPath
+            PreActionEnabledState = [bool]$preActionEnabledState
+            AccountEnabled = [bool]$preActionEnabledState
+            PreActionCredentialCount = $preActionCredentialCount
+            PreActionOwnerCount = $preActionOwnerCount
+            PreActionAppRoleAssignmentsCount = $preActionAppRoleAssignmentsCount
+            PreActionOAuthGrantCount = $preActionOAuthGrantCount
+            CapturedUtc = $capturedUtc
+        }
+        DryRunPackage = [PSCustomObject]@{
+            PackageId = [string](Get-NhiControlledPropertyValue -InputObject $DryRunPackage -PropertyNames @('PackageId'))
+            Ready = $dryRunReady
+            TenantWritePlanned = $dryRunTenantWritePlanned
+            ExecutionPerformed = $dryRunExecutionPerformed
+            FinalDeleteAllowed = $dryRunFinalDeleteAllowed
+            PlannedAction = $dryRunPlannedAction
+        }
+        RollbackPackage = [PSCustomObject]@{
+            RollbackPackageId = [string](Get-NhiControlledPropertyValue -InputObject $RollbackPackage -PropertyNames @('RollbackPackageId'))
+            RollbackExecuted = $rollbackExecuted
+            RollbackAction = $rollbackActionName
+            WhatIf = $rollbackWhatIf
+            HumanApprovalRequired = $rollbackHumanApprovalRequired
+        }
+        ReadinessResult = [PSCustomObject]@{
+            Ready = $readinessReady
+            Blockers = @($readinessBlockers)
+            AllowedAction = $readinessAllowedAction
+            FinalDeleteAllowed = $readinessFinalDeleteAllowed
+        }
+        Observation = [PSCustomObject]@{
+            ObservationWindowMinutes = $observationWindowMinutes
+            MonitoringOwner = $monitoringOwner
+            RollbackContact = $rollbackContact
+            SuccessCriteria = $successCriteria
+            FailureCriteria = $failureCriteria
+            RollbackTriggerCriteria = @($rollbackTriggerCriteria)
+        }
+        LiveCommandPreview = $liveCommandPreview
+        RequestedOperations = @($requestedOperations)
+        ExecutionPerformed = $executionPerformed
+        ExecutionError = $executionError
+        PreActionEnabledState = [bool]$preActionEnabledState
+        PostActionEnabledState = $postActionEnabledState
+        NoDeleteOccurred = $true
+        NoRemoveOccurred = $true
+        NoGrantCleanupOccurred = $true
+        NoMetadataCleanupOccurred = $true
+        NoCredentialDeletionOccurred = $true
+        RollbackExecuted = $false
+    }
+
+    if ($OutputPath) {
+        $artifactPath = Join-Path $OutputPath "Run4C-ExecutionEvidence-$RunId.json"
+        $evidence | Add-Member -NotePropertyName OutputArtifactPath -NotePropertyValue (Export-NhiControlledDecommissionEvidence -Evidence $evidence -Path $artifactPath) -Force
+    }
+
+    return $evidence
+}
+
 Export-ModuleMember -Function @(
     'Get-NhiControlledDecommissionSha256',
     'Get-NhiControlledDecommissionSchema',
@@ -2688,5 +3077,6 @@ Export-ModuleMember -Function @(
     'Test-NhiControlledLabLiveReversibleDisableReadiness',
     'Export-NhiControlledDecommissionEvidence',
     'New-NhiControlledLabDisableDryRunPackage',
-    'New-NhiControlledLabRollbackDrillPackage'
+    'New-NhiControlledLabRollbackDrillPackage',
+    'Invoke-NhiControlledLabLiveReversibleDisable'
 )
