@@ -462,6 +462,26 @@ Output artifact inventory:
 Get-ChildItem -Recurse .\out,.\release -File | Select-Object FullName, Length, LastWriteTime
 ```
 
+### 4.11 Rev4.11 approved reversible lab NHI planning proof
+
+Rev4.11 is an offline proof that one approved customer or lab NHI can produce a reversible planning result without any live tenant write.
+
+It proves:
+
+- An approved lab target can pass the controlled approval gate and produce a reversible `DisableOnly` planning result.
+- Platform identities such as Microsoft Graph PowerShell and iOS Accounts remain evidence-only or information-only and do not produce executable actions.
+- Unapproved targets and missing approval metadata fail closed.
+- Final-delete planning stays blocked.
+
+It does not prove:
+
+- Live tenant mutation.
+- Actual NHI removal or rollback execution.
+- Final-delete execution.
+- Grant cleanup or metadata cleanup authorization.
+
+No live tenant write was performed for Rev4.11. The next forward-looking step remains Run #4C, which is a live reversible lab disable in a lab-only tenant.
+
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.
