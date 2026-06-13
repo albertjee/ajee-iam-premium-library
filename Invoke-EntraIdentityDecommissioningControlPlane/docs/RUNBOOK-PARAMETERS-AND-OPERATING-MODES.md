@@ -465,3 +465,68 @@ Get-ChildItem -Recurse .\out,.\release -File | Select-Object FullName, Length, L
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.
+
+## Rev4.10 Final Local QA Summary
+
+- Branch: `rev410-codex-build`
+- Latest commit: `5f4c5f7` `test: add Rev4.10 controlled NHI removal simulation gate`
+- Tag: `rev410-consultant-ready-platform-classification`
+
+### Commit Summary
+
+- `5f4c5f7` `test: add Rev4.10 controlled NHI removal simulation gate`
+- `5215c66` `docs: add parameter and operating mode runbook`
+- `96486ca` `fix: repair Rev4.0 push readiness parser error`
+- `bb3f0b4` `docs: add Rev4.9 and Rev4.10 session summary`
+- `835e8dd` `feat: Rev4.10 classify platform identities and suppress client-actionable remediation`
+
+### Run Results
+
+#### Run #1
+
+Offline parser sweep plus focused Rev4.10/reporting tests.
+
+- Parser sweep passed: 186 files parsed, 0 parser errors.
+- Focused tests passed: 38 passed, 0 failed.
+- A parser issue in `tools/Test-Rev40PushReadiness.ps1` was found and fixed in commit `96486ca`.
+
+#### Run #2
+
+Offline DemoMode output-pack gate.
+
+- Generated the expected DemoMode output artifacts, including findings JSON, assessment CSV, remediation plan, HTML report, run manifest, output manifest, executive pack, client handoff, redaction report, evidence bundle outputs, replay validation report, Rev35 readiness report, and NHI governance demo artifacts.
+- This was offline/DemoMode, not a live tenant write.
+
+#### Run #3
+
+Offline replay/readiness/evidence gate.
+
+- JSON validity passed.
+- Remediation-plan platform leak scan passed.
+- Generic `AddApplicationOwner` actions were confirmed to be tied to demo/customer-style identities such as `copilot-hr-automation` and `contoso-serviceidentity-prod`, not Microsoft Graph PowerShell, Microsoft Tech Community, Flipgrid, or iOS Accounts.
+- Full safety subset passed: 304 passed, 0 failed.
+
+#### Run #4A
+
+Offline controlled NHI removal fail-closed simulation.
+
+- New test: `tests/NhiControlledRemovalSimulation.Rev410.Tests.ps1`
+- New test passed: 6 passed, 0 failed.
+- Combined Rev4.10/platform/suppression simulation tests passed.
+- Full safety subset remained green: 304 passed, 0 failed.
+- It proved platform identities, suppressed identities, unapproved targets, and missing approval metadata are blocked in offline simulation.
+- It did not perform live NHI removal.
+
+### Safety Confirmation
+
+- No live tenant write operations were performed.
+- No actual NHI removal was performed.
+- No rollback execution was performed.
+- No final delete was performed.
+- No `-ExecuteNhiDecommission`, `-ExecuteNhiControlledDecommission`, `-ExecuteNhiControlledGrantCleanup`, `-ExecuteNhiControlledMetadataCleanup`, or `-AllowFinalDelete` path was used for live tenant mutation.
+
+### Remaining Future Work
+
+- Run #4B: approved reversible lab action planning.
+- Run #4C: live reversible lab disable in a lab-only tenant.
+- Final delete remains prohibited and requires a separate explicit approval process.
