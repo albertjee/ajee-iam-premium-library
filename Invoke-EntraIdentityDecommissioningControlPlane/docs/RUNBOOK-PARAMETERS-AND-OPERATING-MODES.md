@@ -1,0 +1,467 @@
+# Runbook — Parameters, Operating Modes, and Consultant Usage
+
+## 1. Purpose
+
+This runbook helps a consultant understand which command-line switches are available on `Invoke-EntraIdentityDecommissioningControlPlane.ps1`, what each one does, which modes are safe for discovery or reporting, and which combinations are risky or prohibited without explicit approval.
+
+Use this as the first reference when deciding whether to run the tool offline, in DemoMode, in live read-only assessment mode, or in a planning / execution workflow.
+
+## 2. Operating Mode Summary
+
+| Category                                      | Safety level                          | Tenant write risk                    | Typical consultant use case                                              | Required parameters                                                                                                                       | Parameters that must not be combined casually                                                                             |
+| --------------------------------------------- | ------------------------------------- | ------------------------------------:| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Offline / no tenant access                    | Safe                                  | None                                 | Parser, import, self-test, release validation, local artifact generation | `-SelfTest`, optionally `-GenerateReleasePackage`, `-OutputPath`, `-ReleasePackagePath`                                                   | Any `Execute*` parameter, `-Rollback`, `-AllowFinalDelete`, `-AllowHumanExecution`, live `-TenantId` with execution flags |
+| DemoMode                                      | Safe with caution                     | None                                 | Generate sample outputs with a synthetic tenant context                  | `-DemoMode`, `-OutputPath`                                                                                                                | Any execution, rollback, or final-delete switch                                                                           |
+| Live read-only assessment                     | Safe                                  | None                                 | Assess a real tenant without changing tenant state                       | `-Mode Assessment`, `-TenantId`, optional read-only reporting switches                                                                    | Any `Execute*` parameter, `-Rollback`, `-AllowFinalDelete`, controlled cleanup switches                                   |
+| Client handoff / executive package generation | Safe                                  | None                                 | Produce client-safe reports and handoff artifacts                        | `-GenerateClientHandoff`, `-GenerateRedactedPackage`, `-GenerateEvidenceBundle`, `-GenerateExecutivePack`, `-GenerateTraceabilityReport`  | Any execution, rollback, or cleanup switch; do not mix with `-AllowFinalDelete`                                           |
+| Evidence bundle / traceability generation     | Safe                                  | None                                 | Produce defensible evidence and traceability artifacts                   | `-GenerateEvidenceBundle`, `-GenerateTraceabilityReport`, optionally `-GenerateApprovalDiff`, `-GenerateReplayValidation`                 | Any execution, rollback, or cleanup switch                                                                                |
+| Replay validation                             | Safe                                  | None                                 | Check consistency between current output and prior saved outputs         | `-GenerateReplayValidation`, `-WhatIfManifestPath` or prior outputs as inputs                                                             | Any execution, rollback, or final-delete switch                                                                           |
+| Readiness validation                          | Safe                                  | None                                 | Verify release and readiness artifacts before client delivery            | `-SelfTest`, `-GenerateRev35Readiness`, `-GenerateNhiGovernancePack`                                                                      | Any execution, rollback, or cleanup switch                                                                                |
+| Approval manifest generation / validation     | Caution                               | None unless used in execution gating | Create or validate an approval manifest for planned actions              | `-GenerateApprovalTemplate`, `-ApprovalManifestPath`, `-WhatIfManifestPath`, `-Mode WhatIfRemediation`                                    | `-ExecuteRemediation`, any `ExecuteNhi*` parameter, `-AllowFinalDelete`                                                   |
+| WhatIf / planning                             | Caution                               | None                                 | Build a non-executing remediation plan or approval draft                 | `-Mode WhatIfRemediation`, `-GenerateApprovalTemplate`, `-WhatIfExecution`                                                                | `-ExecuteRemediation`, `-Rollback`, any `ExecuteNhi*` parameter                                                           |
+| Controlled execution / decommission           | High risk                             | Yes                                  | Run approved, staged remediation or controlled NHI actions               | `-Mode ExecuteRemediation`, `-ExecuteRemediation`, `-ApprovalManifestPath`, `-ApprovedManifestPath`, `-ExecutionRunId`, `-ExecutionStage` | `-AllowFinalDelete`, missing approval artifacts, mixed rollback and execution in one run                                  |
+| Rollback                                      | High risk                             | Possible / context-dependent         | Reverse a prior execution using recorded snapshot data                   | `-Rollback`, `-ExecutionRunId`, `-ExecutionOutputPath`                                                                                    | Any live execution switch, `-AllowFinalDelete`, unvalidated or missing snapshot artifacts                                 |
+| Final delete / irreversible operations        | Prohibited unless explicitly approved | Yes                                  | Only for tightly controlled lab or approved final-delete workflows       | `-AllowFinalDelete` plus controlled NHI execution stage and plan artifacts                                                                | Any casual execution use, unreviewed approval material, non-lab tenant usage                                              |
+
+## 3. Complete Parameter Inventory
+
+The table below lists every parameter exposed by `Invoke-EntraIdentityDecommissioningControlPlane.ps1` as returned by:
+
+```powershell
+(Get-Command .\Invoke-EntraIdentityDecommissioningControlPlane.ps1).Parameters.Keys | Sort-Object
+```
+
+| Parameter                             | Type             | Required? | Default if known   | Safety category                   | Read-only?                            | Writes to tenant?       | Purpose                                                                                | Typical use                                             | Related output artifacts                                                       | Notes / warnings                                                                   |
+| ------------------------------------- | ---------------- | --------- | ------------------ | --------------------------------- | ------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `ActionId`                            | String           | No        | None               | Controlled execution              | No                                    | Possible                | Filter approved remediation actions by ID                                              | Narrow an execution or plan review to a specific action | Execution logs, approval/execution artifacts                                   | Use only with approved action sets                                                 |
+| `AllowFinalDelete`                    | Switch           | No        | False              | Dangerous / restricted            | No                                    | Yes                     | Allows final-delete stage in controlled NHI workflows                                  | Lab-only or explicitly approved final-delete workflows  | Final-delete readiness / plan artifacts                                        | High-risk; never use casually                                                      |
+| `AllowHumanExecution`                 | Switch           | No        | False              | Dangerous / restricted            | No                                    | Yes                     | Permits human-approved execution paths where available                                 | Controlled execution only                               | Execution logs, approval artifacts                                             | Treat as execution-enabling                                                        |
+| `ApprovalManifestPath`                | String           | No        | None               | Approval / gating                 | Yes for generation; no for validation | No by itself            | Points to an approval manifest used to gate or validate work                           | WhatIf, approval validation, execution gating           | Approval manifest, approval diff, execution gating artifacts                   | Input-only when validating or executing                                            |
+| `ApprovedManifestPath`                | String           | No        | None               | Approval / gating                 | Yes                                   | No by itself            | Points to a pre-approved manifest for execution                                        | Controlled execution only                               | Approved manifest input, execution logs                                        | Must match the execution plan                                                      |
+| `Assessor`                            | String           | No        | None               | Read-only reporting               | Yes                                   | No                      | Records who performed the assessment                                                   | Reporting and handoff artifacts                         | Executive summary, traceability, assessment outputs                            | Useful for client defensibility                                                    |
+| `BaselinePath`                        | String           | No        | None               | Read-only reporting               | Yes                                   | No                      | Provides a prior baseline for comparison                                               | Deltas, trend review, re-assessment                     | Assessment comparison outputs                                                  | Path must point to prior output data                                               |
+| `ClientId`                            | String           | No        | None               | Read-only / connection            | No                                    | No                      | Client application identifier for Graph access                                         | Live assessment or tenant connection                    | Assessment outputs                                                             | Needs code confirmation for exact auth path in all modes                           |
+| `ClientName`                          | String           | No        | None               | Reporting                         | Yes                                   | No                      | Records the client name in artifacts                                                   | Client-facing output                                    | Executive summary, handoff artifacts                                           | Prefer a consistent legal/client name                                              |
+| `Confirm`                             | Common parameter | No        | PowerShell default | Dangerous / restricted            | No                                    | Possible                | PowerShell confirmation prompt control                                                 | Execution or destructive-style commands                 | Depends on command path                                                        | Standard PowerShell common parameter                                               |
+| `Debug`                               | Common parameter | No        | PowerShell default | Diagnostic                        | Yes                                   | No                      | Enables debug output                                                                   | Troubleshooting                                         | Console / debug stream                                                         | Standard PowerShell common parameter                                               |
+| `DecommissionPlanPath`                | String           | No        | None               | Controlled execution / planning   | Yes                                   | No by itself            | Points to a decommission plan used by controlled NHI workflows                         | Controlled execution or validation                      | Decommission plan, readiness artifacts                                         | Input-only; must be valid and reviewed                                             |
+| `DemoMode`                            | Switch           | No        | False              | Safe with caution                 | Yes                                   | No                      | Runs against a synthetic demo tenant context and auto-enables several report artifacts | Demos and walk-throughs                                 | Demo outputs, local reports, handoff artifacts                                 | Good for offline demos; not a tenant write path                                    |
+| `EngagementId`                        | String           | No        | None               | Reporting                         | Yes                                   | No                      | Identifies the engagement in artifacts                                                 | Client delivery and traceability                        | Report headers, manifests, handoff artifacts                                   | Useful for multi-run correlation                                                   |
+| `ErrorAction`                         | Common parameter | No        | PowerShell default | Diagnostic                        | No                                    | No                      | Controls error handling                                                                | Troubleshooting and automation                          | Console / stream behavior                                                      | Standard PowerShell common parameter                                               |
+| `ErrorVariable`                       | Common parameter | No        | PowerShell default | Diagnostic                        | Yes                                   | No                      | Captures errors into a variable                                                        | Automation / troubleshooting                            | None directly                                                                  | Standard PowerShell common parameter                                               |
+| `ExecuteNhiControlledDecommission`    | Switch           | No        | False              | Dangerous / restricted            | No                                    | Yes                     | Enables controlled NHI decommission execution path                                     | Only after approval and plan validation                 | Controlled execution logs, NHI action logs                                     | Requires plan and approval artifacts                                               |
+| `ExecuteNhiControlledGrantCleanup`    | Switch           | No        | False              | Dangerous / restricted            | No                                    | Yes                     | Enables controlled grant cleanup                                                       | Only after approval and validation                      | Grant cleanup plan / action log                                                | High-risk execution path                                                           |
+| `ExecuteNhiControlledMetadataCleanup` | Switch           | No        | False              | Dangerous / restricted            | No                                    | Yes                     | Enables controlled metadata cleanup                                                    | Only after approval and validation                      | Metadata cleanup plan / action log                                             | High-risk execution path                                                           |
+| `ExecuteNhiDecommission`              | Switch           | No        | False              | Dangerous / restricted            | No                                    | Yes                     | Enables the main decommission execution path                                           | Explicitly approved live remediation                    | Execution logs, snapshots, attestation artifacts                               | Do not use in read-only assessment                                                 |
+| `ExecutionOutputPath`                 | String           | No        | `.\out\execution`  | Execution / rollback              | Yes                                   | No by itself            | Stores execution artifacts and rollback state                                          | Execution and rollback workflows                        | Snapshot manifests, execution logs                                             | Ensure path is preserved for rollback                                              |
+| `ExecutionRunId`                      | String           | No        | None               | Execution / rollback              | Yes                                   | No by itself            | Identifies an execution run for rollback or traceability                               | Rollback, audit, execution correlation                  | Snapshot manifest, rollback inputs                                             | Must match prior execution artifacts                                               |
+| `ExecutionStage`                      | String           | No        | `ValidateOnly`     | Controlled execution              | No                                    | Yes                     | Chooses the controlled NHI stage                                                       | Controlled NHI workflows                                | Stage-specific plan / log artifacts                                            | Needs code confirmation for stage-by-stage behavior in every branch                |
+| `GenerateApprovalDiff`                | Switch           | No        | False              | Read-only reporting               | Yes                                   | No                      | Produces approval-plan differences                                                     | Review planning changes                                 | Approval diff JSON/MD/HTML                                                     | Local artifact only                                                                |
+| `GenerateApprovalTemplate`            | Switch           | No        | False              | Planning / approval               | Yes                                   | No                      | Produces a WhatIf approval template                                                    | Draft approval planning                                 | Approval template / WhatIf plan                                                | Usually paired with `-Mode WhatIfRemediation`                                      |
+| `GenerateClientHandoff`               | Switch           | No        | False              | Safe                              | Yes                                   | No                      | Produces client handoff artifacts                                                      | Client delivery package                                 | Client handoff manifest/index                                                  | Local artifact only                                                                |
+| `GenerateEvidenceBundle`              | Switch           | No        | False              | Safe                              | Yes                                   | No                      | Produces evidence bundle artifacts                                                     | Evidence archive for client or internal review          | Evidence bundle manifest/index/hash files                                      | Local artifact only                                                                |
+| `GenerateExecutivePack`               | Switch           | No        | False              | Safe                              | Yes                                   | No                      | Produces executive summary package                                                     | Client summary / executive review                       | Executive summary artifacts                                                    | Local artifact only                                                                |
+| `GenerateNhiGovernancePack`           | Switch           | No        | False              | Safe / read-only reporting        | Yes                                   | No                      | Produces NHI governance reporting artifacts                                            | Governance review                                       | NHI inventory, governance dashboard, executive summary, write-readiness report | Local artifact only                                                                |
+| `GenerateRedactedPackage`             | Switch           | No        | False              | Safe                              | Yes                                   | No                      | Produces a client-safe redacted package                                                | Client handoff                                          | Redacted package artifacts                                                     | Use with sensitivity-aware outputs                                                 |
+| `GenerateReleasePackage`              | Switch           | No        | False              | Safe / offline packaging          | Yes                                   | No                      | Produces a release package from local artifacts                                        | Packaging after self-test / validation                  | Release package manifest and copied artifacts                                  | Needs code confirmation for all included folders                                   |
+| `GenerateReplayValidation`            | Switch           | No        | False              | Safe                              | Yes                                   | No                      | Produces replay validation artifacts                                                   | Compare prior output / evidence consistency             | Replay validation report JSON/MD                                               | Input artifacts may be required                                                    |
+| `GenerateRev35Readiness`              | Switch           | No        | False              | Safe                              | Yes                                   | No                      | Produces Rev3.5/Rev35 readiness artifacts                                              | Release / readiness review                              | Readiness report JSON/MD                                                       | Local artifact only                                                                |
+| `GenerateTraceabilityReport`          | Switch           | No        | False              | Safe                              | Yes                                   | No                      | Produces traceability reports                                                          | Evidence mapping and auditability                       | Traceability report JSON/CSV/MD/HTML                                           | Local artifact only                                                                |
+| `IncludeAgentActivityAudit`           | Switch           | No        | False              | Controlled execution              | No                                    | Possible                | Includes agent activity audit detail in execution artifacts                            | Higher-audit execution runs                             | Execution / audit artifacts                                                    | Prefer only when audit detail is needed                                            |
+| `InformationAction`                   | Common parameter | No        | PowerShell default | Diagnostic                        | No                                    | No                      | Controls information stream handling                                                   | Automation / troubleshooting                            | Console / stream behavior                                                      | Standard PowerShell common parameter                                               |
+| `InformationVariable`                 | Common parameter | No        | PowerShell default | Diagnostic                        | Yes                                   | No                      | Captures information stream                                                            | Automation / troubleshooting                            | None directly                                                                  | Standard PowerShell common parameter                                               |
+| `MaxActions`                          | Int32            | No        | `25`               | Controlled execution / planning   | No                                    | Yes if execution occurs | Caps the number of actions processed                                                   | Safety limit for execution batches                      | Execution plan / log artifacts                                                 | Keep conservative in live environments                                             |
+| `Mode`                                | String           | No        | `Assessment`       | Operating mode                    | No                                    | Depends on mode         | Chooses assessment, planning, export, or execution flow                                | Primary mode selection                                  | Depends on mode                                                                | ValidateSet: `Assessment`, `WhatIfRemediation`, `ExportPlan`, `ExecuteRemediation` |
+| `NoLogo`                              | Switch           | No        | False              | Cosmetic                          | Yes                                   | No                      | Suppresses banner output                                                               | Cleaner automation logs                                 | None                                                                           | No safety impact                                                                   |
+| `NonInteractive`                      | Switch           | No        | False              | Execution / automation            | No                                    | Possible                | Skips interactive prompts where supported                                              | Automation and CI-style runs                            | Execution logs                                                                 | Do not use casually with execution paths                                           |
+| `OutBuffer`                           | Common parameter | No        | PowerShell default | Diagnostic                        | No                                    | No                      | Pipeline buffering control                                                             | Advanced PowerShell usage                               | None directly                                                                  | Standard PowerShell common parameter                                               |
+| `OutputPath`                          | String           | No        | `.\out`            | Safe / local artifacts            | Yes                                   | No                      | Base output directory for generated artifacts                                          | Most offline and live read-only runs                    | Many report and manifest files                                                 | Keep path isolated and reviewable                                                  |
+| `OutVariable`                         | Common parameter | No        | PowerShell default | Diagnostic                        | Yes                                   | No                      | Captures pipeline output                                                               | Automation / troubleshooting                            | None directly                                                                  | Standard PowerShell common parameter                                               |
+| `PhaseLimit`                          | Int32            | No        | `1`                | Controlled execution / gating     | No                                    | Possible                | Limits approved execution phases                                                       | Execution gating and approval validation                | Execution gating artifacts                                                     | Validate phase-by-phase before use                                                 |
+| `PipelineVariable`                    | Common parameter | No        | PowerShell default | Diagnostic                        | Yes                                   | No                      | Stores pipeline output into a variable                                                 | Advanced scripting                                      | None directly                                                                  | Standard PowerShell common parameter                                               |
+| `ProgressAction`                      | Common parameter | No        | PowerShell default | Diagnostic                        | No                                    | No                      | Controls progress display                                                              | Automation and console control                          | None directly                                                                  | Standard PowerShell common parameter                                               |
+| `RedactionProfile`                    | String           | No        | `ClientSafe`       | Safe / packaging                  | Yes                                   | No                      | Chooses the redaction policy for generated packages                                    | Client-safe packaging                                   | Redaction report, redacted package                                             | ValidateSet: `ClientSafe`, `PublicDemo`, `Strict`, `Internal`                      |
+| `ReleasePackagePath`                  | String           | No        | `.\release\Rev3.4` | Safe / offline packaging          | Yes                                   | No                      | Target folder for release package output                                               | SelfTest and release packaging                          | Release package files                                                          | Path naming may need code confirmation for current release versioning              |
+| `RequirePreflightConfirm`             | Switch           | No        | False              | Controlled execution              | No                                    | Possible                | Requires a preflight confirmation step                                                 | Extra safety before live actions                        | Execution gating artifacts                                                     | Keep enabled for live execution paths                                              |
+| `RequireSecondConfirmation`           | Switch           | No        | False              | Controlled execution              | No                                    | Possible                | Requires a second confirmation step                                                    | Additional human gate before execution                  | Execution gating artifacts                                                     | Safety prompt only; not a substitute for approval artifacts                        |
+| `Rollback`                            | Switch           | No        | False              | High risk                         | No                                    | Possible                | Triggers rollback workflow using prior execution artifacts                             | Recovery from prior execution                           | Snapshot manifests, rollback logs                                              | Requires valid `ExecutionRunId` and preserved output path                          |
+| `ScreamTestDays`                      | Int32            | No        | `30`               | Controlled execution / validation | No                                    | Possible                | Controls the scream-test window in days                                                | Execution validation and readiness                      | Execution validation / status artifacts                                        | Used in execution status calculations                                              |
+| `ScreamTestWindowHours`               | Int32            | No        | `24`               | Controlled execution / validation | No                                    | Possible                | Controls the scream-test window in hours for controlled NHI workflows                  | Readiness and validation planning                       | Readiness / validation artifacts                                               | Validate range before use                                                          |
+| `SelfTest`                            | Switch           | No        | False              | Safe / offline                    | Yes                                   | No                      | Runs offline release validation and exits before tenant connection                     | Parser/import/module/release validation                 | Release validation report, optional release package                            | Best first command for local validation                                            |
+| `TenantId`                            | String           | No        | None               | Live assessment / execution       | No                                    | Possible                | Selects the tenant target                                                              | Live read-only assessment or execution                  | All tenant-scoped reports                                                      | Required for live tenant workflows                                                 |
+| `Verbose`                             | Common parameter | No        | PowerShell default | Diagnostic                        | No                                    | No                      | Enables verbose output                                                                 | Troubleshooting                                         | Console / stream behavior                                                      | Standard PowerShell common parameter                                               |
+| `WarningAction`                       | Common parameter | No        | PowerShell default | Diagnostic                        | No                                    | No                      | Controls warning handling                                                              | Automation / troubleshooting                            | Console / stream behavior                                                      | Standard PowerShell common parameter                                               |
+| `WarningVariable`                     | Common parameter | No        | PowerShell default | Diagnostic                        | Yes                                   | No                      | Captures warnings                                                                      | Automation / troubleshooting                            | None directly                                                                  | Standard PowerShell common parameter                                               |
+| `WhatIf`                              | Common parameter | No        | PowerShell default | Diagnostic / safe preview         | No                                    | No                      | PowerShell WhatIf semantics                                                            | Previewing commands                                     | Console behavior                                                               | Standard PowerShell common parameter                                               |
+| `WhatIfExecution`                     | Switch           | No        | False              | Planning / controlled NHI         | No                                    | No by itself            | Enables controlled NHI WhatIf-style execution paths without live mutation              | Planning and simulation                                 | WhatIf / approval artifacts                                                    | Needs code confirmation for exact branch behavior                                  |
+| `WhatIfManifestPath`                  | String           | No        | None               | Planning / validation             | Yes for output; no for validation     | No by itself            | Points to a WhatIf manifest used for planning, validation, or replay comparison        | Planning and validation workflows                       | WhatIf manifest, replay validation, approval diff                              | Input-only when validating or executing                                            |
+
+### Notes on parameter inventory
+
+- The `Mode` parameter is the top-level branch selector for the main entry script.
+- Common PowerShell parameters are inherited and not part of the tool's domain logic, but they are listed here because they appear in the actual command surface.
+- Any parameter documented as "Needs code confirmation" was observed in the parameter surface, but the exact output naming or behavior should be rechecked in code before relying on it for external automation.
+
+## 4. Safe Consultant Run Recipes
+
+### 4.1 Offline parser/import/focused test gate
+
+Use this when you want to validate the repo without touching a tenant.
+
+```powershell
+Invoke-Pester -Path '.\tests\NhiDiscovery.Rev35.Tests.ps1'
+Invoke-Pester -Path '.\tests\Reporting.Tests.ps1'
+Invoke-Pester -Path '.\tests\PlatformIdentityCatalog.Rev410.Tests.ps1'
+Invoke-Pester -Path '.\tests\Rev410.MicrosoftPlatform.Tests.ps1'
+Invoke-Pester -Path '.\tests\SuppressCustomerRemediation.Rev410.Tests.ps1'
+```
+
+If you need a broader safety gate, run the full safety subset listed in Section 9.
+
+### 4.2 Offline DemoMode output pack
+
+Use this to generate sample local artifacts without tenant access.
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+  -DemoMode `
+  -OutputPath '.\out\demo'
+```
+
+DemoMode is useful for walkthroughs and artifact inspection. It should not be used as a substitute for a real tenant assessment.
+
+### 4.3 Live read-only tenant assessment
+
+Use this when you want tenant-scoped assessment output without execution flags.
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+  -Mode Assessment `
+  -TenantId '<tenant-id>' `
+  -ClientId '<app-client-id-if-required>' `
+  -ClientName 'Client Name' `
+  -Assessor 'Consultant Name' `
+  -OutputPath '.\out\client-assessment' `
+  -GenerateExecutivePack `
+  -GenerateClientHandoff `
+  -GenerateTraceabilityReport `
+  -GenerateReplayValidation `
+  -GenerateEvidenceBundle `
+  -GenerateRedactedPackage `
+  -GenerateRev35Readiness `
+  -GenerateNhiGovernancePack
+```
+
+Do not include any execution, rollback, or delete/cleanup switches in a read-only assessment run.
+
+### 4.4 Client handoff package generation
+
+Use this after a safe assessment to create client-facing delivery artifacts.
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+  -Mode Assessment `
+  -TenantId '<tenant-id>' `
+  -OutputPath '.\out\handoff' `
+  -GenerateClientHandoff `
+  -GenerateRedactedPackage `
+  -GenerateEvidenceBundle `
+  -GenerateExecutivePack `
+  -GenerateTraceabilityReport
+```
+
+The client handoff path should stay client-safe. If sensitive data is present, prefer redaction before handoff.
+
+### 4.5 Replay validation
+
+Replay validation checks whether current outputs remain consistent with previously produced evidence or manifests.
+
+- If there are no replay inputs, the tool should return `SkippedNoReplayInputs` and not pretend there was a validation failure.
+- If there are existing outputs or manifests, replay validation compares current content with the saved evidence set.
+- Use replay validation as an evidence consistency check, not as a replacement for assessment.
+
+Example:
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+  -Mode Assessment `
+  -TenantId '<tenant-id>' `
+  -OutputPath '.\out\replay' `
+  -GenerateReplayValidation
+```
+
+### 4.6 Self-test / readiness validation
+
+`SelfTest` is an offline entry path. It runs release validation before any tenant connection or discovery work begins.
+
+Observed behavior from code:
+
+- It creates a self-test run folder under `OutputPath`.
+- It calls the release validation workflow.
+- If validation passes and `GenerateReleasePackage` is also set, it builds a release package from the self-test context.
+- It exits before tenant connection / live assessment work.
+
+Use it when:
+
+- you want to verify parser/import/module wiring,
+- you want a local release gate before client delivery,
+- you want to confirm the repo can generate expected artifacts without touching a tenant.
+
+Example:
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+  -SelfTest `
+  -OutputPath '.\out\selftest' `
+  -GenerateReleasePackage `
+  -ReleasePackagePath '.\release\Rev4.10'
+```
+
+### 4.7 Approval manifest validation
+
+The following parameters are relevant to approval gating:
+
+- `ApprovalManifestPath`
+- `ApprovedManifestPath`
+- `WhatIfManifestPath`
+- `GenerateApprovalTemplate`
+- `GenerateApprovalDiff`
+
+Observed behavior from code:
+
+- `GenerateApprovalTemplate` is used in the planning / WhatIf branch to produce an approval template.
+- `WhatIfManifestPath` is used as a WhatIf planning artifact and can also feed validation and replay-style comparisons.
+- `ApprovalManifestPath` is used as an input manifest for validation and execution gating.
+- `ApprovedManifestPath` is used as an input-approved artifact for controlled execution paths.
+
+Classification:
+
+- Input-only: `ApprovalManifestPath`, `ApprovedManifestPath`, `WhatIfManifestPath` when used to validate or execute
+- Generated output: `GenerateApprovalTemplate`, `GenerateApprovalDiff`
+
+### 4.8 WhatIf / controlled decommission planning
+
+Use `-Mode WhatIfRemediation` when you want a non-executing remediation plan and approval draft.
+
+Example:
+
+```powershell
+.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 `
+  -Mode WhatIfRemediation `
+  -TenantId '<tenant-id>' `
+  -OutputPath '.\out\whatif' `
+  -GenerateApprovalTemplate `
+  -WhatIfManifestPath '.\out\whatif\whatif-manifest.json'
+```
+
+This is planning only. It is not live removal unless execution switches are also used.
+
+## 5. Dangerous / Restricted Parameters
+
+### High-risk execution switches
+
+The following switches and modes can enable live execution, cleanup, rollback, or irreversible actions:
+
+- `-ExecuteNhiDecommission`
+- `-ExecuteNhiControlledDecommission`
+- `-ExecuteNhiControlledGrantCleanup`
+- `-ExecuteNhiControlledMetadataCleanup`
+- `-AllowFinalDelete`
+- `-AllowHumanExecution`
+- `-Rollback`
+- `-Mode ExecuteRemediation`
+
+What they enable:
+
+- `ExecuteNhiDecommission` enables the main decommission execution path.
+- `ExecuteNhiControlledDecommission`, `ExecuteNhiControlledGrantCleanup`, and `ExecuteNhiControlledMetadataCleanup` enable staged controlled NHI actions.
+- `AllowFinalDelete` unlocks final-delete behavior in controlled workflows.
+- `AllowHumanExecution` enables human-approved execution paths.
+- `Rollback` triggers recovery from prior execution artifacts.
+- `Mode ExecuteRemediation` enters the live remediation branch.
+
+Why they are dangerous:
+
+- They can change tenant state.
+- They can delete, disable, or clean up identities or permissions.
+- They can make irreversible changes when final-delete is enabled.
+- They can create compliance or recovery risk if run without reviewed approval artifacts.
+
+Prerequisites before use:
+
+- Reviewed approval artifacts.
+- Known execution scope.
+- Confirmed tenant and client context.
+- Preserved execution snapshot / rollback data where applicable.
+- Explicit operator approval.
+
+Approval expectations:
+
+- Use only in approved workflows.
+- Prefer lab or tightly controlled staging environments first.
+- Keep `AllowFinalDelete` disabled unless the workflow explicitly authorizes the final-delete stage.
+
+Evidence required before use:
+
+- A validated plan or approval manifest.
+- Read-back or replay evidence when available.
+- Traceability and handoff artifacts for the approved scope.
+
+Rollback evidence required:
+
+- Valid `ExecutionRunId`.
+- Preserved `ExecutionOutputPath`.
+- Snapshot manifest and related execution artifacts.
+- Proof that the rollback target matches the original execution.
+
+## 6. Never Combine Casually Matrix
+
+| Risky combination                                                                   | Why risky                                        | Safer alternative                                               |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
+| Any `Execute*` parameter + live `-TenantId`                                         | Can mutate tenant state                          | Run read-only assessment or WhatIf first                        |
+| `-AllowFinalDelete` + any execution mode                                            | Unlocks irreversible behavior                    | Keep final delete disabled until explicitly authorized          |
+| Cleanup modes + missing approval manifest                                           | No approved scope to gate execution              | Generate and validate approval artifacts first                  |
+| `-Rollback` + missing `-ExecutionRunId` / `-ExecutionOutputPath`                    | Rollback cannot prove what to reverse            | Preserve and point to the exact execution artifacts             |
+| `-GenerateClientHandoff` without redaction when sensitive output exists             | May expose client-internal data                  | Add `-GenerateRedactedPackage` and use client-safe outputs      |
+| `-ExecuteNhiControlledDecommission` + `-AllowFinalDelete` without explicit approval | Irreversible change risk                         | Lab-only or approved final-delete workflow only                 |
+| `-ExecuteNhiDecommission` + `-NonInteractive`                                       | Can remove human friction from live execution    | Keep interactive prompts unless automation is formally approved |
+| `-Mode ExecuteRemediation` + `-WhatIf` alone                                        | Confusing semantics; may not execute as expected | Use a clearly approved execution path or a separate WhatIf run  |
+
+## 7. Output Artifact Map
+
+| Switch / mode                          | Artifact produced                             | File pattern                                                                                                                   | Client-safe?         | Internal-only? | Evidence value | Notes                                     |
+| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------- | -------------- | -------------- | ----------------------------------------- |
+| `-SelfTest`                            | Release validation report                     | `release-validation-report-*.json` / `.md`                                                                                     | Yes                  | No             | High           | Offline gate before tenant access         |
+| `-DemoMode`                            | Demo assessment bundle                        | Demo-named output files under `OutputPath`                                                                                     | Usually yes          | No             | Medium         | Synthetic tenant context                  |
+| `-Mode Assessment`                     | Assessment findings                           | `assessment-*.csv`, `assessment-*.json`, `assessment-*.html`                                                                   | Depends on redaction | Sometimes      | High           | Core read-only assessment output          |
+| `-Mode WhatIfRemediation`              | WhatIf remediation plan                       | `whatif-approval-template*.json` / planning artifacts                                                                          | Usually internal     | Yes            | High           | Planning only                             |
+| `-GenerateExecutivePack`               | Executive summary package                     | `executive-summary-*.md` / `.html` or pack outputs                                                                             | Yes                  | No             | High           | Client-facing summary                     |
+| `-GenerateClientHandoff`               | Client handoff manifest and index             | `client-handoff-manifest-*.json`, `client-handoff-index-*.md`                                                                  | Yes                  | No             | High           | Lists deliverable artifacts               |
+| `-GenerateRedactedPackage`             | Redacted client-safe package                  | `redacted\...` artifacts and redaction report                                                                                  | Yes                  | No             | High           | Use for client delivery                   |
+| `-GenerateEvidenceBundle`              | Evidence bundle manifest and index            | `evidence-bundle-manifest-*.json`, `evidence-bundle-index-*.md`, hash manifests                                                | Often yes            | No             | High           | Strong audit value                        |
+| `-GenerateTraceabilityReport`          | Traceability report                           | `traceability-report-*.json`, `.csv`, `.md`, `.html`                                                                           | Often yes            | No             | High           | Maps findings to evidence                 |
+| `-GenerateReplayValidation`            | Replay validation report                      | `replay-validation-report-*.json`, `.md`                                                                                       | Yes                  | No             | High           | Checks evidence consistency               |
+| `-GenerateRev35Readiness`              | Readiness report                              | `rev35-readiness-report-*.json`, `.md`                                                                                         | Usually yes          | No             | High           | Release / readiness gate                  |
+| `-GenerateNhiGovernancePack`           | NHI governance outputs                        | `nhi-inventory-*.csv`, `nhi-governance-dashboard-*.html`, `nhi-executive-summary-*.md`, `nhi-rev4-write-readiness-report-*.md` | Often yes            | No             | High           | Governance-focused package                |
+| `-GenerateApprovalDiff`                | Approval diff                                 | `approval-diff-*.json`, `.md`, `.html`                                                                                         | Usually internal     | Yes            | High           | Compare approval state                    |
+| `-GenerateApprovalTemplate`            | Approval template                             | Planning / approval template artifacts                                                                                         | Usually internal     | Yes            | High           | Used for planning and gating              |
+| `-ExecuteNhiDecommission`              | Execution logs / snapshots                    | `SnapshotManifest-*.json`, execution logs                                                                                      | No                   | Sometimes      | High           | Live execution path                       |
+| `-ExecuteNhiControlledDecommission`    | Controlled decommission plan / logs           | Controlled execution artifacts                                                                                                 | No                   | Sometimes      | High           | High-risk controlled workflow             |
+| `-ExecuteNhiControlledGrantCleanup`    | Grant cleanup plan / logs                     | Controlled grant cleanup artifacts                                                                                             | No                   | Sometimes      | High           | High-risk controlled workflow             |
+| `-ExecuteNhiControlledMetadataCleanup` | Metadata cleanup plan / logs                  | Controlled metadata cleanup artifacts                                                                                          | No                   | Sometimes      | High           | High-risk controlled workflow             |
+| `-Rollback`                            | Rollback state and logs                       | `SnapshotManifest-*.json`, rollback logs                                                                                       | No                   | Sometimes      | High           | Requires preserved execution state        |
+| `-AllowFinalDelete`                    | Final-delete readiness / simulation artifacts | Final-delete plan outputs                                                                                                      | No                   | Yes            | High           | Irreversible behavior if used incorrectly |
+
+Additional artifact families commonly generated by the underlying modules include:
+
+- findings JSON / CSV / HTML
+- assessment CSV / JSON / HTML
+- remediation plan MD
+- output manifest JSON / CSV
+- executive summary MD / HTML
+- client handoff index / manifest
+- redaction report JSON / MD
+- evidence bundle manifest / index / hash manifest
+- traceability report JSON / CSV / MD / HTML
+- replay validation report JSON / MD
+- readiness report JSON / MD
+- NHI governance pack artifacts
+
+## 8. Consultant Decision Tree
+
+### I only want to test the tool offline
+
+Use `-SelfTest` or run the test suite directly. Do not provide a tenant ID or any execution switches.
+
+### I want a demo report
+
+Use `-DemoMode` and local output generation switches only. Keep it synthetic.
+
+### I want a live read-only client assessment
+
+Use `-Mode Assessment` with tenant-scoped reporting switches only. Do not include execution or rollback parameters.
+
+### I want a client-safe handoff package
+
+Use the assessment outputs plus `-GenerateClientHandoff`, `-GenerateRedactedPackage`, and `-GenerateEvidenceBundle`.
+
+### I want to verify evidence / replay
+
+Use `-GenerateReplayValidation` with the saved outputs or replay inputs.
+
+### I want to plan NHI decommissioning
+
+Use the controlled planning or WhatIf path, validate the approval artifacts, and keep execution switches off.
+
+### I think I am ready to remove / disable an NHI
+
+This is a high-risk step. Confirm the approval manifest, execution run identifiers, and rollback evidence before using any execution switch.
+
+### I need rollback
+
+Use the rollback path only when the prior execution artifacts are intact and validated.
+
+### I am considering final delete
+
+Treat this as prohibited unless explicitly approved. Final delete should never be a casual test or a default action.
+
+## 9. Validation Commands
+
+Parameter inventory:
+
+```powershell
+(Get-Command .\Invoke-EntraIdentityDecommissioningControlPlane.ps1).Parameters.Keys | Sort-Object
+```
+
+Parser sweep:
+
+```powershell
+Get-ChildItem -Recurse -Include *.ps1,*.psm1 -File | ForEach-Object {
+  [void][scriptblock]::Create((Get-Content -LiteralPath $_.FullName -Raw))
+}
+```
+
+Focused Rev4.10 tests:
+
+```powershell
+Invoke-Pester -Path '.\tests\Reporting.Tests.ps1'
+Invoke-Pester -Path '.\tests\PlatformIdentityCatalog.Rev410.Tests.ps1'
+Invoke-Pester -Path '.\tests\Rev410.MicrosoftPlatform.Tests.ps1'
+Invoke-Pester -Path '.\tests\SuppressCustomerRemediation.Rev410.Tests.ps1'
+```
+
+Full safety subset:
+
+```powershell
+Invoke-Pester -Path @(
+'.\tests\DestructiveCmdletGuard.Rev40.Tests.ps1',
+'.\tests\NhiExecution.Rev40.Tests.ps1',
+'.\tests\NhiExecutionSchema.Rev40.Tests.ps1',
+'.\tests\NhiSafety.Rev35.Tests.ps1',
+'.\tests\Safety.Tests.ps1',
+'.\tests\Safety.Rev42.Tests.ps1',
+'.\tests\Safety.Rev43.Tests.ps1',
+'.\tests\Safety.Rev44.Tests.ps1',
+'.\tests\Safety.Rev45.Tests.ps1',
+'.\tests\Safety.Rev46.Tests.ps1',
+'.\tests\Safety.Rev47.Tests.ps1',
+'.\tests\Safety.Rev48.Tests.ps1',
+'.\tests\Safety.Rev49.Tests.ps1'
+)
+```
+
+Git clean status:
+
+```powershell
+git status --short
+```
+
+Output artifact inventory:
+
+```powershell
+Get-ChildItem -Recurse .\out,.\release -File | Select-Object FullName, Length, LastWriteTime
+```
+
+## 10. Accuracy Review
+
+This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.

@@ -296,6 +296,8 @@ For iOS Accounts:
 - When adding a catalog entry, add or update Pester tests.
 - Always confirm the remediation plan does not leak customer-actionable guidance for suppressed platform identities.
 
+For a consultant-oriented parameter and operating-mode reference, see [Runbook - Parameters, Operating Modes, and Consultant Usage](docs/RUNBOOK-PARAMETERS-AND-OPERATING-MODES.md).
+
 ## Assessment Control Plane (Rev1.4)
 
 ### What it does
