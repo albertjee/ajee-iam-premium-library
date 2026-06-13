@@ -3063,6 +3063,827 @@ function Invoke-NhiControlledLabLiveReversibleDisable {
     return $evidence
 }
 
+function New-NhiControlledGateVerdict {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$GateName,
+
+        [Parameter(Mandatory)]
+        [bool]$Passed,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$Severity = 'High',
+
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Reason
+    )
+
+    [PSCustomObject]@{
+        GateName = $GateName
+        Passed = $Passed
+        Severity = $Severity
+        Reason = $Reason
+    }
+}
+
+function New-NhiRun4CFinalGoNoGoReviewPackage {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter()]
+        [object[]]$Target,
+
+        [Parameter()]
+        [object]$ApprovalManifest,
+
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$ApprovalManifestPath,
+
+        [Parameter()]
+        [object]$Snapshot,
+
+        [Parameter()]
+        [object]$ReadinessVerdict,
+
+        [Parameter()]
+        [object]$DryRunPackage,
+
+        [Parameter()]
+        [object]$RollbackPackage,
+
+        [Parameter()]
+        [object]$ObservationPlan,
+
+        [Parameter()]
+        [object]$OperatorChecklist,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$RunId,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$OutputPath,
+
+        [Parameter()]
+        [string[]]$RequestedOperations = @()
+    )
+
+    $requestedOperations = @($RequestedOperations | ForEach-Object { [string]$_ })
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $warnings = [System.Collections.Generic.List[string]]::new()
+    $gateVerdicts = [System.Collections.Generic.List[object]]::new()
+    $targetObject = $null
+    $targetCount = @($Target).Count
+
+    if ($targetCount -eq 1) {
+        $targetObject = @($Target)[0]
+    } else {
+        $reasons.Add('Exactly one target is required.')
+    }
+
+    $targetDisplayName = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('DisplayName')) } else { $null }
+    $targetObjectId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId')) } else { $null }
+    $targetAppId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId')) } else { $null }
+    $targetType = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType')) } else { $null }
+    $classification = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification')) } else { $null }
+    $environment = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment', 'TenantScope')) } else { $null }
+    $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } elseif ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
+    $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
+
+    $approvalManifestPresent = $null -ne $ApprovalManifest -or (Test-Path -LiteralPath $ApprovalManifestPath -PathType Leaf)
+    $approvalManifestHash = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalManifestHash', 'ManifestHash', 'SHA256'))
+    $approvalExpiresUtc = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalExpiresUtc', 'ExpiresUtc'))
+    $approvedAction = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovedAction', 'ActionType'))
+    $approvedBy = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovedBy', 'Approver'))
+    $approvedTargetObjectId = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('TargetObjectId'))
+    $approvedTargetType = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('TargetType'))
+    $approvedTargetDisplayName = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('TargetDisplayName'))
+
+    $snapshotPresent = $null -ne $Snapshot
+    $snapshotId = [string](Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('SnapshotId', 'Id'))
+    $snapshotPath = [string](Get-NhiControlledPropertyValue -InputObject $Snapshot -PropertyNames @('SnapshotPath', 'Path'))
+
+    $readinessPresent = $null -ne $ReadinessVerdict
+    $readinessReady = [bool](Get-NhiControlledPropertyValue -InputObject $ReadinessVerdict -PropertyNames @('Ready') -Default $false)
+    $readinessAllowedAction = [string](Get-NhiControlledPropertyValue -InputObject $ReadinessVerdict -PropertyNames @('AllowedAction', 'RequestedAction', 'ActionType'))
+
+    $dryRunPresent = $null -ne $DryRunPackage
+    $rollbackPresent = $null -ne $RollbackPackage
+    $observationPresent = $null -ne $ObservationPlan
+    $operatorChecklistPresent = $null -ne $OperatorChecklist
+
+    $gateChecks = [ordered]@{}
+    $gateChecks['ExactlyOneTarget'] = @($Target).Count -eq 1
+    $gateChecks['LabOrDevTestTenantOnly'] = $targetObject -and (
+        [string]$environment -in @('Lab', 'DevTest', 'DevTestLab', 'Test') -or
+        [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true -or
+        [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -in @('Lab', 'DevTest', 'Test') -or
+        [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -eq $true
+    )
+    $gateChecks['ApprovedTarget'] = $approvalManifestPresent -and $targetObject -and $approvedTargetObjectId -eq $targetObjectId -and $approvedTargetType -eq $targetType -and $approvedTargetDisplayName -eq $targetDisplayName
+    $gateChecks['ApprovalNotExpired'] = $false
+    if ($approvalExpiresUtc) {
+        try {
+            $gateChecks['ApprovalNotExpired'] = [DateTime]::Parse($approvalExpiresUtc).ToUniversalTime() -gt [DateTime]::UtcNow
+        } catch {
+            $gateChecks['ApprovalNotExpired'] = $false
+        }
+    }
+    $gateChecks['ApprovedActionIsReversibleDisable'] = $approvedAction -eq 'ReversibleDisable'
+    $gateChecks['NotMicrosoftPlatform'] = $targetObject -and ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -ne $true) -and ($classification -notin @('MicrosoftPlatform'))
+    $gateChecks['NotExternalVendorPlatform'] = $targetObject -and ($classification -ne 'ExternalVendorPlatform')
+    $gateChecks['NotSuppressed'] = -not $suppressCustomerRemediation
+    $gateChecks['NotEvidenceOnly'] = -not $evidenceOnly
+    $gateChecks['NotInformationOnly'] = -not $informationOnly
+    $gateChecks['SnapshotPresent'] = $snapshotPresent -and (-not [string]::IsNullOrWhiteSpace($snapshotId) -or -not [string]::IsNullOrWhiteSpace($snapshotPath))
+    $gateChecks['ReadinessReady'] = $readinessPresent -and $readinessReady -and $readinessAllowedAction -eq 'ReversibleDisable'
+    $gateChecks['DryRunPackagePresent'] = $dryRunPresent
+    $gateChecks['RollbackPackagePresent'] = $rollbackPresent
+    $gateChecks['ObservationPlanPresent'] = $observationPresent
+    $gateChecks['NoFinalDeleteRequested'] = -not (@($requestedOperations) -match '(?i)^FinalDelete$|^FinalDeleteRequested$|^Delete$')
+    $gateChecks['NoRemoveRequested'] = -not (@($requestedOperations) -match '(?i)^Remove$|^RemoveServicePrincipal$|^RemoveApplication$')
+    $gateChecks['NoGrantCleanupRequested'] = -not (@($requestedOperations) -match '(?i)^GrantCleanup$')
+    $gateChecks['NoMetadataCleanupRequested'] = -not (@($requestedOperations) -match '(?i)^MetadataCleanup$')
+    $gateChecks['NoCredentialDeleteRequested'] = -not (@($requestedOperations) -match '(?i)^CredentialDelete$')
+    $gateChecks['OperatorReviewRequired'] = $operatorChecklistPresent -or $true
+    $gateChecks['HumanGoNoGoRequired'] = $true
+
+    foreach ($gateName in $gateChecks.Keys) {
+        $passed = [bool]$gateChecks[$gateName]
+        $severity = if ($passed) { 'Info' } else { 'High' }
+        $reason = switch ($gateName) {
+            'ExactlyOneTarget' { if ($passed) { 'Exactly one target supplied.' } else { 'Exactly one target is required.' } }
+            'LabOrDevTestTenantOnly' { if ($passed) { 'Target is labeled as lab/dev/test.' } else { 'Target is not labeled as lab/dev/test.' } }
+            'ApprovedTarget' { if ($passed) { 'Approval target matches the requested target.' } else { 'Approval target does not match the requested target.' } }
+            'ApprovalNotExpired' { if ($passed) { 'Approval is current.' } else { 'Approval is missing or expired.' } }
+            'ApprovedActionIsReversibleDisable' { if ($passed) { 'Approved action is ReversibleDisable.' } else { 'Approved action is not ReversibleDisable.' } }
+            'NotMicrosoftPlatform' { if ($passed) { 'Target is not MicrosoftPlatform.' } else { 'MicrosoftPlatform target is blocked.' } }
+            'NotExternalVendorPlatform' { if ($passed) { 'Target is not ExternalVendorPlatform.' } else { 'ExternalVendorPlatform target is blocked.' } }
+            'NotSuppressed' { if ($passed) { 'Target is not suppressed.' } else { 'SuppressCustomerRemediation target is blocked.' } }
+            'NotEvidenceOnly' { if ($passed) { 'Target is not evidence-only.' } else { 'EvidenceOnly target is blocked.' } }
+            'NotInformationOnly' { if ($passed) { 'Target is not information-only.' } else { 'InformationOnly target is blocked.' } }
+            'SnapshotPresent' { if ($passed) { 'Snapshot metadata is present.' } else { 'Snapshot metadata is missing.' } }
+            'ReadinessReady' { if ($passed) { 'Readiness verdict is Ready.' } else { 'Readiness verdict is missing or not Ready.' } }
+            'DryRunPackagePresent' { if ($passed) { 'Dry-run package is present.' } else { 'Dry-run package is missing.' } }
+            'RollbackPackagePresent' { if ($passed) { 'Rollback package is present.' } else { 'Rollback package is missing.' } }
+            'ObservationPlanPresent' { if ($passed) { 'Observation plan is present.' } else { 'Observation plan is missing.' } }
+            'NoFinalDeleteRequested' { if ($passed) { 'Final delete was not requested.' } else { 'Final delete was requested.' } }
+            'NoRemoveRequested' { if ($passed) { 'Remove action was not requested.' } else { 'Remove action was requested.' } }
+            'NoGrantCleanupRequested' { if ($passed) { 'Grant cleanup was not requested.' } else { 'Grant cleanup was requested.' } }
+            'NoMetadataCleanupRequested' { if ($passed) { 'Metadata cleanup was not requested.' } else { 'Metadata cleanup was requested.' } }
+            'NoCredentialDeleteRequested' { if ($passed) { 'Credential delete was not requested.' } else { 'Credential delete was requested.' } }
+            'OperatorReviewRequired' { 'Operator review is required.' }
+            'HumanGoNoGoRequired' { 'Human go/no-go is required.' }
+        }
+        $gateVerdicts.Add((New-NhiControlledGateVerdict -GateName $gateName -Passed $passed -Severity $severity -Reason $reason))
+        if (-not $passed) { $reasons.Add("$gateName failed: $reason") }
+    }
+
+    $goNoGo = if ($reasons.Count -eq 0) { 'Go' } else { 'NoGo' }
+    $package = [PSCustomObject]@{
+        ReviewPackageId = "REV416-$RunId-$targetObjectId"
+        RunId = $RunId
+        CreatedUtc = [DateTime]::UtcNow.ToString('o')
+        Mode = 'FinalGoNoGoReviewOnly'
+        TenantWritePerformed = $false
+        DisablePerformed = $false
+        RollbackPerformed = $false
+        FinalDeleteAllowed = $false
+        TargetDisplayName = $targetDisplayName
+        TargetObjectId = $targetObjectId
+        TargetAppId = $targetAppId
+        TargetType = $targetType
+        Classification = $classification
+        EnvironmentMarker = $environment
+        LabTargetMarker = $labMarker
+        SuppressCustomerRemediation = $suppressCustomerRemediation
+        EvidenceOnly = $evidenceOnly
+        InformationOnly = $informationOnly
+        InputArtifactSummary = [PSCustomObject]@{
+            ApprovalManifestPresent = $approvalManifestPresent
+            ApprovalManifestPath = $ApprovalManifestPath
+            ApprovalManifestHash = $approvalManifestHash
+            SnapshotPresent = $snapshotPresent
+            SnapshotPath = $snapshotPath
+            SnapshotId = $snapshotId
+            ReadinessVerdictPresent = $readinessPresent
+            DryRunPackagePresent = $dryRunPresent
+            RollbackPackagePresent = $rollbackPresent
+            ObservationPlanPresent = $observationPresent
+            OperatorChecklistPresent = $operatorChecklistPresent
+        }
+        GateVerdicts = @($gateVerdicts)
+        GoNoGo = $goNoGo
+        ReadyForControlledDevTestDisable = $goNoGo -eq 'Go'
+        Blockers = @($reasons)
+        Warnings = @($warnings)
+        RequiredHumanDecision = $true
+        HumanDecisionCaptured = $false
+        AllowedNextAction = if ($goNoGo -eq 'Go') { 'ControlledDevTestReversibleDisable' } else { $null }
+        ProhibitedActions = @('final delete', 'remove service principal', 'remove application', 'grant cleanup', 'metadata cleanup', 'credential deletion')
+        OperatorSignOff = [PSCustomObject]@{
+            OperatorName = $null
+            OperatorDecision = $null
+            OperatorDecisionUtc = $null
+            ApproverName = $null
+            ApproverDecision = $null
+            ApproverDecisionUtc = $null
+            Notes = $null
+        }
+    }
+
+    $artifactPath = Join-Path $OutputPath "Run4C-FinalGoNoGoReview-$RunId.json"
+    $package | Add-Member -NotePropertyName OutputArtifactPath -NotePropertyValue (Export-NhiControlledDecommissionEvidence -Evidence $package -Path $artifactPath) -Force
+    return $package
+}
+
+function New-NhiRun4CLiveEvidenceCapturePackage {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter()]
+        [object]$Target,
+
+        [Parameter()]
+        [string]$TenantId,
+
+        [Parameter()]
+        [object]$PreActionSnapshot,
+
+        [Parameter()]
+        [object]$PostActionSnapshot,
+
+        [Parameter()]
+        [string[]]$RequestedOperations = @(),
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$RunId,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$OutputPath
+    )
+
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $warnings = [System.Collections.Generic.List[string]]::new()
+    $targetObject = $null
+    if (@($Target).Count -eq 1) {
+        $targetObject = @($Target)[0]
+    } else {
+        $reasons.Add('Exactly one target is required.')
+    }
+
+    $targetType = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType')) } else { $null }
+    $classification = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification')) } else { $null }
+    $environment = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment', 'TenantScope')) } else { $null }
+    $targetDisplayName = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('DisplayName')) } else { $null }
+    $targetObjectId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId')) } else { $null }
+    $targetAppId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId')) } else { $null }
+    $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
+    $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
+    $tenantWritePerformed = $false
+    $disablePerformed = $false
+    $rollbackPerformed = $false
+    $finalDeleteAllowed = $false
+
+    if ($targetObject) {
+        if ([string]$environment -notin @('Lab', 'DevTest', 'DevTestLab', 'Test') -and
+            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -ne $true -and
+            [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -notin @('Lab', 'DevTest', 'Test') -and
+            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -ne $true) {
+            $reasons.Add('Target is not explicitly marked as lab/dev/test.')
+        }
+        if ([string]$classification -eq 'MicrosoftPlatform' -or [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -eq $true) { $reasons.Add('MicrosoftPlatform target is blocked.') }
+        if ([string]$classification -eq 'ExternalVendorPlatform') { $reasons.Add('ExternalVendorPlatform target is blocked.') }
+        if ($suppressCustomerRemediation) { $reasons.Add('SuppressCustomerRemediation target is blocked.') }
+        if ($evidenceOnly) { $reasons.Add('EvidenceOnly target is blocked.') }
+        if ($informationOnly) { $reasons.Add('InformationOnly target is blocked.') }
+    }
+
+    $requestedOperations = @($RequestedOperations | ForEach-Object { [string]$_ })
+    if ($requestedOperations -match '(?i)^FinalDelete$') { $reasons.Add('Final delete request is blocked.') }
+    if ($requestedOperations -match '(?i)^GrantCleanup$') { $reasons.Add('Grant cleanup request is blocked.') }
+    if ($requestedOperations -match '(?i)^CredentialDelete$') { $reasons.Add('Credential deletion request is blocked.') }
+    if ($requestedOperations -match '(?i)^Remove$|^RemoveServicePrincipal$|^RemoveApplication$') { $reasons.Add('Remove request is blocked.') }
+
+    $preActionSnapshotRequired = $true
+    $executionEvidenceRequired = $true
+    $postActionEvidenceRequired = $true
+    $commandPreview = if ($targetObject) { "Invoke-NhiDisable -ObjectId $targetObjectId -ObjectType ServicePrincipal -WhatIf" } else { 'Pending target selection' }
+
+    $preSnapshotPresent = $null -ne $PreActionSnapshot
+    if (-not $preSnapshotPresent) { $reasons.Add('Pre-action snapshot is required.') }
+    if ($null -eq $Target) { $reasons.Add('Target is required.') }
+
+    $preActionEnabledState = Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('AccountEnabled', 'PreActionEnabledState')
+    $credentialCountBefore = Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('CredentialCount', 'PreActionCredentialCount')
+    $ownerCountBefore = Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('OwnerCount', 'PreActionOwnerCount')
+    $appRoleAssignmentsBefore = Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('AppRoleAssignmentsCount', 'PreActionAppRoleAssignmentsCount')
+    $oauthGrantCountBefore = Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('OAuthGrantCount', 'PreActionOAuthGrantCount')
+    $capturedUtcBefore = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('CapturedUtc', 'SnapshotTimestamp'))
+    $snapshotHashBefore = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('SnapshotHash', 'SHA256', 'BaselineHash'))
+
+    $preActionEnabledStateAfter = $null
+    $credentialCountAfter = $null
+    $ownerCountAfter = $null
+    $appRoleAssignmentsAfter = $null
+    $oauthGrantCountAfter = $null
+    $capturedUtcAfter = $null
+    $snapshotHashAfter = $null
+    $artifactPaths = @()
+
+    $package = [PSCustomObject]@{
+        EvidencePackageId = "REV417-$RunId-$targetObjectId"
+        RunId = $RunId
+        CreatedUtc = [DateTime]::UtcNow.ToString('o')
+        Mode = 'LiveEvidenceCapturePlanOnly'
+        TenantWritePerformed = $tenantWritePerformed
+        DisablePerformed = $disablePerformed
+        RollbackPerformed = $rollbackPerformed
+        FinalDeleteAllowed = $finalDeleteAllowed
+        TargetDisplayName = $targetDisplayName
+        TargetObjectId = $targetObjectId
+        TargetAppId = $targetAppId
+        TargetType = $targetType
+        Classification = $classification
+        EnvironmentMarker = $environment
+        LabTargetMarker = $labMarker
+        TenantId = $TenantId
+        EvidenceScope = 'SingleTargetOnly'
+        PreActionSnapshotRequired = $preActionSnapshotRequired
+        AccountEnabledBefore = $preActionEnabledState
+        CredentialCountBefore = $credentialCountBefore
+        OwnerCountBefore = $ownerCountBefore
+        AppRoleAssignmentsCountBefore = $appRoleAssignmentsBefore
+        OAuthGrantCountBefore = $oauthGrantCountBefore
+        CapturedUtcBefore = $capturedUtcBefore
+        SnapshotHashBefore = $snapshotHashBefore
+        PlannedAction = 'ReversibleDisable'
+        ExecutionEvidenceRequired = $executionEvidenceRequired
+        CommandPreview = $commandPreview
+        OperatorIdentityPlaceholder = 'Pending'
+        ExecutionStartUtcPlaceholder = 'Pending'
+        ExecutionEndUtcPlaceholder = 'Pending'
+        GraphRequestIdPlaceholder = 'Pending'
+        CorrelationIdPlaceholder = 'Pending'
+        WhatChanged = 'AccountEnabled only'
+        WhatMustNotChange = @(
+            'grants',
+            'credentials',
+            'owners',
+            'app metadata',
+            'app object',
+            'service principal deletion'
+        )
+        AccountEnabledAfter = $preActionEnabledStateAfter
+        CredentialCountAfter = $credentialCountAfter
+        OwnerCountAfter = $ownerCountAfter
+        AppRoleAssignmentsCountAfter = $appRoleAssignmentsAfter
+        OAuthGrantCountAfter = $oauthGrantCountAfter
+        CapturedUtcAfter = $capturedUtcAfter
+        SnapshotHashAfter = $snapshotHashAfter
+        EvidenceManifestHash = $null
+        ArtifactPaths = @()
+        EvidenceCompletenessStatus = 'Pending'
+        MissingEvidence = @(
+            if ($null -eq $PreActionSnapshot) { 'Pre-action snapshot' }
+            'Execution evidence placeholders'
+            'Post-action evidence placeholders'
+        )
+        SafetyAssertions = [PSCustomObject]@{
+            NoFinalDelete = $true
+            NoRemoveServicePrincipal = $true
+            NoRemoveApplication = $true
+            NoGrantCleanup = $true
+            NoMetadataCleanup = $true
+            NoCredentialDeletion = $true
+            NoRollbackExecution = $true
+        }
+        Ready = $reasons.Count -eq 0
+        Blockers = @($reasons)
+        Warnings = @($warnings)
+    }
+
+    if ($OutputPath) {
+        $artifactPath = Join-Path $OutputPath "Run4C-LiveEvidenceCapture-$RunId.json"
+        $artifactPaths += $artifactPath
+        $package | Add-Member -NotePropertyName ArtifactPaths -NotePropertyValue @($artifactPaths) -Force
+        $package | Add-Member -NotePropertyName OutputArtifactPath -NotePropertyValue (Export-NhiControlledDecommissionEvidence -Evidence $package -Path $artifactPath) -Force
+    }
+
+    return $package
+}
+
+function New-NhiRun4CPostDisableObservationPackage {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter()]
+        [object]$Target,
+
+        [Parameter()]
+        [Nullable[int]]$ObservationWindowMinutes,
+
+        [Parameter()]
+        [string]$MonitoringOwner,
+
+        [Parameter()]
+        [string]$RollbackContact,
+
+        [Parameter()]
+        [string]$EscalationContact,
+
+        [Parameter()]
+        [object]$PreActionSnapshot,
+
+        [Parameter()]
+        [string[]]$RequestedOperations = @(),
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$RunId,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$OutputPath
+    )
+
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $warnings = [System.Collections.Generic.List[string]]::new()
+    $targetObject = $null
+    if (@($Target).Count -eq 1) {
+        $targetObject = @($Target)[0]
+    } else {
+        $reasons.Add('Exactly one target is required.')
+    }
+
+    $targetType = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType')) } else { $null }
+    $classification = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification')) } else { $null }
+    $environment = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment', 'TenantScope')) } else { $null }
+    $targetDisplayName = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('DisplayName')) } else { $null }
+    $targetObjectId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId')) } else { $null }
+    $targetAppId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId')) } else { $null }
+    $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
+    $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
+
+    if ([string]$environment -notin @('Lab', 'DevTest', 'DevTestLab', 'Test') -and
+        [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -ne $true -and
+        [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -notin @('Lab', 'DevTest', 'Test') -and
+        [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -ne $true) {
+        $reasons.Add('Target is not explicitly marked as lab/dev/test.')
+    }
+    if ([string]$classification -eq 'MicrosoftPlatform' -or [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -eq $true) { $reasons.Add('MicrosoftPlatform target is blocked.') }
+    if ([string]$classification -eq 'ExternalVendorPlatform') { $reasons.Add('ExternalVendorPlatform target is blocked.') }
+    if ($suppressCustomerRemediation) { $reasons.Add('SuppressCustomerRemediation target is blocked.') }
+    if ($evidenceOnly) { $reasons.Add('EvidenceOnly target is blocked.') }
+    if ($informationOnly) { $reasons.Add('InformationOnly target is blocked.') }
+
+    if ($null -eq $ObservationWindowMinutes -or $ObservationWindowMinutes -le 0) { $reasons.Add('Observation window is required.') }
+    if ([string]::IsNullOrWhiteSpace($MonitoringOwner)) { $reasons.Add('Monitoring owner is required.') }
+    if ([string]::IsNullOrWhiteSpace($RollbackContact)) { $reasons.Add('Rollback contact is required.') }
+
+    $requestedOperations = @($RequestedOperations | ForEach-Object { [string]$_ })
+    if ($requestedOperations -match '(?i)^FinalDelete$') { $reasons.Add('Final delete request is blocked.') }
+    if ($requestedOperations -match '(?i)^GrantCleanup$') { $reasons.Add('Grant cleanup request is blocked.') }
+    if ($requestedOperations -match '(?i)^CredentialDelete$') { $reasons.Add('Credential deletion request is blocked.') }
+
+    $preSnapshotPresent = $null -ne $PreActionSnapshot
+    $snapshotId = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('SnapshotId', 'Id'))
+    $snapshotPath = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('SnapshotPath', 'Path'))
+    if ($null -eq $PreActionSnapshot) {
+        $warnings.Add('Pre-action snapshot is not supplied; observation remains template-only.')
+    }
+
+    $package = [PSCustomObject]@{
+        ObservationPackageId = "REV418-$RunId-$targetObjectId"
+        RunId = $RunId
+        CreatedUtc = [DateTime]::UtcNow.ToString('o')
+        Mode = 'PostDisableObservationPlanOnly'
+        TenantWritePerformed = $false
+        DisablePerformed = $false
+        RollbackPerformed = $false
+        FinalDeleteAllowed = $false
+        TargetDisplayName = $targetDisplayName
+        TargetObjectId = $targetObjectId
+        TargetAppId = $targetAppId
+        TargetType = $targetType
+        Classification = $classification
+        EnvironmentMarker = $environment
+        LabTargetMarker = $labMarker
+        ObservationScope = 'SingleTargetOnly'
+        ObservationWindowMinutes = $ObservationWindowMinutes
+        ObservationStartUtcPlaceholder = 'Pending'
+        ObservationEndUtcPlaceholder = 'Pending'
+        MonitoringOwner = $MonitoringOwner
+        RollbackContact = $RollbackContact
+        EscalationContact = $EscalationContact
+        SuccessCriteria = @(
+            'No unexpected app outage',
+            'No unexpected authentication failure spike',
+            'Owner/business validation passed',
+            'No unauthorized secondary change',
+            'No emergency rollback trigger'
+        )
+        FailureCriteria = @(
+            'App outage detected',
+            'Authentication failure spike',
+            'Owner/business validation failure',
+            'Unexpected permission/grant/credential change',
+            'Operator stop condition'
+        )
+        RollbackTriggerCriteria = @(
+            'Critical outage',
+            'Business owner rejection',
+            'Monitoring owner escalation',
+            'Authentication failure threshold breached',
+            'Manual operator stop'
+        )
+        ObservationLogPath = $null
+        OperatorNotes = $null
+        BusinessOwnerValidation = $null
+        MonitoringSummary = $null
+        EvidenceCompletenessStatus = 'Pending'
+        MissingEvidence = @(
+            if (-not $preSnapshotPresent) { 'Pre-action snapshot' }
+            if ($null -eq $ObservationWindowMinutes -or $ObservationWindowMinutes -le 0) { 'Observation window' }
+            if ([string]::IsNullOrWhiteSpace($MonitoringOwner)) { 'Monitoring owner' }
+            if ([string]::IsNullOrWhiteSpace($RollbackContact)) { 'Rollback contact' }
+        )
+        SafetyAssertions = [PSCustomObject]@{
+            ObservationOnly = $true
+            RollbackNotExecuted = $true
+            FinalDeleteAllowed = $false
+            NoTenantMutationByObservation = $true
+        }
+        ObservationOnly = $true
+        RollbackNotExecuted = $true
+        NoTenantMutationByObservation = $true
+        Ready = $reasons.Count -eq 0
+        Blockers = @($reasons)
+        Warnings = @($warnings)
+    }
+
+    $artifactPath = Join-Path $OutputPath "Run4C-PostDisableObservation-$RunId.json"
+    $package | Add-Member -NotePropertyName OutputArtifactPath -NotePropertyValue (Export-NhiControlledDecommissionEvidence -Evidence $package -Path $artifactPath) -Force
+    return $package
+}
+
+function New-NhiRun4CRollbackExecutionReadinessPackage {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter()]
+        [object[]]$Target,
+
+        [Parameter()]
+        [object]$OriginalDisableEvidence,
+
+        [Parameter()]
+        [object]$PreActionSnapshot,
+
+        [Parameter()]
+        [object]$PostDisableObservation,
+
+        [Parameter()]
+        [object]$RollbackDrillPackage,
+
+        [Parameter()]
+        [object]$RollbackTrigger,
+
+        [Parameter()]
+        [string[]]$RequestedOperations = @(),
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$RunId,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$OutputPath
+    )
+
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $warnings = [System.Collections.Generic.List[string]]::new()
+    $gateVerdicts = [System.Collections.Generic.List[object]]::new()
+    $targetObject = $null
+    if (@($Target).Count -eq 1) {
+        $targetObject = @($Target)[0]
+    } else {
+        $reasons.Add('Exactly one target is required.')
+    }
+
+    $targetType = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType')) } else { $null }
+    $classification = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification')) } else { $null }
+    $environment = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment', 'TenantScope')) } else { $null }
+    $targetDisplayName = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('DisplayName')) } else { $null }
+    $targetObjectId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId')) } else { $null }
+    $targetAppId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId')) } else { $null }
+    $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
+    $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
+
+    if ([string]$environment -notin @('Lab', 'DevTest', 'DevTestLab', 'Test') -and
+        [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -ne $true -and
+        [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -notin @('Lab', 'DevTest', 'Test') -and
+        [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -ne $true) {
+        $reasons.Add('Target is not explicitly marked as lab/dev/test.')
+    }
+    if ([string]$classification -eq 'MicrosoftPlatform' -or [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -eq $true) { $reasons.Add('MicrosoftPlatform target is blocked.') }
+    if ([string]$classification -eq 'ExternalVendorPlatform') { $reasons.Add('ExternalVendorPlatform target is blocked.') }
+    if ($suppressCustomerRemediation) { $reasons.Add('SuppressCustomerRemediation target is blocked.') }
+    if ($evidenceOnly) { $reasons.Add('EvidenceOnly target is blocked.') }
+    if ($informationOnly) { $reasons.Add('InformationOnly target is blocked.') }
+
+    $originalDisablePresent = $null -ne $OriginalDisableEvidence
+    $preActionSnapshotPresent = $null -ne $PreActionSnapshot
+    $postDisableObservationPresent = $null -ne $PostDisableObservation
+    $rollbackDrillPackagePresent = $null -ne $RollbackDrillPackage
+    $rollbackTriggerPresent = $null -ne $RollbackTrigger -and @($RollbackTrigger).Count -gt 0
+    if (-not $originalDisablePresent) { $reasons.Add('Original disable evidence is required.') }
+    if (-not $preActionSnapshotPresent) { $reasons.Add('Pre-action snapshot is required.') }
+    if (-not $rollbackDrillPackagePresent) { $reasons.Add('Rollback drill package is required.') }
+    if (-not $rollbackTriggerPresent) { $reasons.Add('Rollback trigger is required.') }
+
+    $originalActionWasReversibleDisable = [string](Get-NhiControlledPropertyValue -InputObject $OriginalDisableEvidence -PropertyNames @('PlannedAction', 'AllowedAction', 'RequestedAction', 'ActionType')) -eq 'ReversibleDisable'
+    $rollbackActionIsReEnableOnly = [string](Get-NhiControlledPropertyValue -InputObject $RollbackDrillPackage -PropertyNames @('RollbackAction', 'RollbackActionName')) -eq 'ReEnableServicePrincipal'
+    $rollbackDrillReady = [bool](Get-NhiControlledPropertyValue -InputObject $RollbackDrillPackage -PropertyNames @('Ready') -Default $false)
+    $rollbackTriggerText = @($RollbackTrigger | ForEach-Object { [string]$_ })
+    if (-not $originalActionWasReversibleDisable) { $reasons.Add('Original action was not reversible disable.') }
+    if ($rollbackActionIsReEnableOnly -ne $true) { $reasons.Add('Rollback action must be re-enable only.') }
+    if ($rollbackDrillReady -ne $true) { $reasons.Add('Rollback drill package must be ready.') }
+
+    $requestedOperations = @($RequestedOperations | ForEach-Object { [string]$_ })
+    if ($requestedOperations -match '(?i)^Delete$|^FinalDelete$') { $reasons.Add('Delete request is blocked.') }
+    if ($requestedOperations -match '(?i)^Remove$|^RemoveServicePrincipal$|^RemoveApplication$') { $reasons.Add('Remove request is blocked.') }
+    if ($requestedOperations -match '(?i)^Recreate$') { $reasons.Add('Recreate request is blocked.') }
+    if ($requestedOperations -match '(?i)^GrantCleanup$') { $reasons.Add('Grant cleanup request is blocked.') }
+    if ($requestedOperations -match '(?i)^CredentialChange$') { $reasons.Add('Credential change request is blocked.') }
+    if ($requestedOperations -match '(?i)^MetadataCleanup$') { $reasons.Add('Metadata cleanup request is blocked.') }
+
+    $snapshotId = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('SnapshotId', 'Id'))
+    $snapshotPath = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('SnapshotPath', 'Path'))
+    $capturedUtc = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('CapturedUtc', 'SnapshotTimestamp'))
+    $baselineHash = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('BaselineHash', 'SnapshotSHA256', 'SHA256'))
+    $evidenceSourcePath = [string](Get-NhiControlledPropertyValue -InputObject $PreActionSnapshot -PropertyNames @('EvidenceSourcePath'))
+
+    $observationFailureOrManualTriggerPresent = $postDisableObservationPresent -or $rollbackTriggerPresent
+    if (-not $observationFailureOrManualTriggerPresent) { $reasons.Add('Observation failure or manual trigger is required.') }
+
+    $package = [PSCustomObject]@{
+        RollbackReadinessPackageId = "REV419-$RunId-$targetObjectId"
+        RunId = $RunId
+        CreatedUtc = [DateTime]::UtcNow.ToString('o')
+        Mode = 'RollbackExecutionReadinessOnly'
+        TenantWritePerformed = $false
+        DisablePerformed = $false
+        RollbackPerformed = $false
+        FinalDeleteAllowed = $false
+        TargetDisplayName = $targetDisplayName
+        TargetObjectId = $targetObjectId
+        TargetAppId = $targetAppId
+        TargetType = $targetType
+        EnvironmentMarker = $environment
+        LabTargetMarker = $labMarker
+        ObservationScope = 'SingleTargetOnly'
+        OriginalDisableEvidencePresent = $originalDisablePresent
+        PreActionSnapshotPresent = $preActionSnapshotPresent
+        RollbackDrillPackagePresent = $rollbackDrillPackagePresent
+        PostDisableObservationPresent = $postDisableObservationPresent
+        RollbackTriggerPresent = $rollbackTriggerPresent
+        HumanRollbackApprovalRequired = $true
+        HumanRollbackApprovalCaptured = $false
+        RequiredInputs = [PSCustomObject]@{
+            OriginalDisableEvidencePresent = $originalDisablePresent
+            PreActionSnapshotPresent = $preActionSnapshotPresent
+            PostDisableObservationPresent = $postDisableObservationPresent
+            RollbackDrillPackagePresent = $rollbackDrillPackagePresent
+            RollbackTriggerPresent = $rollbackTriggerPresent
+        }
+        GateVerdicts = @()
+        RollbackReadiness = if ($reasons.Count -eq 0) { 'Ready' } else { 'NotReady' }
+        ReadyForRollbackExecution = $reasons.Count -eq 0
+        Blockers = @($reasons)
+        Warnings = @($warnings)
+        RequiredHumanDecision = $true
+        HumanDecisionCaptured = $false
+        AllowedNextAction = if ($reasons.Count -eq 0) { 'ControlledDevTestReEnableOnly' } else { $null }
+        ProhibitedActions = @('delete', 'remove service principal', 'remove application', 'recreate object', 'grant cleanup', 'credential change', 'metadata cleanup')
+        OperatorSignOff = [PSCustomObject]@{
+            OperatorName = $null
+            OperatorDecision = $null
+            OperatorDecisionUtc = $null
+            ApproverName = $null
+            ApproverDecision = $null
+            ApproverDecisionUtc = $null
+            Notes = $null
+        }
+        PreActionSnapshot = [PSCustomObject]@{
+            SnapshotId = $snapshotId
+            SnapshotPath = $snapshotPath
+            CapturedUtc = $capturedUtc
+            BaselineHash = $baselineHash
+            EvidenceSourcePath = $evidenceSourcePath
+        }
+        PostDisableObservation = $PostDisableObservation
+        RollbackDrillPackage = $RollbackDrillPackage
+        RollbackTrigger = @($rollbackTriggerText)
+    }
+
+    $gateChecks = [ordered]@{
+        ExactlyOneTarget = @($Target).Count -eq 1
+        LabOrDevTestTenantOnly = $targetObject -and (
+            [string]$environment -in @('Lab', 'DevTest', 'DevTestLab', 'Test') -or
+            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true -or
+            [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -in @('Lab', 'DevTest', 'Test') -or
+            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -eq $true
+        )
+        OriginalActionWasReversibleDisable = $originalActionWasReversibleDisable
+        OriginalDisableEvidencePresent = $originalDisablePresent
+        PreActionSnapshotPresent = $preActionSnapshotPresent
+        RollbackDrillPackagePresent = $rollbackDrillPackagePresent
+        ObservationFailureOrManualTriggerPresent = $observationFailureOrManualTriggerPresent
+        RollbackActionIsReEnableOnly = $rollbackActionIsReEnableOnly
+        NoDeleteRequested = -not ($requestedOperations -match '(?i)^Delete$|^FinalDelete$')
+        NoRemoveRequested = -not ($requestedOperations -match '(?i)^Remove$|^RemoveServicePrincipal$|^RemoveApplication$')
+        NoRecreateRequested = -not ($requestedOperations -match '(?i)^Recreate$')
+        NoGrantCleanupRequested = -not ($requestedOperations -match '(?i)^GrantCleanup$')
+        NoCredentialChangeRequested = -not ($requestedOperations -match '(?i)^CredentialChange$')
+        HumanRollbackApprovalRequired = $true
+    }
+
+    foreach ($gateName in $gateChecks.Keys) {
+        $passed = [bool]$gateChecks[$gateName]
+        $severity = if ($passed) { 'Info' } else { 'High' }
+        $reason = switch ($gateName) {
+            'ExactlyOneTarget' { if ($passed) { 'Exactly one target supplied.' } else { 'Exactly one target is required.' } }
+            'LabOrDevTestTenantOnly' { if ($passed) { 'Target is labeled as lab/dev/test.' } else { 'Target is not labeled as lab/dev/test.' } }
+            'OriginalActionWasReversibleDisable' { if ($passed) { 'Original action was reversible disable.' } else { 'Original action was not reversible disable.' } }
+            'OriginalDisableEvidencePresent' { if ($passed) { 'Original disable evidence is present.' } else { 'Original disable evidence is missing.' } }
+            'PreActionSnapshotPresent' { if ($passed) { 'Pre-action snapshot is present.' } else { 'Pre-action snapshot is missing.' } }
+            'RollbackDrillPackagePresent' { if ($passed) { 'Rollback drill package is present.' } else { 'Rollback drill package is missing.' } }
+            'ObservationFailureOrManualTriggerPresent' { if ($passed) { 'Rollback trigger is present.' } else { 'Observation failure or manual trigger is missing.' } }
+            'RollbackActionIsReEnableOnly' { if ($passed) { 'Rollback action is re-enable only.' } else { 'Rollback action is not re-enable only.' } }
+            'NoDeleteRequested' { if ($passed) { 'Delete was not requested.' } else { 'Delete was requested.' } }
+            'NoRemoveRequested' { if ($passed) { 'Remove was not requested.' } else { 'Remove was requested.' } }
+            'NoRecreateRequested' { if ($passed) { 'Recreate was not requested.' } else { 'Recreate was requested.' } }
+            'NoGrantCleanupRequested' { if ($passed) { 'Grant cleanup was not requested.' } else { 'Grant cleanup was requested.' } }
+            'NoCredentialChangeRequested' { if ($passed) { 'Credential change was not requested.' } else { 'Credential change was requested.' } }
+            'HumanRollbackApprovalRequired' { 'Human rollback approval is required.' }
+        }
+        $gateVerdicts.Add((New-NhiControlledGateVerdict -GateName $gateName -Passed $passed -Severity $severity -Reason $reason))
+        if (-not $passed) { $reasons.Add("$gateName failed: $reason") }
+    }
+
+    $package | Add-Member -NotePropertyName GateVerdicts -NotePropertyValue @($gateVerdicts) -Force
+    $package | Add-Member -NotePropertyName HumanDecisionRequired -NotePropertyValue $true -Force
+
+    $artifactPath = Join-Path $OutputPath "Run4C-RollbackReadiness-$RunId.json"
+    $package | Add-Member -NotePropertyName OutputArtifactPath -NotePropertyValue (Export-NhiControlledDecommissionEvidence -Evidence $package -Path $artifactPath) -Force
+    return $package
+}
+
+function New-NhiControlledGateVerdict {
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$GateName,
+
+        [Parameter(Mandatory)]
+        [bool]$Passed,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Severity,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Reason
+    )
+
+    [PSCustomObject]@{
+        GateName = $GateName
+        Passed = $Passed
+        Severity = $Severity
+        Reason = $Reason
+    }
+}
+
 Export-ModuleMember -Function @(
     'Get-NhiControlledDecommissionSha256',
     'Get-NhiControlledDecommissionSchema',
@@ -3078,5 +3899,9 @@ Export-ModuleMember -Function @(
     'Export-NhiControlledDecommissionEvidence',
     'New-NhiControlledLabDisableDryRunPackage',
     'New-NhiControlledLabRollbackDrillPackage',
-    'Invoke-NhiControlledLabLiveReversibleDisable'
+    'Invoke-NhiControlledLabLiveReversibleDisable',
+    'New-NhiRun4CFinalGoNoGoReviewPackage',
+    'New-NhiRun4CLiveEvidenceCapturePackage',
+    'New-NhiRun4CPostDisableObservationPackage',
+    'New-NhiRun4CRollbackExecutionReadinessPackage'
 )

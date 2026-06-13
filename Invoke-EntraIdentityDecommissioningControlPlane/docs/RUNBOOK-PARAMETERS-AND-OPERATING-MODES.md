@@ -689,6 +689,164 @@ Invoke-NhiControlledLabLiveReversibleDisable `
 
 Run #4C remains separate from the offline Rev4.13 and Rev4.14 packages, and it should not be attempted until the operator has completed the preflight review and given an explicit final go/no-go.
 
+## Rev4.16 Final Go/No-Go Review Package
+
+Purpose:
+
+- Build a single offline review artifact that decides whether a future Run #4C controlled dev/test reversible disable may proceed.
+
+What it proves:
+
+- Approval, snapshot, readiness, dry-run, rollback, and observation inputs are present and internally consistent.
+- The target is lab/dev/test only and not blocked by platform, suppression, evidence-only, or information-only rules.
+- A human decision is still required before any live-controlled action.
+
+What it does not prove:
+
+- No live tenant write.
+- No disable.
+- No rollback.
+- No final delete.
+
+Required inputs:
+
+- Approved target identity.
+- Approval manifest artifact.
+- Pre-action snapshot artifact.
+- Rev4.12 readiness verdict.
+- Rev4.13 dry-run package.
+- Rev4.14 rollback drill package.
+- Observation plan.
+
+Generated artifacts:
+
+- Local JSON review package.
+
+Safety boundaries:
+
+- Do not mutate Entra ID.
+- Do not perform live disable.
+- Do not perform rollback.
+- Do not allow final delete.
+
+No live execution statement:
+
+- This package is review-only and cannot be used to execute Run #4C.
+
+## Rev4.17 Live Evidence Capture Package
+
+Purpose:
+
+- Define the exact evidence that must be captured before and after a future controlled reversible disable.
+
+What it proves:
+
+- The evidence checklist is complete for the planned future action.
+- The package records the expected before/after evidence fields and prohibited changes.
+
+What it does not prove:
+
+- No live tenant write.
+- No disable.
+- No rollback.
+- No final delete.
+
+Required inputs:
+
+- Approved target identity.
+- Pre-action snapshot.
+- Tenant identifier if available.
+
+Generated artifacts:
+
+- Local JSON evidence capture package.
+
+Safety boundaries:
+
+- This package does not execute any Graph change.
+- It only defines evidence capture requirements.
+
+No live execution statement:
+
+- This package is evidence planning only and cannot disable a target.
+
+## Rev4.18 Post-Disable Observation Package
+
+Purpose:
+
+- Define the post-disable observation window, success criteria, failure criteria, and rollback triggers for a future controlled reversible disable.
+
+What it proves:
+
+- Observation requirements are documented before any future live action.
+- Monitoring ownership and escalation paths are explicit.
+
+What it does not prove:
+
+- No live tenant write.
+- No disable.
+- No rollback.
+- No final delete.
+
+Required inputs:
+
+- Approved target identity.
+- Observation window.
+- Monitoring owner.
+- Rollback contact.
+- Pre-action snapshot.
+
+Generated artifacts:
+
+- Local JSON observation package.
+
+Safety boundaries:
+
+- Observation is planning only.
+- This package must not mutate tenant state.
+
+No live execution statement:
+
+- This package does not run monitoring or trigger rollback.
+
+## Rev4.19 Rollback Execution Readiness Package
+
+Purpose:
+
+- Determine whether rollback would be allowed after a future controlled reversible disable, without executing rollback.
+
+What it proves:
+
+- Original disable evidence, snapshot, observation trigger, and rollback drill inputs are present.
+- The next action, if ever approved, would be re-enable only.
+
+What it does not prove:
+
+- No rollback execution.
+- No live tenant write.
+- No disable.
+- No final delete.
+
+Required inputs:
+
+- Original disable evidence.
+- Pre-action snapshot.
+- Observation failure or manual rollback trigger.
+- Rollback drill package.
+
+Generated artifacts:
+
+- Local JSON rollback-readiness package.
+
+Safety boundaries:
+
+- This package is readiness-only.
+- It must not delete, remove, recreate, clean up grants, clean up metadata, or change credentials.
+
+No live execution statement:
+
+- This package does not execute rollback.
+
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.
