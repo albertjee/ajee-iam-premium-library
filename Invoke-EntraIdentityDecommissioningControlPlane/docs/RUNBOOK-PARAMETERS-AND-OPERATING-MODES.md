@@ -515,6 +515,98 @@ Before any future Run #4C live lab disable, the following must be present:
 - Observation or scream-test window metadata.
 - No platform or suppressed identity classification.
 
+### 4.13 Rev4.13 lab-only live reversible disable dry-run package
+
+Rev4.13 is an operator-readiness artifact only. It converts an already-approved lab-only reversible disable readiness result into a reviewable dry-run package without executing the operation.
+
+It proves:
+
+- The approved lab target can be packaged for human review with dry-run metadata.
+- The package records tenant-write intent as false and execution as not performed.
+- The planned action is reversible disable only.
+- Approval, snapshot, rollback readiness, and observation metadata can be assembled into a single local artifact.
+- Prohibited operations are explicitly listed and remain blocked.
+
+It does not prove:
+
+- Live tenant mutation.
+- Actual NHI disable execution.
+- NHI removal.
+- Rollback execution.
+- Final delete execution.
+- Grant cleanup, metadata cleanup, or credential deletion.
+
+Required inputs:
+
+- Approved lab-only target.
+- Readiness verdict from `Test-NhiControlledLabLiveReversibleDisableReadiness`.
+- Approval metadata.
+- Pre-action snapshot metadata.
+- Rollback readiness metadata.
+- Observation / scream-test metadata.
+
+Generated artifacts:
+
+- Local JSON package artifact.
+- Optional Markdown artifact if the calling workflow supports it.
+
+Safety boundaries:
+
+- No live tenant write is performed.
+- No actual disable is performed.
+- No rollback is performed.
+- No final delete is allowed.
+- No secrets, tokens, or raw tenant credentials are exported.
+
+No live execution statement:
+
+- Rev4.13 is a dry-run package only. It does not execute a lab disable, and it remains separate from any future Run #4C live lab operation.
+
+### 4.14 Rev4.14 rollback drill package
+
+Rev4.14 is an operator-readiness artifact only. It packages rollback steps, evidence, and decision gates for the same future lab-only reversible disable scenario without executing rollback.
+
+It proves:
+
+- A rollback drill can be packaged before any future live reversible disable is attempted.
+- The rollback package records a non-executed rollback drill.
+- The package links to the pre-action baseline and the source dry-run package when available.
+- Rollback trigger and validation criteria can be documented without performing recovery actions.
+- Prohibited rollback behaviors are explicitly listed and blocked.
+
+It does not prove:
+
+- Live tenant mutation.
+- Actual rollback execution.
+- NHI removal or object recreation.
+- Grant cleanup, metadata cleanup, or credential modification.
+- Final delete execution.
+
+Required inputs:
+
+- Approved lab-only target.
+- Pre-action snapshot baseline.
+- Rollback trigger criteria.
+- Rollback validation criteria.
+- Source dry-run package linkage, if the workflow uses linkage.
+
+Generated artifacts:
+
+- Local JSON rollback drill package artifact.
+- Optional Markdown artifact if the calling workflow supports it.
+
+Safety boundaries:
+
+- No rollback is performed.
+- No live tenant write is performed.
+- No final delete is allowed.
+- No objects are deleted, removed, or recreated.
+- No secrets, tokens, or raw tenant credentials are exported.
+
+No rollback execution statement:
+
+- Rev4.14 is a rollback drill package only. It does not execute rollback, and it remains separate from any future Run #4C live lab operation.
+
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.
