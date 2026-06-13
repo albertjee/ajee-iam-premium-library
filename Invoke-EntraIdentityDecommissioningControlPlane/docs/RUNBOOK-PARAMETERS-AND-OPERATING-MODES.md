@@ -1036,6 +1036,295 @@ Safety boundaries:
 - No credential deletion.
 - The final controlled dev/test tenant reversible-disable test remains a later separate milestone.
 
+## Rev4.24 Final Controlled Dev/Test Tenant Reversible Disable Test Package
+
+Purpose:
+
+- Build the final execution-ready test packet for one approved disposable dev/test NHI target.
+- Keep the packet local-only and review-only.
+
+Inputs:
+
+- Exactly one target.
+- Approval manifest.
+- Pre-action snapshot.
+- Rev4.12 readiness verdict.
+- Rev4.13 dry-run package.
+- Rev4.14 rollback drill package.
+- Rev4.15 controlled disable path preview.
+- Rev4.16 final go/no-go review package.
+- Rev4.17 evidence capture package.
+- Rev4.18 observation package.
+- Rev4.19 rollback readiness package.
+- Rev4.20 rollback preview package.
+- Rev4.21 final delete simulation package.
+- Rev4.22 end-to-end rehearsal report.
+- Rev4.23 consultant operating guide.
+- Explicit human go/no-go placeholder.
+
+Outputs:
+
+- Local JSON package artifact.
+- Optional Markdown artifact if implemented.
+- Final test packet metadata and gate verdicts.
+
+Safety boundaries:
+
+- No production tenant write.
+- No dev/test tenant write during this build.
+- No actual disable.
+- No rollback execution.
+- No actual delete.
+- No final delete.
+
+What the package enables:
+
+- Human review of a fully assembled final disable test packet.
+- Traceable evidence indexing for the Run #4C chain.
+
+What it does not execute:
+
+- No live disable command.
+- No rollback command.
+- No delete command.
+
+Human go/no-go requirement:
+
+- A human decision is required before any later live controlled action.
+- Human decision is not auto-captured by default.
+
+## Rev4.25 Post-Disable Evidence Validation and Observation Result Package
+
+Purpose:
+
+- Validate post-disable evidence and observation results for a future controlled dev/test reversible disable.
+- Keep validation synthetic and local-only.
+
+Inputs:
+
+- Pre-action snapshot.
+- Simulated execution evidence.
+- Post-action snapshot.
+- Observation result.
+- Evidence capture package.
+
+Outputs:
+
+- Local JSON validation artifact.
+- Validation status.
+- Observation summary.
+
+Expected change validation:
+
+- Account enabled state should change from true to false, or an equivalent reversible-disable state.
+- Only the enabled/account state should change.
+
+Forbidden change validation:
+
+- Credential count must not change.
+- Owner count must not change.
+- App role assignment count must not change.
+- OAuth grant count must not change.
+- Application metadata should not change unless the evidence explicitly proves equivalence.
+- Service principal must still exist.
+- Application must still exist when applicable.
+- No delete must be observed.
+- No grant cleanup must be observed.
+- No credential deletion must be observed.
+
+Rollback recommendation behavior:
+
+- Observation failure should recommend rollback.
+- A rollback trigger should recommend rollback.
+
+No rollback execution by this package:
+
+- This package does not execute rollback.
+- This package does not perform delete or final delete.
+
+## Rev4.26 Controlled Rollback Execution Test Package, Dev/Test Only
+
+Purpose:
+
+- Build the rollback execution test packet for a future dev/test rollback scenario.
+- Keep the packet local-only and preview-only.
+
+Inputs:
+
+- Original disable evidence.
+- Post-disable validation package.
+- Rollback readiness package.
+- Rollback preview package.
+- Rollback drill package.
+- Pre-action snapshot.
+- Observation failure or manual trigger.
+
+Outputs:
+
+- Local JSON rollback execution test artifact.
+- Rollback command preview template.
+- Human rollback review state.
+
+Rollback command template only:
+
+- The live rollback command block must be emitted as a template only.
+- The live rollback command block must be marked DO NOT RUN WITHOUT FINAL HUMAN ROLLBACK GO/NO-GO.
+
+Human rollback go/no-go requirement:
+
+- Human rollback approval is required.
+- Human rollback approval is not auto-captured by default.
+
+No rollback execution by this package:
+
+- This package does not execute rollback.
+- This package does not perform delete.
+- This package does not perform final delete.
+
+## Rev4.27 Post-Rollback Validation and Restoration Evidence Package
+
+Purpose:
+
+- Validate that a future rollback restored the pre-action enabled state.
+- Confirm that the rollback did not introduce forbidden changes.
+
+Inputs:
+
+- Pre-action snapshot.
+- Disable evidence.
+- Rollback execution evidence.
+- Post-rollback snapshot.
+- Observation result.
+
+Outputs:
+
+- Local JSON restoration validation artifact.
+- Restoration status.
+- Remaining risk summary.
+
+Restoration validation:
+
+- Enabled state must be restored.
+- ObjectId must remain unchanged.
+- AppId must remain unchanged when available.
+
+Forbidden change validation:
+
+- Credential count must be restored or unchanged.
+- Owner count must be restored or unchanged.
+- App role assignment count must be restored or unchanged.
+- OAuth grant count must be restored or unchanged.
+- Application metadata should be restored or unchanged when available.
+- No delete should be observed.
+- No recreate should be observed.
+- No grant cleanup should be observed.
+- No credential change should be observed.
+
+No rollback execution by this package:
+
+- This package does not execute rollback.
+- This package does not perform delete or final delete.
+
+## Rev4.28 Final End-to-End Evidence Bundle / Consultant QA Package
+
+Purpose:
+
+- Compile the full Rev4.x artifact chain into one local evidence bundle.
+- Give consultants a single QA artifact for review.
+
+Inputs:
+
+- Rev4.10 platform classification evidence if available.
+- Rev4.11 planning proof.
+- Rev4.12 readiness gate.
+- Rev4.13 dry-run package.
+- Rev4.14 rollback drill package.
+- Rev4.15 controlled disable path package.
+- Rev4.16 final go/no-go review package.
+- Rev4.17 evidence capture package.
+- Rev4.18 observation package.
+- Rev4.19 rollback readiness package.
+- Rev4.20 rollback preview package.
+- Rev4.21 final delete simulation package.
+- Rev4.22 rehearsal report.
+- Rev4.23 consultant guide.
+- Rev4.24 final controlled disable test package.
+- Rev4.25 post-disable validation package.
+- Rev4.26 rollback execution test package.
+- Rev4.27 post-rollback validation package.
+
+Outputs:
+
+- Local JSON evidence bundle artifact.
+- Optional Markdown summary.
+- Artifact chain index.
+- Consultant QA summary.
+
+What was proven:
+
+- The Rev4.x chain can be assembled into a local, review-only evidence bundle.
+- The bundle can index the required artifacts and summarize safety controls.
+
+What was not proven:
+
+- No live tenant write.
+- No disable.
+- No rollback execution.
+- No final delete execution.
+
+No final delete out-of-scope statement:
+
+- Final delete remains outside Rev4.x.
+- Final delete remains excluded from the bundle.
+
+## Rev4.29 Rev4.x Release Candidate Freeze and Handoff Documentation
+
+Purpose:
+
+- Freeze the Rev4.x chain as a release-candidate handoff artifact.
+- Mark final delete as out of scope until a later Rev5.x governance framework.
+
+Included Rev chain:
+
+- Rev4.10 through Rev4.29.
+- Commit and tag placeholders may be recorded if supplied.
+- Each Rev should carry its purpose and status.
+
+Release scope:
+
+- Consultant-ready lab workflow.
+- Dev/test reversible-disable governance chain.
+- Evidence-first decommissioning workflow.
+- Rollback readiness and validation workflow.
+- Final delete simulation only.
+- No production execution.
+- No final delete execution.
+
+Release exclusions:
+
+- Production tenant execution excluded.
+- Actual final delete excluded.
+- Service principal and application removal excluded.
+- Grant cleanup excluded.
+- Credential deletion excluded.
+- Metadata cleanup excluded.
+- Rev5.x required for any future final-delete governance framework.
+
+Handoff checklist:
+
+- All tests passed.
+- Branches and tags recorded.
+- Safety posture recorded.
+- Operating guide generated.
+- Evidence bundle generated.
+- Known limitations documented.
+- Future Rev5.x scope documented.
+
+Future Rev5.x boundary:
+
+- Any future final-delete governance framework begins in Rev5.x or later.
+- Rev4.x does not authorize final delete.
+
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.
