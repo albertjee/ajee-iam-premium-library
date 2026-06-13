@@ -847,6 +847,195 @@ No live execution statement:
 
 - This package does not execute rollback.
 
+## Rev4.20 Controlled Rollback Path
+
+Purpose:
+
+- Provide a controlled rollback preview for a future dev/test reversible disable scenario.
+
+What it proves:
+
+- Rollback can be planned and previewed locally.
+- The helper fails closed unless rollback readiness gates are satisfied.
+- Human rollback approval is required and not auto-captured.
+
+What it does not prove:
+
+- No rollback execution.
+- No live tenant write.
+- No actual disable.
+- No final delete.
+
+Inputs:
+
+- Exactly one target.
+- Lab/dev-test target marker.
+- Original disable evidence.
+- Pre-action snapshot.
+- Rollback drill package.
+- Rollback execution readiness package.
+- Observation failure or manual rollback trigger.
+
+Outputs:
+
+- Local JSON rollback preview package.
+- Rollback execution package metadata.
+- Planned re-enable action preview.
+
+Safety boundaries:
+
+- Offline preview only.
+- No production tenant write.
+- No dev/test tenant write.
+- No delete, remove, recreate, grant cleanup, metadata cleanup, or credential change.
+- No `-ExecuteNhiDecommission`.
+- No `-ExecuteNhiControlledDecommission`.
+- No `-ExecuteNhiControlledGrantCleanup`.
+- No `-ExecuteNhiControlledMetadataCleanup`.
+
+No rollback execution by default:
+
+- This package is preview-only unless a later separate approval process explicitly authorizes execution.
+- The final controlled dev/test tenant reversible-disable test remains a later separate milestone.
+
+## Rev4.21 Final Delete Eligibility Simulation Only
+
+Purpose:
+
+- Evaluate final-delete eligibility in an offline simulation only.
+
+What it proves:
+
+- The final-delete decision gates can be evaluated without live mutation.
+- A target can be labeled Eligible in simulation while `ReadyForActualDelete` remains false.
+
+What it does not prove:
+
+- No production tenant write.
+- No dev/test tenant write.
+- No final delete execution.
+- No service principal removal.
+- No application removal.
+- No grant cleanup.
+- No metadata cleanup.
+- No credential deletion.
+
+Why actual delete remains separate:
+
+- Final delete is a separate milestone that requires its own approval chain and should not be merged into the reversible workflow.
+
+No final delete execution:
+
+- The simulation never emits an executable final-delete command.
+
+No executable delete command:
+
+- Only a pseudo-command or prohibited-action explanation is allowed.
+
+## Rev4.22 End-to-End Lab Rehearsal Report
+
+Purpose:
+
+- Produce a local rehearsal report that stitches together the Run #4C chain using artifacts only.
+
+Inputs:
+
+- Approval manifest.
+- Snapshot.
+- Readiness verdict.
+- Dry-run package.
+- Rollback drill package.
+- Controlled disable package.
+- Final Go/No-Go package.
+- Evidence capture package.
+- Observation package.
+- Rollback readiness package.
+- Rollback preview package.
+- Final delete simulation package.
+
+Outputs:
+
+- Local JSON rehearsal report.
+- Optional Markdown rehearsal summary.
+- Artifact index for the full chain.
+
+Chain summary:
+
+- Rev4.11 approved reversible planning proof.
+- Rev4.12 readiness gate.
+- Rev4.13 dry-run package.
+- Rev4.14 rollback drill package.
+- Rev4.15 controlled disable path.
+- Rev4.16 final go/no-go package.
+- Rev4.17 evidence capture package.
+- Rev4.18 observation package.
+- Rev4.19 rollback execution readiness package.
+- Rev4.20 rollback preview path.
+- Rev4.21 final delete eligibility simulation.
+
+Rehearsal verdict:
+
+- `Complete` or `Incomplete`, based on local artifact presence and target safety checks.
+
+Safety assertions:
+
+- No production tenant write.
+- No dev/test tenant write.
+- No live tenant write by rehearsal.
+- No actual disable.
+- No actual rollback.
+- No actual delete.
+- No final delete.
+- No grant cleanup.
+- No credential deletion.
+
+## Rev4.23 Consultant-Ready Operating Guide / Client-Safe Narrative
+
+Purpose:
+
+- Generate a client-safe operating guide for the Run #4C lab workflow.
+
+Inputs:
+
+- Lab target context.
+- Run #4C workflow scope.
+- Safety boundaries.
+- Required artifacts.
+
+Outputs:
+
+- Local Markdown guide artifact.
+- Optional JSON index.
+
+Audience:
+
+- Consultants.
+- Operators.
+- Approvers.
+- Monitoring owners.
+- Business owners.
+- Security reviewers.
+
+Client-safe positioning:
+
+- The guide explains the reversible-first control model in non-executable language.
+- It separates human approval from automation.
+- It keeps final delete and rollback as distinct milestones.
+
+Safety boundaries:
+
+- Offline documentation only.
+- No production tenant write.
+- No dev/test tenant write.
+- No dev/test tenant write by the guide package.
+- No actual disable.
+- No rollback execution.
+- No actual delete.
+- No final delete.
+- No grant cleanup.
+- No credential deletion.
+- The final controlled dev/test tenant reversible-disable test remains a later separate milestone.
+
 ## 10. Accuracy Review
 
 This runbook is generated from the actual Rev4.10 script and module parameter surface. If parameters are added or removed, update this file and rerun the parameter inventory command.
