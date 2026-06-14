@@ -260,6 +260,46 @@ Describe 'RemediationPlan.Rev33 — WhatIf Generation for AddApplicationOwner an
             $skipped = @($manifest.SkippedActions | Where-Object { $_.FindingId -eq 'DEC-APP-001' })
             $skipped.Count | Should -BeGreaterThan 0
         }
+
+        It 'Skipped actions remain collectible when a platform skip is followed by a protected-object skip' {
+            $platformFinding = [PSCustomObject]@{
+                FindingId = 'DEC-APP-001'
+                ObjectId = [guid]::NewGuid().Guid
+                ObjectType = 'Application'
+                DisplayName = 'Microsoft Graph PowerShell'
+                ActionType = 'AddApplicationOwner'
+                TargetObjectIds = @($script:OwnerObjId)
+                NewOwnerObjectId = $script:OwnerObjId
+                BusinessJustification = 'Application requires active owner'
+                ProtectedObject = $false
+                MicrosoftPlatform = $true
+                FirstPartyMicrosoftApp = $true
+                EvidenceOnly = $true
+                SuppressCustomerRemediation = $true
+                Classification = 'MicrosoftPlatform'
+            }
+
+            $protectedFinding = [PSCustomObject]@{
+                FindingId = 'DEC-APP-001'
+                ObjectId = [guid]::NewGuid().Guid
+                ObjectType = 'Application'
+                DisplayName = 'Contoso App'
+                ActionType = 'AddApplicationOwner'
+                TargetObjectIds = @($script:OwnerObjId)
+                NewOwnerObjectId = $script:OwnerObjId
+                BusinessJustification = 'Application requires active owner'
+                ProtectedObject = $true
+            }
+
+            $planPath = New-DecomWhatIfActionPlan -Findings @($platformFinding, $protectedFinding) `
+                -EngagementId 'ENG-33-AM-SKIP' -ClientName 'TestClient' `
+                -Assessor 'TestAssessor' -WhatIfRunId ([guid]::NewGuid().Guid) `
+                -OutputPath $script:testDir
+
+            $manifest = Get-Content $planPath -Raw | ConvertFrom-Json
+            $manifest.SkippedActions.Count | Should -Be 2
+            @($manifest.SkippedActions | Where-Object { $_.FindingId -eq 'DEC-APP-001' }).Count | Should -Be 2
+        }
     }
 
     # ── Item 19: DEC-SPN-001 with explicit NewOwnerObjectId generates AddApplicationOwner ──

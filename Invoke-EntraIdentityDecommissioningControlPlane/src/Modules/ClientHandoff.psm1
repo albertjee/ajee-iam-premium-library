@@ -108,6 +108,18 @@ function New-DecomClientHandoffPackage {
         Runbooks               = @()
     }
 
+    $discoverPrimaryFiles = (
+        $AssessmentFiles.Count -eq 0 -and
+        $FindingsFiles.Count -eq 0 -and
+        $RemediationPlanFiles.Count -eq 0 -and
+        $WhatIfFiles.Count -eq 0 -and
+        $ApprovalFiles.Count -eq 0 -and
+        $ExecutionEvidenceFiles.Count -eq 0 -and
+        $TraceabilityFiles.Count -eq 0 -and
+        $ReplayValidationFiles.Count -eq 0 -and
+        $RunbookFiles.Count -eq 0
+    )
+
     if (Test-Path -LiteralPath $PackagePath) {
         $discoveredFiles = @(Get-ChildItem -LiteralPath $PackagePath -File -Recurse -ErrorAction SilentlyContinue | Where-Object {
             $_.Extension -in @('.json','.csv','.md','.html')
@@ -124,9 +136,7 @@ function New-DecomClientHandoffPackage {
                 continue
             }
 
-            if ($AssessmentFiles.Count -eq 0 -and $FindingsFiles.Count -eq 0 -and $RemediationPlanFiles.Count -eq 0 -and $WhatIfFiles.Count -eq 0 -and
-                $ApprovalFiles.Count -eq 0 -and $ExecutionEvidenceFiles.Count -eq 0 -and $TraceabilityFiles.Count -eq 0 -and $ReplayValidationFiles.Count -eq 0 -and
-                $RunbookFiles.Count -eq 0) {
+            if ($discoverPrimaryFiles) {
                 switch -Regex ($file.Name) {
                     $packageFilePatterns.ExecutiveSummary       { if ($AssessmentFiles -notcontains $pathValue) { $AssessmentFiles += $pathValue }; break }
                     $packageFilePatterns.ClientHandoffArtifacts { if ($clientHandoffFiles -notcontains $pathValue) { $clientHandoffFiles += $pathValue }; break }

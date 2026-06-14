@@ -140,7 +140,9 @@ function Invoke-NhiAgentScan {
 
     # DEC-AGENT-007: AgenticCandidate with no owner AND high-risk permission
     # (separate pass to ensure OwnerCount/HighRiskPermissionCount are checked together)
+    Clear-DecomFindingTraceContext
     foreach ($sp in $ServicePrincipals) {
+        $null = Set-DecomFindingTraceContext -SourceObject $sp -ClassificationSource 'NhiAgent'
         if ($sp.AgenticCandidate -and
             $null -ne $sp.OwnerCount -and $sp.OwnerCount -eq 0 -and
             $null -ne $sp.HighRiskPermissionCount -and $sp.HighRiskPermissionCount -gt 0) {

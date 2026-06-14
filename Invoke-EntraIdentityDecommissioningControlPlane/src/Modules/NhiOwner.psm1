@@ -146,6 +146,7 @@ function Invoke-NhiOwnerScan {
 
     # NHI-OWNER-003: Lookup failed - emit ONCE as assessment-level finding
     # Only when lookup was globally unavailable (not per-SP)
+    Clear-DecomFindingTraceContext
     if (-not $OwnerLookupSucceeded -and -not $hasAnyOwnerData) {
         $findings += New-DecomFinding `
             -FindingId 'NHI-OWNER-003' `

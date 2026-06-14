@@ -216,5 +216,39 @@ Describe 'NhiOwner.Rev39 - NHI-OWNER-001 through 006' {
             $found002 | Should -Be 0
             $found003 | Should -Be 1
         }
+
+        It 'OWNER-003 does not inherit stale platform metadata from the last service principal' {
+            $plainSp = [PSCustomObject]@{
+                Id = 'sp-plain'
+                DisplayName = 'contoso-app'
+                AppId = 'app-plain'
+                MicrosoftPlatform = $false
+                MicrosoftFirstParty = $false
+                FirstPartyMicrosoftApp = $false
+                EvidenceOnly = $false
+            }
+
+            $platformSp = [PSCustomObject]@{
+                Id = 'sp-platform'
+                DisplayName = 'Microsoft Graph'
+                AppId = 'app-platform'
+                MicrosoftPlatform = $true
+                MicrosoftFirstParty = $true
+                FirstPartyMicrosoftApp = $true
+                EvidenceOnly = $true
+                SuppressCustomerRemediation = $true
+                Classification = 'MicrosoftPlatform'
+            }
+
+            $result = Invoke-NhiOwnerScan -ServicePrincipals @($plainSp, $platformSp) -OwnersByObjectId @{} -OwnerLookupSucceeded $false
+            $f003 = $result | Where-Object { $_.FindingId -eq 'NHI-OWNER-003' }
+
+            $f003.MicrosoftPlatform | Should -Be $false
+            $f003.FirstPartyMicrosoftApp | Should -Be $false
+            $f003.MicrosoftFirstParty | Should -Be $false
+            $f003.EvidenceOnly | Should -Be $false
+            $f003.SuppressCustomerRemediation | Should -Be $false
+            $f003.Classification | Should -BeNullOrEmpty
+        }
     }
 }

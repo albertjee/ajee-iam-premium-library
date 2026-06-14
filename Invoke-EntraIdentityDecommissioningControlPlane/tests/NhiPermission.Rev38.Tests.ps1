@@ -313,6 +313,57 @@ Describe 'NhiPermission - NHI-PERM-008 Tests' {
             $f | Should -BeNullOrEmpty
         }
     }
+
+    Context 'Trace context isolation for late permission findings' {
+        It 'PERM-007 and PERM-008 do not inherit stale platform metadata from the last service principal' {
+            $plainSp = [PSCustomObject]@{
+                Id = 'sp-perm-trace-plain'
+                DisplayName = 'Contoso App'
+                AppId = 'app-perm-trace-plain'
+                MicrosoftPlatform = $false
+                MicrosoftFirstParty = $false
+                FirstPartyMicrosoftApp = $false
+                EvidenceOnly = $false
+            }
+
+            $platformSp = [PSCustomObject]@{
+                Id = 'sp-perm-trace-platform'
+                DisplayName = 'Microsoft Graph'
+                AppId = 'app-perm-trace-platform'
+                MicrosoftPlatform = $true
+                MicrosoftFirstParty = $true
+                FirstPartyMicrosoftApp = $true
+                EvidenceOnly = $true
+                SuppressCustomerRemediation = $true
+                Classification = 'MicrosoftPlatform'
+            }
+
+            $aras = @([PSCustomObject]@{
+                PrincipalId = $plainSp.Id
+                PrincipalDisplayName = $plainSp.DisplayName
+                AppRoleId = 'role-x'
+                ResolvedRoleValue = 'User.Read'
+                ResolutionStatus = 'Unresolved'
+            })
+
+            $result = Invoke-NhiPermissionScan -ServicePrincipals @($plainSp, $platformSp) -AppRoleAssignments $aras -OAuthGrants @() -AppRoleLookupSucceeded $false
+
+            $perm007 = $result | Where-Object { $_.FindingId -eq 'NHI-PERM-007' -and $_.ObjectId -eq $plainSp.Id }
+            $perm008 = $result | Where-Object { $_.FindingId -eq 'NHI-PERM-008' -and $_.ObjectId -eq $plainSp.Id }
+
+            $perm007.MicrosoftPlatform | Should -Be $false
+            $perm007.FirstPartyMicrosoftApp | Should -Be $false
+            $perm007.MicrosoftFirstParty | Should -Be $false
+            $perm007.EvidenceOnly | Should -Be $false
+            $perm007.SuppressCustomerRemediation | Should -Be $false
+
+            $perm008.MicrosoftPlatform | Should -Be $false
+            $perm008.FirstPartyMicrosoftApp | Should -Be $false
+            $perm008.MicrosoftFirstParty | Should -Be $false
+            $perm008.EvidenceOnly | Should -Be $false
+            $perm008.SuppressCustomerRemediation | Should -Be $false
+        }
+    }
 }
 
 Describe 'NhiPermission - Override Parameter Tests' {

@@ -238,6 +238,50 @@ Describe 'NhiAgent.Rev39 - NHI-AGENT-001/002/003 and DEC-AGENT-002/006/007' {
             $f = $result | Where-Object { $_.FindingId -eq 'DEC-AGENT-007' }
             $f | Should -BeNullOrEmpty
         }
+
+        It 'DEC-AGENT-007 does not inherit stale platform metadata from the previous scan object' {
+            $agentCandidate = [PSCustomObject]@{
+                Id = 'sp-agent-trace-001'
+                DisplayName = 'contoso-agent-prod'
+                ServicePrincipalType = 'Application'
+                AppId = 'app-agent-trace-001'
+                AgenticCandidate = $true
+                OwnerCount = 0
+                CredentialCount = 0
+                HighRiskPermissionCount = 1
+                MicrosoftPlatform = $false
+                MicrosoftFirstParty = $false
+                FirstPartyMicrosoftApp = $false
+                EvidenceOnly = $false
+            }
+
+            $platformSp = [PSCustomObject]@{
+                Id = 'sp-agent-trace-002'
+                DisplayName = 'Microsoft Graph'
+                ServicePrincipalType = 'Application'
+                AppId = 'app-agent-trace-002'
+                AgenticCandidate = $false
+                OwnerCount = 1
+                CredentialCount = 0
+                HighRiskPermissionCount = 0
+                MicrosoftPlatform = $true
+                MicrosoftFirstParty = $true
+                FirstPartyMicrosoftApp = $true
+                EvidenceOnly = $true
+                SuppressCustomerRemediation = $true
+                Classification = 'MicrosoftPlatform'
+            }
+
+            $result = Invoke-NhiAgentScan -ServicePrincipals @($agentCandidate, $platformSp) -AgentBlueprintIdByObjectId @{}
+            $f = $result | Where-Object { $_.FindingId -eq 'DEC-AGENT-007' -and $_.ObjectId -eq $agentCandidate.Id }
+
+            $f.MicrosoftPlatform | Should -Be $false
+            $f.FirstPartyMicrosoftApp | Should -Be $false
+            $f.MicrosoftFirstParty | Should -Be $false
+            $f.EvidenceOnly | Should -Be $false
+            $f.SuppressCustomerRemediation | Should -Be $false
+            $f.Classification | Should -BeNullOrEmpty
+        }
     }
 
     # --- Coexistence tests ---

@@ -126,6 +126,52 @@ Describe 'ClientHandoff' {
         }
     }
 
+    It 'Auto-discovery collects findings and client-handoff artifacts when findings are enumerated first' {
+        Mock Test-Path { $true } -ModuleName ClientHandoff
+        Mock Get-ChildItem {
+            @(
+                [pscustomobject]@{
+                    FullName  = 'C:\out\run\findings-export.json'
+                    Name      = 'findings-export.json'
+                    Extension = '.json'
+                },
+                [pscustomobject]@{
+                    FullName  = 'C:\out\run\client-handoff-manifest.json'
+                    Name      = 'client-handoff-manifest.json'
+                    Extension = '.json'
+                }
+            )
+        } -ModuleName ClientHandoff
+
+        $pkg = New-DecomClientHandoffPackage -Context $script:TestContext -RunId 'run-ch-008' -PackagePath 'C:\out\handoff'
+
+        @($pkg.Sections.FindingsExports).Count | Should -Be 1
+        @($pkg.Sections.ClientHandoffArtifacts).Count | Should -Be 1
+    }
+
+    It 'Auto-discovery collects findings and client-handoff artifacts when client-handoff files are enumerated first' {
+        Mock Test-Path { $true } -ModuleName ClientHandoff
+        Mock Get-ChildItem {
+            @(
+                [pscustomobject]@{
+                    FullName  = 'C:\out\run\client-handoff-manifest.json'
+                    Name      = 'client-handoff-manifest.json'
+                    Extension = '.json'
+                },
+                [pscustomobject]@{
+                    FullName  = 'C:\out\run\findings-export.json'
+                    Name      = 'findings-export.json'
+                    Extension = '.json'
+                }
+            )
+        } -ModuleName ClientHandoff
+
+        $pkg = New-DecomClientHandoffPackage -Context $script:TestContext -RunId 'run-ch-009' -PackagePath 'C:\out\handoff'
+
+        @($pkg.Sections.FindingsExports).Count | Should -Be 1
+        @($pkg.Sections.ClientHandoffArtifacts).Count | Should -Be 1
+    }
+
     # ── Missing validation report creates warning ────────────────────────────
 
     It 'Missing validation report creates warning — ValidationStatus NotValidated adds to Warnings' {

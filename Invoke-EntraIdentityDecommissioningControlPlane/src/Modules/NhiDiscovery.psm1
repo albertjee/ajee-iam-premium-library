@@ -58,9 +58,27 @@ function Get-DecomNhiOAuthGrants {
 }
 
 function Get-DecomNhiPublisherVerification {
-    param([string]$PublisherName, [pscustomobject]$VerifiedPublisher)
+    param([pscustomobject]$VerifiedPublisher)
     if (-not $VerifiedPublisher) { return $false }
-    return $VerifiedPublisher.DisplayName -eq $PublisherName
+
+    foreach ($propertyName in @(
+        'DisplayName',
+        'displayName',
+        'VerifiedPublisherId',
+        'verifiedPublisherId',
+        'AddedDateTime',
+        'addedDateTime'
+    )) {
+        $property = $VerifiedPublisher.PSObject.Properties[$propertyName]
+        if ($property -and $null -ne $property.Value) {
+            $value = [string]$property.Value
+            if ($value.Trim() -ne '') {
+                return $true
+            }
+        }
+    }
+
+    return $false
 }
 
 function Get-DecomNhiHighRiskPermissions {
@@ -205,7 +223,7 @@ function Invoke-DecomNhiDiscovery {
             }
             $highRiskPermissions = Get-DecomNhiHighRiskPermissions -AppRoleAssignments $appRoleAssignments -OAuthGrants $oauthGrants
             $normalizedIdentity = Get-DecomNormalizedNhiIdentity -InputObject $sp
-            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $normalizedIdentity.PublisherName -VerifiedPublisher $sp.VerifiedPublisher
+            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -VerifiedPublisher $sp.VerifiedPublisher
             $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $sp
 
             # Build NHI object
@@ -298,7 +316,7 @@ function Invoke-DecomNhiDiscovery {
             $oauthGrants = @()
             $highRiskPermissions = @()
             $normalizedIdentity = Get-DecomNormalizedNhiIdentity -InputObject $app
-            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $normalizedIdentity.PublisherName -VerifiedPublisher $app.VerifiedPublisher
+            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -VerifiedPublisher $app.VerifiedPublisher
             $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $app
 
             # Build NHI object

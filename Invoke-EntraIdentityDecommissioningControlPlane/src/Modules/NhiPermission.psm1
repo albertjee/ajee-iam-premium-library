@@ -156,18 +156,33 @@ function Invoke-NhiPermissionScan {
         }
     }
 
+    Clear-DecomFindingTraceContext
+
     # PERM-007
     if (-not $AppRoleLookupSucceeded) {
         foreach ($sp in $ServicePrincipals) {
-            $findings += New-DecomFinding -FindingId 'NHI-PERM-007' -Category 'PermissionScopeRisk' -Severity 'Medium' -RiskScore 5 -Confidence 'Low' -ObjectType 'ServicePrincipal' -ObjectId $sp.Id -DisplayName $sp.DisplayName -Evidence 'App role display-name lookup failed; permission analysis may be incomplete' -EvidenceSource 'graph' -GraphEndpoint 'https://graph.microsoft.com/v1.0/servicePrincipals' -RecommendedAction 'Verify Microsoft Graph permissions; ensure Directory.Read.All or AppRoleAssignment.Read.All is granted' -RemediationMode 'InformationOnly' -ConsultantNote "Lookup error: $AppRoleLookupError"
+            $null = Set-DecomFindingTraceContext -SourceObject $sp -ClassificationSource 'NhiPermission'
+            try {
+                $findings += New-DecomFinding -FindingId 'NHI-PERM-007' -Category 'PermissionScopeRisk' -Severity 'Medium' -RiskScore 5 -Confidence 'Low' -ObjectType 'ServicePrincipal' -ObjectId $sp.Id -DisplayName $sp.DisplayName -Evidence 'App role display-name lookup failed; permission analysis may be incomplete' -EvidenceSource 'graph' -GraphEndpoint 'https://graph.microsoft.com/v1.0/servicePrincipals' -RecommendedAction 'Verify Microsoft Graph permissions; ensure Directory.Read.All or AppRoleAssignment.Read.All is granted' -RemediationMode 'InformationOnly' -ConsultantNote "Lookup error: $AppRoleLookupError"
+            } finally {
+                Clear-DecomFindingTraceContext
+            }
         }
     }
 
     # PERM-008
     foreach ($ara in $AppRoleAssignments) {
+        $dispName = $ara.PrincipalDisplayName
+        if (-not $dispName) { $dispName = $ara.PrincipalId }
+        $traceSource = [pscustomobject]@{
+            Id = $ara.PrincipalId
+            DisplayName = $dispName
+            ObjectId = $ara.PrincipalId
+            ObjectType = 'ServicePrincipal'
+        }
+        $null = Set-DecomFindingTraceContext -SourceObject $traceSource -ClassificationSource 'NhiPermission'
+        try {
         if ($ara.ResolutionStatus -and $ara.ResolutionStatus.ToLower() -eq 'unresolved') {
-            $dispName = $ara.PrincipalDisplayName
-            if (-not $dispName) { $dispName = $ara.PrincipalId }
             $findings += New-DecomFinding -FindingId 'NHI-PERM-008' -Category 'PermissionScopeRisk' -Severity 'Low' -RiskScore 5 -Confidence 'Medium' -ObjectType 'ServicePrincipal' -ObjectId $ara.PrincipalId -DisplayName $dispName -Evidence "App role assignment has unresolved status: $($ara.ResolutionStatus)" -EvidenceSource 'graph' -GraphEndpoint "https://graph.microsoft.com/v1.0/servicePrincipals/$($ara.PrincipalId)/appRoleAssignments" -RecommendedAction 'Re-resolve or remove stale app role assignment' -RemediationMode 'InformationOnly' -ConsultantNote 'ResolutionStatus: Unresolved'
         }
         $roleEmpty = $false
@@ -177,6 +192,9 @@ function Invoke-NhiPermissionScan {
             $dispName = $ara.PrincipalDisplayName
             if (-not $dispName) { $dispName = $ara.PrincipalId }
             $findings += New-DecomFinding -FindingId 'NHI-PERM-008' -Category 'PermissionScopeRisk' -Severity 'Low' -RiskScore 5 -Confidence 'Medium' -ObjectType 'ServicePrincipal' -ObjectId $ara.PrincipalId -DisplayName $dispName -Evidence 'App role assignment has no resolvable role value; grant may be stale' -EvidenceSource 'graph' -GraphEndpoint "https://graph.microsoft.com/v1.0/servicePrincipals/$($ara.PrincipalId)/appRoleAssignments" -RecommendedAction 'Re-resolve or remove stale app role assignment' -RemediationMode 'InformationOnly' -ConsultantNote 'ResolvedRoleValue is null/empty'
+        }
+        } finally {
+            Clear-DecomFindingTraceContext
         }
     }
 

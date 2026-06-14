@@ -254,11 +254,15 @@ Describe 'NhiDiscovery.Rev35 — NHI Discovery Module' {
             ($results | Where-Object { $_.AppId -eq '09213cdc-9f30-4e82-aa6f-9b6e8d82dab3' }).MicrosoftPlatform | Should -Be $true
             ($results | Where-Object { $_.AppId -eq 'f1143447-b07a-4557-b878-b78df8d45c13' }).MicrosoftPlatform | Should -Be $true
             ($results | Where-Object { $_.AppId -eq '14d82eec-204b-4c2f-b7e8-296a70dab67e' }).MicrosoftPlatformReason | Should -Not -BeNullOrEmpty
+            ($results | Where-Object { $_.AppId -eq '14d82eec-204b-4c2f-b7e8-296a70dab67e' }).IsVerifiedPublisher | Should -Be $true
+            ($results | Where-Object { $_.AppId -eq '09213cdc-9f30-4e82-aa6f-9b6e8d82dab3' }).IsVerifiedPublisher | Should -Be $false
+            ($results | Where-Object { $_.AppId -eq 'f1143447-b07a-4557-b878-b78df8d45c13' }).IsVerifiedPublisher | Should -Be $false
 
             $ios = $results | Where-Object { $_.AppId -eq 'f8d98a96-0999-43f5-8af3-69971c7bb423' }
             $ios.MicrosoftPlatform | Should -Be $false
             $ios.MicrosoftFirstParty | Should -Be $false
             $ios.VerifiedPublisherName | Should -Be 'Apple Inc.'
+            $ios.IsVerifiedPublisher | Should -Be $true
         }
     }
 

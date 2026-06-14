@@ -56,6 +56,8 @@ Describe 'NhiGovernance.Rev35 — NHI Governance Finding Generation' {
                 MicrosoftPlatformReason    = ''
                 CoverageMode              = 'Full'
                 CoverageLimitations       = @()
+                SuppressCustomerRemediation = $false
+                EvidenceOnly              = $false
                 RiskScoreMayBeUnderstated = $false
                 RiskScore                 = 65
                 Severity                  = 'High'
@@ -147,6 +149,40 @@ Describe 'NhiGovernance.Rev35 — NHI Governance Finding Generation' {
 
             ($findings | Where-Object { $_.FindingId -in @('DEC-NHI-002','DEC-NHI-003','DEC-NHI-004','DEC-NHI-007','DEC-NHI-009','DEC-NHI-010','DEC-NHI-012','DEC-AGENT-001','DEC-AGENT-003','DEC-AGENT-004','DEC-AGENT-005') }).Count | Should -Be 0
             ($findings | Where-Object { $_.RecommendedAction -match 'Assign accountable owner|AddApplicationOwner|Revoke consent|Verify publisher|Reduce permission scope' }).Count | Should -Be 0
+        }
+
+        It 'Clears stale platform context before a later assessment-level finding' {
+            Clear-DecomFindingTraceContext
+
+            $obj = script:New-AnalyzedNhiObject -DisplayName 'Microsoft Graph' -Classification 'MicrosoftPlatform' -IsAgentic $false
+            $obj.MicrosoftPlatform = $true
+            $obj.MicrosoftFirstParty = $true
+            $obj.MicrosoftPlatformReason = 'MicrosoftOwnerTenant'
+            $obj.FirstPartyMicrosoftApp = $true
+            $obj.EvidenceOnly = $true
+            $findings = Invoke-DecomNhiGovernance -AnalyzedNhiObjects @($obj) -Context $script:GovCtx
+            $findings.Count | Should -BeGreaterThan 0
+
+            $followUpFinding = New-DecomFinding `
+                -FindingId 'TEST-TRACE-001' `
+                -Category 'Test' `
+                -Severity 'Informational' `
+                -RiskScore 0 `
+                -Confidence 'Low' `
+                -ObjectType 'Assessment' `
+                -ObjectId 'test-trace-001' `
+                -DisplayName 'Trace context follow-up' `
+                -Evidence 'verify context cleanup' `
+                -EvidenceSource 'test' `
+                -GraphEndpoint 'https://graph.microsoft.com/v1.0/test' `
+                -RecommendedAction 'None' `
+                -RemediationMode 'InformationOnly'
+
+            $followUpFinding.MicrosoftPlatform | Should -Be $false
+            $followUpFinding.FirstPartyMicrosoftApp | Should -Be $false
+            $followUpFinding.EvidenceOnly | Should -Be $false
+            $followUpFinding.SuppressCustomerRemediation | Should -Be $false
+            $followUpFinding.Classification | Should -BeNullOrEmpty
         }
     }
 

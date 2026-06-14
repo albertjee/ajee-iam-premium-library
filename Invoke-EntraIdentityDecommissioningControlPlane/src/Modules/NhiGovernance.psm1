@@ -581,5 +581,6 @@ function Invoke-DecomNhiGovernance {
         }
     }
 
+    Clear-DecomFindingTraceContext
     Write-DecomOk "NHI governance processing complete — $($governanceFindings.Count) finding(s) generated"
     return $governanceFindings}
