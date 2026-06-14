@@ -2729,6 +2729,7 @@ function Invoke-NhiControlledLabLiveReversibleDisable {
     $reasons = [System.Collections.Generic.List[string]]::new()
     $warnings = [System.Collections.Generic.List[string]]::new()
     $targetObject = $null
+    $targetContext = $null
 
     if ($null -eq $Target -or @($Target).Count -ne 1) {
         $reasons.Add('Exactly one target is required.')
@@ -2741,29 +2742,20 @@ function Invoke-NhiControlledLabLiveReversibleDisable {
             }
         }
 
+        $targetContext = Get-NhiRun4CTargetContext -Target @($targetObject)
+        foreach ($reason in @($targetContext.Blockers)) {
+            if ($reason) {
+                $reasons.Add([string]$reason)
+            }
+        }
+
         $targetType = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType'))
         if ($targetType -ne 'ServicePrincipal') {
             $reasons.Add('Run #4C execution is limited to ServicePrincipal targets.')
         }
 
-        $targetClassification = [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification'))
-        if ($targetClassification -in @('MicrosoftPlatform', 'ExternalVendorPlatform')) {
-            $reasons.Add('Platform targets are blocked.')
-        }
-        if ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) -eq $true) {
-            $reasons.Add('SuppressCustomerRemediation targets are blocked.')
-        }
-        if ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -eq $true) {
-            $reasons.Add('EvidenceOnly targets are blocked.')
-        }
-        if ([string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -in @('InformationOnly', 'EvidenceOnly')) {
-            $reasons.Add('InformationOnly and EvidenceOnly targets are blocked.')
-        }
-        if ([string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment')) -ne 'Lab' -and
-            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -ne $true -and
-            [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -ne 'Lab' -and
-            [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -ne $true) {
-            $reasons.Add('Target is not explicitly marked as lab-only.')
+        if ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabValidationApproved') -Default $false) -ne $true) {
+            $reasons.Add('LabValidationApproved must be true.')
         }
     }
 
@@ -2775,6 +2767,7 @@ function Invoke-NhiControlledLabLiveReversibleDisable {
     if ($requestedOperations.Count -eq 0) {
         $reasons.Add('At least one requested operation is required.')
     } else {
+        $destructivePattern = '(?i)(finaldelete|final delete|delete|harddelete|removeapplication|remove service principal|removeserviceprincipal|remove application|remove|grantcleanup|grant cleanup|metadatacleanup|metadata cleanup|credentialdelete|credential deletion|credentialdeletion|credentialchange|recreate)'
         foreach ($requestedOperation in $requestedOperations) {
             if ([string]::IsNullOrWhiteSpace([string]$requestedOperation)) {
                 $reasons.Add('Requested operations cannot be empty.')
@@ -2783,6 +2776,9 @@ function Invoke-NhiControlledLabLiveReversibleDisable {
 
             if ([string]$requestedOperation -ne 'ReversibleDisable') {
                 $reasons.Add("Requested operation '$requestedOperation' is blocked.")
+            }
+            if ([string]$requestedOperation -match $destructivePattern) {
+                $reasons.Add("Requested operation '$requestedOperation' is destructive and is blocked.")
             }
         }
     }
@@ -3140,6 +3136,13 @@ function New-NhiRun4CFinalGoNoGoReviewPackage {
     $gateVerdicts = [System.Collections.Generic.List[object]]::new()
     $targetObject = $null
     $targetCount = @($Target).Count
+    $targetContext = Get-NhiRun4CTargetContext -Target $Target
+
+    foreach ($reason in @($targetContext.Blockers)) {
+        if ($reason) {
+            $reasons.Add([string]$reason)
+        }
+    }
 
     if ($targetCount -eq 1) {
         $targetObject = @($Target)[0]
@@ -3154,9 +3157,13 @@ function New-NhiRun4CFinalGoNoGoReviewPackage {
     $classification = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification')) } else { $null }
     $environment = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment', 'TenantScope')) } else { $null }
     $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } elseif ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
+    $targetContext = if ($targetObject) { Get-NhiRun4CTargetContext -Target @($targetObject) } else { $null }
+    $remediationMode = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) } else { $null }
+    $microsoftPlatform = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -or [string]$classification -eq 'MicrosoftPlatform' } else { $false }
+    $firstPartyMicrosoftApp = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('FirstPartyMicrosoftApp', 'MicrosoftFirstParty') -Default $false) } else { $false }
     $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
-    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
-    $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -or $remediationMode -eq 'EvidenceOnly' } else { $false }
+    $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or $remediationMode -eq 'InformationOnly' } else { $false }
 
     $approvalManifestPresent = $null -ne $ApprovalManifest -or (Test-Path -LiteralPath $ApprovalManifestPath -PathType Leaf)
     $approvalManifestHash = [string](Get-NhiControlledPropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalManifestHash', 'ManifestHash', 'SHA256'))
@@ -3179,6 +3186,12 @@ function New-NhiRun4CFinalGoNoGoReviewPackage {
     $rollbackPresent = $null -ne $RollbackPackage
     $observationPresent = $null -ne $ObservationPlan
     $operatorChecklistPresent = $null -ne $OperatorChecklist
+
+    foreach ($reason in @($targetContext.Blockers)) {
+        if ($reason) {
+            $reasons.Add([string]$reason)
+        }
+    }
 
     $gateChecks = [ordered]@{}
     $gateChecks['ExactlyOneTarget'] = @($Target).Count -eq 1
@@ -3349,8 +3362,9 @@ function New-NhiRun4CLiveEvidenceCapturePackage {
     $targetObjectId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectId')) } else { $null }
     $targetAppId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId')) } else { $null }
     $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
+    $targetContext = if ($targetObject) { Get-NhiRun4CTargetContext -Target @($targetObject) } else { $null }
     $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
-    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'EvidenceOnly' } else { $false }
     $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
     $tenantWritePerformed = $false
     $disablePerformed = $false
@@ -3358,13 +3372,19 @@ function New-NhiRun4CLiveEvidenceCapturePackage {
     $finalDeleteAllowed = $false
 
     if ($targetObject) {
+        foreach ($reason in @($targetContext.Blockers)) {
+            if ($reason) {
+                $reasons.Add([string]$reason)
+            }
+        }
         if ([string]$environment -notin @('Lab', 'DevTest', 'DevTestLab', 'Test') -and
             [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -ne $true -and
             [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('TenantScope')) -notin @('Lab', 'DevTest', 'Test') -and
             [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -ne $true) {
             $reasons.Add('Target is not explicitly marked as lab/dev/test.')
         }
-        if ([string]$classification -eq 'MicrosoftPlatform' -or [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -eq $true) { $reasons.Add('MicrosoftPlatform target is blocked.') }
+        if ($microsoftPlatform) { $reasons.Add('MicrosoftPlatform target is blocked.') }
+        if ($firstPartyMicrosoftApp) { $reasons.Add('First-party Microsoft app target is blocked.') }
         if ([string]$classification -eq 'ExternalVendorPlatform') { $reasons.Add('ExternalVendorPlatform target is blocked.') }
         if ($suppressCustomerRemediation) { $reasons.Add('SuppressCustomerRemediation target is blocked.') }
         if ($evidenceOnly) { $reasons.Add('EvidenceOnly target is blocked.') }
@@ -3536,7 +3556,7 @@ function New-NhiRun4CPostDisableObservationPackage {
     $targetAppId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId')) } else { $null }
     $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
     $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
-    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'EvidenceOnly' } else { $false }
     $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
 
     if ([string]$environment -notin @('Lab', 'DevTest', 'DevTestLab', 'Test') -and
@@ -3693,7 +3713,7 @@ function New-NhiRun4CRollbackExecutionReadinessPackage {
     $targetAppId = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('AppId')) } else { $null }
     $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
     $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
-    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'EvidenceOnly' } else { $false }
     $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
 
     if ([string]$environment -notin @('Lab', 'DevTest', 'DevTestLab', 'Test') -and
@@ -3908,7 +3928,10 @@ function Get-NhiRun4CTargetContext {
     $environment = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment', 'TenantScope')) } else { $null }
     $labMarker = if ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true) { 'LabTarget' } elseif ($targetObject -and [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('LabTargetMarker') -Default $false) -eq $true) { 'LabTarget' } else { 'LabMarkerMissing' }
     $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
-    $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
+    $evidenceOnly = $false
+    if ($targetObject) {
+        $evidenceOnly = [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'EvidenceOnly'
+    }
     $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
     $isLabOrDevTest = $targetObject -and (
         [string]$environment -in @('Lab', 'DevTest', 'DevTestLab', 'Test') -or
@@ -3920,6 +3943,7 @@ function Get-NhiRun4CTargetContext {
     if ($targetObject) {
         if (-not $isLabOrDevTest) { $reasons.Add('Target is not explicitly marked as lab/dev/test.') }
         if ([string]$classification -eq 'MicrosoftPlatform' -or [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -eq $true) { $reasons.Add('MicrosoftPlatform target is blocked.') }
+        if ([bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('FirstPartyMicrosoftApp', 'MicrosoftFirstParty') -Default $false) -eq $true) { $reasons.Add('First-party Microsoft app target is blocked.') }
         if ([string]$classification -eq 'ExternalVendorPlatform') { $reasons.Add('ExternalVendorPlatform target is blocked.') }
         if ($suppressCustomerRemediation) { $reasons.Add('SuppressCustomerRemediation target is blocked.') }
         if ($evidenceOnly) { $reasons.Add('EvidenceOnly target is blocked.') }
@@ -3937,6 +3961,8 @@ function Get-NhiRun4CTargetContext {
         Classification = $classification
         EnvironmentMarker = $environment
         LabTargetMarker = $labMarker
+        MicrosoftPlatform = $microsoftPlatform
+        FirstPartyMicrosoftApp = $firstPartyMicrosoftApp
         SuppressCustomerRemediation = $suppressCustomerRemediation
         EvidenceOnly = $evidenceOnly
         InformationOnly = $informationOnly
@@ -4228,6 +4254,7 @@ function New-NhiFinalDeleteEligibilitySimulationPackage {
     $noActiveSignIns = if ($PSBoundParameters.ContainsKey('NoActiveSignInsObserved')) { [bool]$NoActiveSignInsObserved } else { $false }
     $noActiveGrants = if ($PSBoundParameters.ContainsKey('NoActiveGrantsRemaining')) { [bool]$NoActiveGrantsRemaining } else { $false }
     $noCredentialRisk = if ($PSBoundParameters.ContainsKey('NoCredentialRiskRemaining')) { [bool]$NoCredentialRiskRemaining } else { $false }
+    $firstPartyMicrosoftApp = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('FirstPartyMicrosoftApp', 'MicrosoftFirstParty') -Default $false) } else { $false }
     $actualDeleteRequested = $requestedOperations -match '(?i)^Delete$|^FinalDelete$'
     $removeRequested = $requestedOperations -match '(?i)^Remove$|^RemoveServicePrincipal$|^RemoveApplication$'
     $grantCleanupRequested = $requestedOperations -match '(?i)^GrantCleanup$'
@@ -4241,6 +4268,7 @@ function New-NhiFinalDeleteEligibilitySimulationPackage {
     if (-not $SecurityApprovalPresent) { $reasons.Add('Security approval is required.') }
     if (-not $RetentionWindowSatisfied) { $reasons.Add('Retention window must be satisfied.') }
     if (-not $DependencyCheckPassed) { $reasons.Add('Dependency check must pass.') }
+    if ($firstPartyMicrosoftApp) { $reasons.Add('First-party Microsoft app target is blocked.') }
     if (-not $noActiveSignIns) { $reasons.Add('No active sign-ins must be observed.') }
     if (-not $noActiveGrants) { $reasons.Add('No active grants remaining must be confirmed.') }
     if (-not $noCredentialRisk) { $reasons.Add('No credential risk remaining must be confirmed.') }
@@ -4772,6 +4800,7 @@ function New-NhiRun4CFinalControlledDisableTestPackage {
     $targetType = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('ObjectType', 'TargetType')) } else { $null }
     $environment = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Environment', 'TenantScope')) } else { $null }
     $classification = if ($targetObject) { [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('Classification')) } else { $null }
+    $firstPartyMicrosoftApp = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('FirstPartyMicrosoftApp', 'MicrosoftFirstParty') -Default $false) } else { $false }
     $suppressCustomerRemediation = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('SuppressCustomerRemediation') -Default $false) } else { $false }
     $evidenceOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) } else { $false }
     $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
@@ -4823,6 +4852,7 @@ function New-NhiRun4CFinalControlledDisableTestPackage {
     if (-not $endToEndRehearsalReportPresent) { $reasons.Add('End-to-end rehearsal report is required.') }
     if (-not $consultantOperatingGuidePresent) { $reasons.Add('Consultant operating guide is required.') }
     if (-not $targetIsDisposableOrLabApproved) { $reasons.Add('Target is not a disposable or lab-approved target.') }
+    if ($firstPartyMicrosoftApp) { $reasons.Add('First-party Microsoft app target is blocked.') }
     if ([string]$classification -eq 'MicrosoftPlatform') { $reasons.Add('MicrosoftPlatform target is blocked.') }
     if ([string]$classification -eq 'ExternalVendorPlatform') { $reasons.Add('ExternalVendorPlatform target is blocked.') }
     if ($suppressCustomerRemediation) { $reasons.Add('SuppressCustomerRemediation target is blocked.') }

@@ -8,7 +8,7 @@ function Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 30) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-function New-TestTarget {
+function New-Rev418TestTarget {
     param(
         [string]$Classification = 'CustomerOwned',
         [string]$Environment = 'Lab',
@@ -36,7 +36,7 @@ function New-TestTarget {
     }
 }
 
-function New-TestSnapshot {
+function New-Rev418TestSnapshot {
     [pscustomobject]@{
         SnapshotId = 'SNAP-OBS-001'
         SnapshotPath = Join-Path $TestDrive 'obs-snapshot.json'
@@ -135,7 +135,7 @@ Describe 'Rev4.18 Post-Disable Observation Package' {
         }
     }
 
-    function global:Invoke-Package {
+    function script:Invoke-Rev418Package {
         param(
             [object]$Target = $null,
             [Nullable[int]]$ObservationWindowMinutes = 60,
@@ -163,7 +163,7 @@ Describe 'Rev4.18 Post-Disable Observation Package' {
     }
 
     It 'Complete approved dev/test target creates observation package' {
-        $result = Invoke-Package
+        $result = Invoke-Rev418Package
         $result.ObservationScope | Should -Be 'SingleTargetOnly'
         $result.TenantWritePerformed | Should -BeFalse
         $result.DisablePerformed | Should -BeFalse
@@ -175,69 +175,69 @@ Describe 'Rev4.18 Post-Disable Observation Package' {
     }
 
     It 'Package writes JSON artifact locally' {
-        $result = Invoke-Package -RunId 'REV418-ARTIFACT'
+        $result = Invoke-Rev418Package -RunId 'REV418-ARTIFACT'
         (Get-Content -LiteralPath $result.OutputArtifactPath -Raw | ConvertFrom-Json).ObservationPackageId | Should -Match '^REV418-'
     }
 
     It 'Package declares TenantWritePerformed=false, DisablePerformed=false, RollbackPerformed=false' {
-        $result = Invoke-Package
+        $result = Invoke-Rev418Package
         $result.TenantWritePerformed | Should -BeFalse
         $result.DisablePerformed | Should -BeFalse
         $result.RollbackPerformed | Should -BeFalse
     }
 
     It 'Package includes observation window' {
-        $result = Invoke-Package
+        $result = Invoke-Rev418Package
         $result.ObservationWindowMinutes | Should -Be 60
     }
 
     It 'Package includes monitoring owner' {
-        (Invoke-Package).MonitoringOwner | Should -Be 'lab-ops'
+        (Invoke-Rev418Package).MonitoringOwner | Should -Be 'lab-ops'
     }
 
     It 'Package includes rollback contact' {
-        (Invoke-Package).RollbackContact | Should -Be 'lab-ops'
+        (Invoke-Rev418Package).RollbackContact | Should -Be 'lab-ops'
     }
 
     It 'Package includes success criteria' {
-        (Invoke-Package).SuccessCriteria | Should -Contain 'No unexpected app outage'
+        (Invoke-Rev418Package).SuccessCriteria | Should -Contain 'No unexpected app outage'
     }
 
     It 'Package includes failure criteria' {
-        (Invoke-Package).FailureCriteria | Should -Contain 'App outage detected'
+        (Invoke-Rev418Package).FailureCriteria | Should -Contain 'App outage detected'
     }
 
     It 'Package includes rollback trigger criteria' {
-        (Invoke-Package).RollbackTriggerCriteria | Should -Contain 'Critical outage'
+        (Invoke-Rev418Package).RollbackTriggerCriteria | Should -Contain 'Critical outage'
     }
 
     It 'Missing observation window fails closed' {
-        $result = Invoke-Package -ObservationWindowMinutes $null
+        $result = Invoke-Rev418Package -ObservationWindowMinutes $null
         $result.Ready | Should -BeFalse
     }
 
     It 'Missing monitoring owner fails closed' {
-        (Invoke-Package -MonitoringOwner '').Ready | Should -BeFalse
+        (Invoke-Rev418Package -MonitoringOwner '').Ready | Should -BeFalse
     }
 
     It 'Missing rollback contact fails closed' {
-        (Invoke-Package -RollbackContact '').Ready | Should -BeFalse
+        (Invoke-Rev418Package -RollbackContact '').Ready | Should -BeFalse
     }
 
     It 'MicrosoftPlatform target is blocked' {
-        (Invoke-Package -Target $script:MicrosoftTarget).Ready | Should -BeFalse
+        (Invoke-Rev418Package -Target $script:MicrosoftTarget).Ready | Should -BeFalse
     }
 
     It 'Suppressed target is blocked' {
-        (Invoke-Package -Target $script:SuppressedTarget).Ready | Should -BeFalse
+        (Invoke-Rev418Package -Target $script:SuppressedTarget).Ready | Should -BeFalse
     }
 
     It 'EvidenceOnly target is blocked' {
-        (Invoke-Package -Target $script:EvidenceOnlyTarget).Ready | Should -BeFalse
+        (Invoke-Rev418Package -Target $script:EvidenceOnlyTarget).Ready | Should -BeFalse
     }
 
     It 'Package states observation only and no tenant mutation' {
-        $result = Invoke-Package
+        $result = Invoke-Rev418Package
         $result.ObservationOnly | Should -BeTrue
         $result.RollbackNotExecuted | Should -BeTrue
         $result.FinalDeleteAllowed | Should -BeFalse

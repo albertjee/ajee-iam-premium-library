@@ -233,9 +233,9 @@ Describe 'Rev4.16 Final Go/No-Go Review Package' {
         ($script:DefaultApproval | ConvertTo-Json -Depth 30) | Set-Content -LiteralPath (Join-Path $script:OutputPath 'approval.json') -Encoding utf8
     }
 
-        function global:Invoke-ReviewPackage {
-            param(
-                [object]$Target = $null,
+    function script:Invoke-ReviewPackage {
+        param(
+            [object]$Target = $null,
                 [object]$ApprovalManifest = $null,
                 [object]$Snapshot = $null,
                 [object]$ReadinessVerdict = $null,
@@ -354,6 +354,30 @@ Describe 'Rev4.16 Final Go/No-Go Review Package' {
 
     It 'MicrosoftPlatform target returns NoGo' {
         (Invoke-ReviewPackage -Target $script:MicrosoftTarget).GoNoGo | Should -Be 'NoGo'
+    }
+
+    It 'MicrosoftPlatform boolean target with CustomerOwned classification returns NoGo' {
+        $target = $script:DefaultTarget | Select-Object *
+        $target | Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $true -Force
+        $target | Add-Member -NotePropertyName Classification -NotePropertyValue 'CustomerOwned' -Force
+
+        (Invoke-ReviewPackage -Target $target).GoNoGo | Should -Be 'NoGo'
+    }
+
+    It 'FirstPartyMicrosoftApp boolean target with CustomerOwned classification returns NoGo' {
+        $target = $script:DefaultTarget | Select-Object *
+        $target | Add-Member -NotePropertyName FirstPartyMicrosoftApp -NotePropertyValue $true -Force
+        $target | Add-Member -NotePropertyName Classification -NotePropertyValue 'CustomerOwned' -Force
+
+        (Invoke-ReviewPackage -Target $target).GoNoGo | Should -Be 'NoGo'
+    }
+
+    It 'InformationOnly boolean target returns NoGo even when RemediationMode is ManualApprovalRequired' {
+        $target = $script:DefaultTarget | Select-Object *
+        $target | Add-Member -NotePropertyName InformationOnly -NotePropertyValue $true -Force
+        $target | Add-Member -NotePropertyName RemediationMode -NotePropertyValue 'ManualApprovalRequired' -Force
+
+        (Invoke-ReviewPackage -Target $target).GoNoGo | Should -Be 'NoGo'
     }
 
     It 'ExternalVendorPlatform target returns NoGo' {

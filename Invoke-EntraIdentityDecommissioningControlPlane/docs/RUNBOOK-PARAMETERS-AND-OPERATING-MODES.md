@@ -19,9 +19,11 @@ Use this as the first reference when deciding whether to run the tool offline, i
 | Readiness validation                          | Safe                                  | None                                 | Verify release and readiness artifacts before client delivery            | `-SelfTest`, `-GenerateRev35Readiness`, `-GenerateNhiGovernancePack`                                                                      | Any execution, rollback, or cleanup switch                                                                                |
 | Approval manifest generation / validation     | Caution                               | None unless used in execution gating | Create or validate an approval manifest for planned actions              | `-GenerateApprovalTemplate`, `-ApprovalManifestPath`, `-WhatIfManifestPath`, `-Mode WhatIfRemediation`                                    | `-ExecuteRemediation`, any `ExecuteNhi*` parameter, `-AllowFinalDelete`                                                   |
 | WhatIf / planning                             | Caution                               | None                                 | Build a non-executing remediation plan or approval draft                 | `-Mode WhatIfRemediation`, `-GenerateApprovalTemplate`, `-WhatIfExecution`                                                                | `-ExecuteRemediation`, `-Rollback`, any `ExecuteNhi*` parameter                                                           |
-| Controlled execution / decommission           | High risk                             | Yes                                  | Run approved, staged remediation or controlled NHI actions               | `-Mode ExecuteRemediation`, `-ExecuteRemediation`, `-ApprovalManifestPath`, `-ApprovedManifestPath`, `-ExecutionRunId`, `-ExecutionStage` | `-AllowFinalDelete`, missing approval artifacts, mixed rollback and execution in one run                                  |
+| Run #4C reversible-disable-only path          | High risk                             | Yes                                  | Run approved lab reversible disable only; no cleanup or delete          | `-Mode ExecuteRemediation`, `-ExecuteRemediation`, `-ApprovalManifestPath`, `-ApprovedManifestPath`, `-ExecutionRunId`, `-ExecutionStage` | `-AllowFinalDelete`, missing approval artifacts, mixed rollback and execution in one run                                  |
+| Grant cleanup out of Run #4C scope            | High risk                             | Yes                                  | Grant cleanup remains a separate workflow and is not part of Run #4C    | `-ExecuteNhiControlledGrantCleanup`                                                                                                      | Any Run #4C live reversible-disable input, `-AllowFinalDelete`, missing approval artifacts                                |
+| Metadata cleanup out of Run #4C scope         | High risk                             | Yes                                  | Metadata cleanup remains a separate workflow and is not part of Run #4C | `-ExecuteNhiControlledMetadataCleanup`                                                                                                   | Any Run #4C live reversible-disable input, `-AllowFinalDelete`, missing approval artifacts                                |
+| Final delete out of Rev4.x scope              | Prohibited unless explicitly approved | Yes                                  | Final delete stays in Rev5.x and is not a Run #4C or Rev4.x action      | `-AllowFinalDelete` plus a future Rev5.x final-delete workflow                                                                            | Any casual execution use, unreviewed approval material, non-lab tenant usage                                              |
 | Rollback                                      | High risk                             | Possible / context-dependent         | Reverse a prior execution using recorded snapshot data                   | `-Rollback`, `-ExecutionRunId`, `-ExecutionOutputPath`                                                                                    | Any live execution switch, `-AllowFinalDelete`, unvalidated or missing snapshot artifacts                                 |
-| Final delete / irreversible operations        | Prohibited unless explicitly approved | Yes                                  | Only for tightly controlled lab or approved final-delete workflows       | `-AllowFinalDelete` plus controlled NHI execution stage and plan artifacts                                                                | Any casual execution use, unreviewed approval material, non-lab tenant usage                                              |
 
 ## 3. Complete Parameter Inventory
 
@@ -300,6 +302,7 @@ Approval expectations:
 - Use only in approved workflows.
 - Prefer lab or tightly controlled staging environments first.
 - Keep `AllowFinalDelete` disabled unless the workflow explicitly authorizes the final-delete stage.
+- For any Run #4C live reversible-disable path, `LabValidationApproved = true` is required before the live executor may proceed.
 
 Evidence required before use:
 
@@ -313,6 +316,7 @@ Rollback evidence required:
 - Preserved `ExecutionOutputPath`.
 - Snapshot manifest and related execution artifacts.
 - Proof that the rollback target matches the original execution.
+- Fields named `ReadyForRollbackExecution`, `RollbackReadiness`, or similar do not authorize rollback by themselves; separate human rollback approval is still required.
 
 ## 6. Never Combine Casually Matrix
 
@@ -1393,3 +1397,26 @@ Offline controlled NHI removal fail-closed simulation.
 - Run #4B: approved reversible lab action planning.
 - Run #4C: live reversible lab disable in a lab-only tenant.
 - Final delete remains prohibited and requires a separate explicit approval process.
+
+## Safe Exported Functions Appendix
+
+The following exported functions are intended for packaging, preview, or orchestration use. They are not direct operator commands for live mutation:
+
+- Package-only helpers:
+  - `New-NhiRun4CFinalGoNoGoReviewPackage`
+  - `New-NhiRun4CLiveEvidenceCapturePackage`
+  - `New-NhiRun4CPostDisableObservationPackage`
+  - `New-NhiRun4CRollbackExecutionReadinessPackage`
+  - `New-NhiRun4CControlledRollbackExecutionTestPackage`
+  - `New-NhiRun4CFinalEvidenceBundle`
+- Preview-only helpers:
+  - `New-NhiFinalDeleteEligibilitySimulationPackage`
+  - `New-NhiRun4CControlledRollbackPath`
+  - `New-NhiRun4CConsultantOperatingGuide`
+  - `New-NhiRev4ReleaseCandidateFreezePackage`
+- Live executor helper:
+  - `Invoke-NhiControlledLabLiveReversibleDisable`
+- Functions not intended for direct operator use:
+  - `Get-NhiRun4CTargetContext`
+  - `Test-NhiControlledLabLiveReversibleDisableReadiness`
+  - Internal validation helpers used by package builders

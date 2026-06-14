@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:Write-TestJson {
+function script:Write-Rev422TestJson {
     param(
         [Parameter(Mandatory)]
         [string]$Path,
@@ -13,7 +13,7 @@ function global:Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 30) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-function global:New-TestTarget {
+function script:New-Rev422TestTarget {
     param(
         [string]$Classification = 'CustomerOwned',
         [string]$Environment = 'Lab',
@@ -39,7 +39,7 @@ function global:New-TestTarget {
     }
 }
 
-function global:New-TestPackage {
+function script:New-Rev422TestPackage {
     param(
         [Parameter(Mandatory)]
         [string]$Name,
@@ -58,7 +58,7 @@ function global:New-TestPackage {
     [pscustomobject]$package
 }
 
-function global:Invoke-RehearsalReport {
+function script:Invoke-Rev422RehearsalReport {
     param(
         [object]$Target = $null,
         [object]$ApprovalManifest = $null,
@@ -77,26 +77,26 @@ function global:Invoke-RehearsalReport {
         [string]$MarkdownOutputPath = $null
     )
 
-    if (-not $PSBoundParameters.ContainsKey('Target')) { $Target = New-TestTarget }
-    if (-not $PSBoundParameters.ContainsKey('ApprovalManifest')) { $ApprovalManifest = New-TestPackage -Name 'approval' -Extra @{ Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('Snapshot')) { $Snapshot = New-TestPackage -Name 'snapshot' -Extra @{ SnapshotPath = (Join-Path $TestDrive 'snapshot.json'); Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('ReadinessVerdict')) { $ReadinessVerdict = New-TestPackage -Name 'readiness' -Extra @{ Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('DryRunPackage')) { $DryRunPackage = New-TestPackage -Name 'dryrun' -Extra @{ Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('RollbackDrillPackage')) { $RollbackDrillPackage = New-TestPackage -Name 'rollbackdrill' -Extra @{ Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('ControlledDisablePackage')) { $ControlledDisablePackage = New-TestPackage -Name 'disable' -Extra @{ Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('FinalGoNoGoPackage')) { $FinalGoNoGoPackage = New-TestPackage -Name 'gono' -Extra @{ GoNoGo = 'Go' } }
-    if (-not $PSBoundParameters.ContainsKey('EvidenceCapturePackage')) { $EvidenceCapturePackage = New-TestPackage -Name 'evidence' -Extra @{ Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('ObservationPackage')) { $ObservationPackage = New-TestPackage -Name 'observation' -Extra @{ Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('RollbackReadinessPackage')) { $RollbackReadinessPackage = New-TestPackage -Name 'rollbackreadiness' -Extra @{ RollbackReadiness = 'Ready' } }
-    if (-not $PSBoundParameters.ContainsKey('RollbackPreviewPackage')) { $RollbackPreviewPackage = New-TestPackage -Name 'rollbackpreview' -Extra @{ RollbackReadiness = 'Ready' } }
-    if (-not $PSBoundParameters.ContainsKey('FinalDeleteSimulationPackage')) { $FinalDeleteSimulationPackage = New-TestPackage -Name 'finaldelete' -Extra @{ FinalDeleteEligibility = 'Eligible' } }
+    if (-not $PSBoundParameters.ContainsKey('Target')) { $Target = New-Rev422TestTarget }
+    if (-not $PSBoundParameters.ContainsKey('ApprovalManifest')) { $ApprovalManifest = New-Rev422TestPackage -Name 'approval' -Extra @{ Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('Snapshot')) { $Snapshot = New-Rev422TestPackage -Name 'snapshot' -Extra @{ SnapshotPath = (Join-Path $TestDrive 'snapshot.json'); Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('ReadinessVerdict')) { $ReadinessVerdict = New-Rev422TestPackage -Name 'readiness' -Extra @{ Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('DryRunPackage')) { $DryRunPackage = New-Rev422TestPackage -Name 'dryrun' -Extra @{ Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('RollbackDrillPackage')) { $RollbackDrillPackage = New-Rev422TestPackage -Name 'rollbackdrill' -Extra @{ Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('ControlledDisablePackage')) { $ControlledDisablePackage = New-Rev422TestPackage -Name 'disable' -Extra @{ Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('FinalGoNoGoPackage')) { $FinalGoNoGoPackage = New-Rev422TestPackage -Name 'gono' -Extra @{ GoNoGo = 'Go' } }
+    if (-not $PSBoundParameters.ContainsKey('EvidenceCapturePackage')) { $EvidenceCapturePackage = New-Rev422TestPackage -Name 'evidence' -Extra @{ Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('ObservationPackage')) { $ObservationPackage = New-Rev422TestPackage -Name 'observation' -Extra @{ Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('RollbackReadinessPackage')) { $RollbackReadinessPackage = New-Rev422TestPackage -Name 'rollbackreadiness' -Extra @{ RollbackReadiness = 'Ready' } }
+    if (-not $PSBoundParameters.ContainsKey('RollbackPreviewPackage')) { $RollbackPreviewPackage = New-Rev422TestPackage -Name 'rollbackpreview' -Extra @{ RollbackReadiness = 'Ready' } }
+    if (-not $PSBoundParameters.ContainsKey('FinalDeleteSimulationPackage')) { $FinalDeleteSimulationPackage = New-Rev422TestPackage -Name 'finaldelete' -Extra @{ FinalDeleteEligibility = 'Eligible' } }
 
     foreach ($pkg in @($ApprovalManifest, $Snapshot, $ReadinessVerdict, $DryRunPackage, $RollbackDrillPackage, $ControlledDisablePackage, $FinalGoNoGoPackage, $EvidenceCapturePackage, $ObservationPackage, $RollbackReadinessPackage, $RollbackPreviewPackage, $FinalDeleteSimulationPackage)) {
         if ($null -eq $pkg -or [string]::IsNullOrWhiteSpace($pkg.OutputArtifactPath)) {
             continue
         }
 
-        Write-TestJson -Path $pkg.OutputArtifactPath -InputObject $pkg
+        Write-Rev422TestJson -Path $pkg.OutputArtifactPath -InputObject $pkg
     }
 
     New-NhiRun4CEndToEndLabRehearsalReport `
@@ -134,13 +134,13 @@ Describe 'Rev4.22 End-to-End Lab Rehearsal Report' {
         $script:OutputPath = Join-Path $TestDrive 'rev422'
         $null = New-Item -ItemType Directory -Path $script:OutputPath -Force
         $script:MarkdownPath = Join-Path $TestDrive 'rev422-report.md'
-        $script:BlockedMicrosoft = New-TestTarget -Classification 'MicrosoftPlatform'
-        $script:BlockedSuppressed = New-TestTarget -SuppressCustomerRemediation $true
-        $script:BlockedEvidenceOnly = New-TestTarget -EvidenceOnly $true
+        $script:BlockedMicrosoft = New-Rev422TestTarget -Classification 'MicrosoftPlatform'
+        $script:BlockedSuppressed = New-Rev422TestTarget -SuppressCustomerRemediation $true
+        $script:BlockedEvidenceOnly = New-Rev422TestTarget -EvidenceOnly $true
     }
 
     It 'Complete artifact chain generates rehearsal report' {
-        $result = Invoke-RehearsalReport -MarkdownOutputPath $script:MarkdownPath
+        $result = Invoke-Rev422RehearsalReport -MarkdownOutputPath $script:MarkdownPath
 
         $result.RehearsalStatus | Should -Be 'Complete'
         $result.ReadyForFinalControlledDevTestDisable | Should -BeTrue
@@ -160,82 +160,82 @@ Describe 'Rev4.22 End-to-End Lab Rehearsal Report' {
     }
 
     It 'Report writes JSON artifact locally' {
-        $result = Invoke-RehearsalReport -RunId 'REV422-ARTIFACT'
+        $result = Invoke-Rev422RehearsalReport -RunId 'REV422-ARTIFACT'
         Test-Path -LiteralPath $result.OutputArtifactPath | Should -BeTrue
         (Get-Content -LiteralPath $result.OutputArtifactPath -Raw | ConvertFrom-Json).ReportId | Should -Match '^REV422-'
     }
 
     It 'Optional Markdown artifact writes if implemented' {
-        $result = Invoke-RehearsalReport -RunId 'REV422-MD' -MarkdownOutputPath $script:MarkdownPath
+        $result = Invoke-Rev422RehearsalReport -RunId 'REV422-MD' -MarkdownOutputPath $script:MarkdownPath
         Test-Path -LiteralPath $result.MarkdownArtifactPath | Should -BeTrue
         Test-Path -LiteralPath $script:MarkdownPath | Should -BeTrue
     }
 
     It 'Report states TenantWritePerformed=false' {
-        (Invoke-RehearsalReport).TenantWritePerformed | Should -BeFalse
+        (Invoke-Rev422RehearsalReport).TenantWritePerformed | Should -BeFalse
     }
 
     It 'Report states DisablePerformed=false' {
-        (Invoke-RehearsalReport).DisablePerformed | Should -BeFalse
+        (Invoke-Rev422RehearsalReport).DisablePerformed | Should -BeFalse
     }
 
     It 'Report states RollbackPerformed=false' {
-        (Invoke-RehearsalReport).RollbackPerformed | Should -BeFalse
+        (Invoke-Rev422RehearsalReport).RollbackPerformed | Should -BeFalse
     }
 
     It 'Report states DeletePerformed=false' {
-        (Invoke-RehearsalReport).DeletePerformed | Should -BeFalse
+        (Invoke-Rev422RehearsalReport).DeletePerformed | Should -BeFalse
     }
 
     It 'Report states FinalDeleteAllowed=false' {
-        (Invoke-RehearsalReport).FinalDeleteAllowed | Should -BeFalse
+        (Invoke-Rev422RehearsalReport).FinalDeleteAllowed | Should -BeFalse
     }
 
     It 'Missing readiness package makes report Incomplete' {
-        (Invoke-RehearsalReport -ReadinessVerdict $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -ReadinessVerdict $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing dry-run package makes report Incomplete' {
-        (Invoke-RehearsalReport -DryRunPackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -DryRunPackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing rollback drill package makes report Incomplete' {
-        (Invoke-RehearsalReport -RollbackDrillPackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -RollbackDrillPackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing go/no-go package makes report Incomplete' {
-        (Invoke-RehearsalReport -FinalGoNoGoPackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -FinalGoNoGoPackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing evidence capture package makes report Incomplete' {
-        (Invoke-RehearsalReport -EvidenceCapturePackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -EvidenceCapturePackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing observation package makes report Incomplete' {
-        (Invoke-RehearsalReport -ObservationPackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -ObservationPackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing rollback readiness package makes report Incomplete' {
-        (Invoke-RehearsalReport -RollbackReadinessPackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -RollbackReadinessPackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing rollback preview package makes report Incomplete' {
-        (Invoke-RehearsalReport -RollbackPreviewPackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -RollbackPreviewPackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Missing final delete simulation package makes report Incomplete' {
-        (Invoke-RehearsalReport -FinalDeleteSimulationPackage $null).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -FinalDeleteSimulationPackage $null).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'MicrosoftPlatform target is blocked' {
-        (Invoke-RehearsalReport -Target $script:BlockedMicrosoft).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -Target $script:BlockedMicrosoft).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'Suppressed target is blocked' {
-        (Invoke-RehearsalReport -Target $script:BlockedSuppressed).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -Target $script:BlockedSuppressed).RehearsalStatus | Should -Be 'Incomplete'
     }
 
     It 'EvidenceOnly target is blocked' {
-        (Invoke-RehearsalReport -Target $script:BlockedEvidenceOnly).RehearsalStatus | Should -Be 'Incomplete'
+        (Invoke-Rev422RehearsalReport -Target $script:BlockedEvidenceOnly).RehearsalStatus | Should -Be 'Incomplete'
     }
 }

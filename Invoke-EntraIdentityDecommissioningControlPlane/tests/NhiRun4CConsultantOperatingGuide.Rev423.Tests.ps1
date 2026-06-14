@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:New-TestTarget {
+function script:New-TestTarget {
     [pscustomobject]@{
         ObjectId = '11111111-1111-1111-1111-111111111111'
         DisplayName = 'Lab Reversible NHI'

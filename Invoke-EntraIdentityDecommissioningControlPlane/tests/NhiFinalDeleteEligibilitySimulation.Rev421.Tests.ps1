@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:Write-TestJson {
+function script:Write-Rev421TestJson {
     param(
         [Parameter(Mandatory)]
         [string]$Path,
@@ -13,7 +13,7 @@ function global:Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 30) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-function global:New-TestTarget {
+function script:New-Rev421TestTarget {
     param(
         [string]$Classification = 'CustomerOwned',
         [string]$Environment = 'Lab',
@@ -40,21 +40,21 @@ function global:New-TestTarget {
     }
 }
 
-function global:New-TestDisableEvidence {
+function script:New-Rev421TestDisableEvidence {
     [pscustomobject]@{
         PlannedAction = 'ReversibleDisable'
         OutputArtifactPath = Join-Path $TestDrive 'final-delete-disable-evidence.json'
     }
 }
 
-function global:New-TestObservation {
+function script:New-Rev421TestObservation {
     [pscustomobject]@{
         ObservationWindowMinutes = 60
         OutputArtifactPath = Join-Path $TestDrive 'final-delete-observation.json'
     }
 }
 
-function global:Invoke-FinalDeleteSimulation {
+function script:Invoke-Rev421FinalDeleteSimulation {
     param(
         [object]$Target = $null,
         [object]$PriorDisableEvidence = $null,
@@ -70,12 +70,12 @@ function global:Invoke-FinalDeleteSimulation {
         [string]$RunId = 'REV421-001'
     )
 
-    if (-not $PSBoundParameters.ContainsKey('Target')) { $Target = New-TestTarget }
-    if (-not $PSBoundParameters.ContainsKey('PriorDisableEvidence')) { $PriorDisableEvidence = New-TestDisableEvidence }
-    if (-not $PSBoundParameters.ContainsKey('PostDisableObservation')) { $PostDisableObservation = New-TestObservation }
+    if (-not $PSBoundParameters.ContainsKey('Target')) { $Target = New-Rev421TestTarget }
+    if (-not $PSBoundParameters.ContainsKey('PriorDisableEvidence')) { $PriorDisableEvidence = New-Rev421TestDisableEvidence }
+    if (-not $PSBoundParameters.ContainsKey('PostDisableObservation')) { $PostDisableObservation = New-Rev421TestObservation }
 
-    if ($PriorDisableEvidence -and $PriorDisableEvidence.OutputArtifactPath) { Write-TestJson -Path $PriorDisableEvidence.OutputArtifactPath -InputObject $PriorDisableEvidence }
-    if ($PostDisableObservation -and $PostDisableObservation.OutputArtifactPath) { Write-TestJson -Path $PostDisableObservation.OutputArtifactPath -InputObject $PostDisableObservation }
+    if ($PriorDisableEvidence -and $PriorDisableEvidence.OutputArtifactPath) { Write-Rev421TestJson -Path $PriorDisableEvidence.OutputArtifactPath -InputObject $PriorDisableEvidence }
+    if ($PostDisableObservation -and $PostDisableObservation.OutputArtifactPath) { Write-Rev421TestJson -Path $PostDisableObservation.OutputArtifactPath -InputObject $PostDisableObservation }
 
     New-NhiFinalDeleteEligibilitySimulationPackage `
         -Target @($Target) `
@@ -108,14 +108,14 @@ Describe 'Rev4.21 Final Delete Eligibility Simulation Only' {
         Import-Module -Name $script:modulePath -Force
         $script:OutputPath = Join-Path $TestDrive 'rev421'
         $null = New-Item -ItemType Directory -Path $script:OutputPath -Force
-        $script:BlockedMicrosoft = New-TestTarget -Classification 'MicrosoftPlatform'
-        $script:BlockedExternal = New-TestTarget -Classification 'ExternalVendorPlatform'
-        $script:BlockedSuppressed = New-TestTarget -SuppressCustomerRemediation $true
-        $script:BlockedEvidenceOnly = New-TestTarget -EvidenceOnly $true
+        $script:BlockedMicrosoft = New-Rev421TestTarget -Classification 'MicrosoftPlatform'
+        $script:BlockedExternal = New-Rev421TestTarget -Classification 'ExternalVendorPlatform'
+        $script:BlockedSuppressed = New-Rev421TestTarget -SuppressCustomerRemediation $true
+        $script:BlockedEvidenceOnly = New-Rev421TestTarget -EvidenceOnly $true
     }
 
     It 'Complete simulated lab target can return Eligible but ReadyForActualDelete=false' {
-        $result = Invoke-FinalDeleteSimulation
+        $result = Invoke-Rev421FinalDeleteSimulation
 
         $result.FinalDeleteEligibility | Should -Be 'Eligible'
         $result.ReadyForActualDelete | Should -BeFalse
@@ -128,85 +128,105 @@ Describe 'Rev4.21 Final Delete Eligibility Simulation Only' {
     }
 
     It 'Package always states SimulatedOnly=true' {
-        (Invoke-FinalDeleteSimulation).SimulatedOnly | Should -BeTrue
+        (Invoke-Rev421FinalDeleteSimulation).SimulatedOnly | Should -BeTrue
     }
 
     It 'Package always states FinalDeleteAllowed=false' {
-        (Invoke-FinalDeleteSimulation).FinalDeleteAllowed | Should -BeFalse
+        (Invoke-Rev421FinalDeleteSimulation).FinalDeleteAllowed | Should -BeFalse
     }
 
     It 'Package always states ExecutionCommandEmitted=false' {
-        (Invoke-FinalDeleteSimulation).ExecutionCommandEmitted | Should -BeFalse
+        (Invoke-Rev421FinalDeleteSimulation).ExecutionCommandEmitted | Should -BeFalse
     }
 
     It 'Missing prior disable evidence returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -PriorDisableEvidence $null).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -PriorDisableEvidence $null).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Missing observation completion returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -PostDisableObservation $null).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -PostDisableObservation $null).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Missing business owner approval returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -BusinessOwnerFinalApprovalPresent $false).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -BusinessOwnerFinalApprovalPresent $false).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Missing security approval returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -SecurityApprovalPresent $false).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -SecurityApprovalPresent $false).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Missing retention window returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -RetentionWindowSatisfied $false).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -RetentionWindowSatisfied $false).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Missing dependency check returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -DependencyCheckPassed $false).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -DependencyCheckPassed $false).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'MicrosoftPlatform target returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -Target $script:BlockedMicrosoft).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -Target $script:BlockedMicrosoft).FinalDeleteEligibility | Should -Be 'NotEligible'
+    }
+
+    It 'MicrosoftPlatform boolean target with CustomerOwned classification returns NotEligible' {
+        $target = New-Rev421TestTarget -Classification 'CustomerOwned'
+        $target | Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $true -Force
+
+        (Invoke-Rev421FinalDeleteSimulation -Target $target).FinalDeleteEligibility | Should -Be 'NotEligible'
+    }
+
+    It 'FirstPartyMicrosoftApp boolean target with CustomerOwned classification returns NotEligible' {
+        $target = New-Rev421TestTarget -Classification 'CustomerOwned'
+        $target | Add-Member -NotePropertyName FirstPartyMicrosoftApp -NotePropertyValue $true -Force
+
+        (Invoke-Rev421FinalDeleteSimulation -Target $target).FinalDeleteEligibility | Should -Be 'NotEligible'
+    }
+
+    It 'InformationOnly boolean target returns NotEligible' {
+        $target = New-Rev421TestTarget -Classification 'CustomerOwned' -InformationOnly $true
+
+        (Invoke-Rev421FinalDeleteSimulation -Target $target).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'ExternalVendorPlatform target returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -Target $script:BlockedExternal).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -Target $script:BlockedExternal).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Suppressed target returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -Target $script:BlockedSuppressed).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -Target $script:BlockedSuppressed).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'EvidenceOnly target returns NotEligible' {
-        (Invoke-FinalDeleteSimulation -Target $script:BlockedEvidenceOnly).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -Target $script:BlockedEvidenceOnly).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Actual delete request is blocked' {
-        (Invoke-FinalDeleteSimulation -RequestedOperations @('Delete')).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -RequestedOperations @('Delete')).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Remove request is blocked' {
-        (Invoke-FinalDeleteSimulation -RequestedOperations @('Remove')).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -RequestedOperations @('Remove')).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Grant cleanup request is blocked' {
-        (Invoke-FinalDeleteSimulation -RequestedOperations @('GrantCleanup')).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -RequestedOperations @('GrantCleanup')).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Metadata cleanup request is blocked' {
-        (Invoke-FinalDeleteSimulation -RequestedOperations @('MetadataCleanup')).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -RequestedOperations @('MetadataCleanup')).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Credential deletion request is blocked' {
-        (Invoke-FinalDeleteSimulation -RequestedOperations @('CredentialDelete')).FinalDeleteEligibility | Should -Be 'NotEligible'
+        (Invoke-Rev421FinalDeleteSimulation -RequestedOperations @('CredentialDelete')).FinalDeleteEligibility | Should -Be 'NotEligible'
     }
 
     It 'Package writes JSON artifact locally' {
-        $result = Invoke-FinalDeleteSimulation -RunId 'REV421-ARTIFACT'
+        $result = Invoke-Rev421FinalDeleteSimulation -RunId 'REV421-ARTIFACT'
         Test-Path -LiteralPath $result.OutputArtifactPath | Should -BeTrue
         (Get-Content -LiteralPath $result.OutputArtifactPath -Raw | ConvertFrom-Json).SimulationPackageId | Should -Match '^REV421-'
     }
 
     It 'Tests prove no executable delete command is emitted' {
-        $result = Invoke-FinalDeleteSimulation
+        $result = Invoke-Rev421FinalDeleteSimulation
         $result.ExecutionCommandEmitted | Should -BeFalse
         $result.CommandPreview | Should -Match 'simulation only'
     }

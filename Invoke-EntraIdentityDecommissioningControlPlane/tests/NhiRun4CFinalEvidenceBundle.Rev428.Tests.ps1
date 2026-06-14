@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:New-TestTarget {
+function script:New-TestTarget {
     [pscustomobject]@{
         ObjectId = '11111111-1111-1111-1111-111111111111'
         DisplayName = 'Lab Reversible NHI'
@@ -19,7 +19,7 @@ function global:New-TestTarget {
     }
 }
 
-function global:New-TestPackage {
+function script:New-TestPackage {
     param([string]$Name,[hashtable]$Extra)
     $package = [ordered]@{ OutputArtifactPath = Join-Path $TestDrive "$Name.json" }
     foreach ($k in $Extra.Keys) { $package[$k] = $Extra[$k] }

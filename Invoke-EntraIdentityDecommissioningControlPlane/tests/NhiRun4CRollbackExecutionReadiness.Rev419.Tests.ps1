@@ -174,7 +174,7 @@ Describe 'Rev4.19 Rollback Execution Readiness Package' {
         }
     }
 
-    function global:Invoke-Package {
+    function script:Invoke-Package {
         param(
             [object]$Target = $null,
             [object]$OriginalDisableEvidence = $null,

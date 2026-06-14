@@ -43,6 +43,7 @@ Describe 'Run #4C lab live reversible disable' {
                 IsLabTarget = $IsLabTarget
                 TenantScope = $TenantScope
                 RemediationMode = $RemediationMode
+                LabValidationApproved = $true
                 AccountEnabled = $true
                 VerifiedPublisherName = 'Contoso Labs'
                 ProtectedObject = $false
@@ -467,7 +468,7 @@ Describe 'Run #4C lab live reversible disable' {
                 -RequestedOperations @('ReversibleDisable')
 
             $result.Ready | Should -BeFalse
-            ($result.Blockers -join '; ') | Should -Match 'Platform targets are blocked'
+            ($result.Blockers -join '; ') | Should -Match 'MicrosoftPlatform target is blocked'
         }
 
         It 'blocks live execution for ExternalVendorPlatform targets' {
@@ -487,7 +488,7 @@ Describe 'Run #4C lab live reversible disable' {
                 -RequestedOperations @('ReversibleDisable')
 
             $result.Ready | Should -BeFalse
-            ($result.Blockers -join '; ') | Should -Match 'Platform targets are blocked'
+            ($result.Blockers -join '; ') | Should -Match 'ExternalVendorPlatform target is blocked'
         }
 
         It 'blocks live execution for SuppressCustomerRemediation=true' {
@@ -507,7 +508,7 @@ Describe 'Run #4C lab live reversible disable' {
                 -RequestedOperations @('ReversibleDisable')
 
             $result.Ready | Should -BeFalse
-            ($result.Blockers -join '; ') | Should -Match 'SuppressCustomerRemediation targets are blocked'
+            ($result.Blockers -join '; ') | Should -Match 'SuppressCustomerRemediation target is blocked'
         }
 
         It 'blocks live execution for EvidenceOnly=true' {
@@ -527,7 +528,7 @@ Describe 'Run #4C lab live reversible disable' {
                 -RequestedOperations @('ReversibleDisable')
 
             $result.Ready | Should -BeFalse
-            ($result.Blockers -join '; ') | Should -Match 'EvidenceOnly targets are blocked'
+            ($result.Blockers -join '; ') | Should -Match 'EvidenceOnly target is blocked'
         }
 
         It 'blocks live execution for missing approval manifest' {
@@ -743,6 +744,7 @@ Describe 'Run #4C lab live reversible disable' {
                     FirstPartyMicrosoftApp = $false
                     SuppressCustomerRemediation = $false
                     EvidenceOnly = $false
+                    LabValidationApproved = $true
                     Environment = 'Lab'
                     IsLabTarget = $true
                     TenantScope = 'Lab'
@@ -830,26 +832,167 @@ Describe 'Run #4C lab live reversible disable' {
             Write-TestJson -Path $script:ExecutionInputs.ApprovalPath -InputObject $script:ExecutionInputs.Approval
         }
 
-        It 'executes reversible disable only when explicit live lab approval is true and artifacts are present' {
-            $result = Invoke-NhiControlledLabLiveReversibleDisable `
-                -Target @($script:ExecutionInputs.Target) `
-                -ApprovalManifest $script:ExecutionInputs.Approval `
+        BeforeEach {
+            $script:InvokeDisableCalls = 0
+            Mock -CommandName Invoke-NhiDisable -ModuleName NhiControlledDecommission -MockWith {
+                $script:InvokeDisableCalls++
+            }
+        }
+
+        function script:Invoke-TestLiveDisable {
+            param(
+                [object]$Target = $script:ExecutionInputs.Target,
+                [object]$Approval = $script:ExecutionInputs.Approval,
+                [object]$Snapshot = $script:ExecutionInputs.Snapshot,
+                [object]$Readiness = $script:ExecutionInputs.Readiness,
+                [object]$DryRun = $script:ExecutionInputs.DryRun,
+                [object]$Rollback = $script:ExecutionInputs.Rollback,
+                [object]$Observation = $script:ExecutionInputs.Observation,
+                [bool]$LabExecutionApproved = $true,
+                [bool]$WhatIf = $false,
+                [string[]]$RequestedOperations = @('ReversibleDisable')
+            )
+
+            Invoke-NhiControlledLabLiveReversibleDisable `
+                -Target @($Target) `
+                -ApprovalManifest $Approval `
                 -ApprovalManifestPath $script:ExecutionInputs.ApprovalPath `
-                -Snapshot $script:ExecutionInputs.Snapshot `
-                -ReadinessResult $script:ExecutionInputs.Readiness `
-                -DryRunPackage $script:ExecutionInputs.DryRun `
-                -RollbackPackage $script:ExecutionInputs.Rollback `
-                -ObservationMetadata $script:ExecutionInputs.Observation `
+                -Snapshot $Snapshot `
+                -ReadinessResult $Readiness `
+                -DryRunPackage $DryRun `
+                -RollbackPackage $Rollback `
+                -ObservationMetadata $Observation `
                 -RunId $script:RunId `
                 -OutputPath $script:OutputPath `
-                -LabExecutionApproved $true `
-                -WhatIf `
-                -RequestedOperations @('ReversibleDisable')
+                -LabExecutionApproved:$LabExecutionApproved `
+                -WhatIf:$WhatIf `
+                -RequestedOperations $RequestedOperations
+        }
+
+        It 'returns ready and reaches Invoke-NhiDisable only for a fully eligible mocked execution path' {
+            $result = Invoke-TestLiveDisable
 
             $result.Ready | Should -BeTrue
-            $result.ExecutionPerformed | Should -BeFalse
+            $result.ExecutionPerformed | Should -BeTrue
+            $script:InvokeDisableCalls | Should -Be 1
+            Assert-MockCalled -CommandName Invoke-NhiDisable -ModuleName NhiControlledDecommission -Times 1
+        }
+
+        It 'blocks when MicrosoftPlatform is true even if Classification is CustomerOwned' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            $target | Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $true -Force
+            $target | Add-Member -NotePropertyName Classification -NotePropertyValue 'CustomerOwned' -Force
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'MicrosoftPlatform target is blocked'
+            $script:InvokeDisableCalls | Should -Be 0
+            Assert-MockCalled -CommandName Invoke-NhiDisable -ModuleName NhiControlledDecommission -Times 0
+        }
+
+        It 'blocks when FirstPartyMicrosoftApp is true even if Classification is CustomerOwned' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            $target | Add-Member -NotePropertyName FirstPartyMicrosoftApp -NotePropertyValue $true -Force
+            $target | Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $false -Force
+            $target | Add-Member -NotePropertyName Classification -NotePropertyValue 'CustomerOwned' -Force
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'First-party Microsoft app target is blocked'
+            $script:InvokeDisableCalls | Should -Be 0
+        }
+
+        It 'blocks when LabValidationApproved is false' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            $target | Add-Member -NotePropertyName LabValidationApproved -NotePropertyValue $false -Force
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'LabValidationApproved must be true'
+            $script:InvokeDisableCalls | Should -Be 0
+        }
+
+        It 'blocks when LabValidationApproved is missing' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            if ($target.PSObject.Properties['LabValidationApproved']) {
+                $target.PSObject.Properties.Remove('LabValidationApproved')
+            }
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'LabValidationApproved must be true'
+            $script:InvokeDisableCalls | Should -Be 0
+        }
+
+        It 'blocks when InformationOnly is true even if RemediationMode is ManualApprovalRequired' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            $target | Add-Member -NotePropertyName InformationOnly -NotePropertyValue $true -Force
+            $target | Add-Member -NotePropertyName RemediationMode -NotePropertyValue 'ManualApprovalRequired' -Force
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'InformationOnly target is blocked'
+            $script:InvokeDisableCalls | Should -Be 0
+        }
+
+        It 'blocks when RemediationMode is InformationOnly even if InformationOnly is false' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            $target | Add-Member -NotePropertyName InformationOnly -NotePropertyValue $false -Force
+            $target | Add-Member -NotePropertyName RemediationMode -NotePropertyValue 'InformationOnly' -Force
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'InformationOnly target is blocked'
+            $script:InvokeDisableCalls | Should -Be 0
+        }
+
+        It 'blocks when EvidenceOnly is true' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            $target | Add-Member -NotePropertyName EvidenceOnly -NotePropertyValue $true -Force
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'EvidenceOnly target is blocked'
+            $script:InvokeDisableCalls | Should -Be 0
+        }
+
+        It 'blocks when RemediationMode is EvidenceOnly' {
+            $target = $script:ExecutionInputs.Target | Select-Object *
+            $target | Add-Member -NotePropertyName EvidenceOnly -NotePropertyValue $false -Force
+            $target | Add-Member -NotePropertyName RemediationMode -NotePropertyValue 'EvidenceOnly' -Force
+
+            $result = Invoke-TestLiveDisable -Target $target
+
+            $result.Ready | Should -BeFalse
+            ($result.Blockers -join '; ') | Should -Match 'EvidenceOnly target is blocked'
+            $script:InvokeDisableCalls | Should -Be 0
+        }
+
+        It 'blocks when requested operations contains FinalDelete Remove GrantCleanup MetadataCleanup and CredentialDeletion aliases' {
+            $blockedOperations = @('FinalDelete', 'Remove', 'GrantCleanup', 'MetadataCleanup', 'CredentialDelete', 'CredentialDeletion', 'RemoveServicePrincipal', 'RemoveApplication', 'HardDelete', 'Recreate')
+
+            foreach ($operation in $blockedOperations) {
+                $result = Invoke-TestLiveDisable -RequestedOperations @($operation)
+                $result.Ready | Should -BeFalse
+                ($result.Blockers -join '; ') | Should -Match "Requested operation '$operation' is"
+                $script:InvokeDisableCalls | Should -Be 0
+            }
+        }
+
+        It 'executes reversible disable only when explicit live lab approval is true and artifacts are present' {
+            $result = Invoke-TestLiveDisable
+
+            $result.Ready | Should -BeTrue
+            $result.ExecutionPerformed | Should -BeTrue
             $result.PreActionEnabledState | Should -BeTrue
-            $result.PostActionEnabledState | Should -BeNullOrEmpty
+            $script:InvokeDisableCalls | Should -Be 1
             Test-Path -LiteralPath $result.OutputArtifactPath | Should -BeTrue
         }
 

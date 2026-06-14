@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:New-TestPackage {
+function script:New-TestPackage {
     param([string]$Name,[hashtable]$Extra)
     $package = [ordered]@{ OutputArtifactPath = Join-Path $TestDrive "$Name.json" }
     foreach ($k in $Extra.Keys) { $package[$k] = $Extra[$k] }

@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:New-TestTarget {
+function script:New-TestTarget {
     [pscustomobject]@{
         ObjectId = '11111111-1111-1111-1111-111111111111'
         DisplayName = 'Lab Reversible NHI'
@@ -19,7 +19,7 @@ function global:New-TestTarget {
     }
 }
 
-function global:New-TestSnapshot {
+function script:New-TestSnapshot {
     param([bool]$Enabled = $true,[int]$CredentialCount = 2,[int]$OwnerCount = 1,[int]$AppRoleAssignmentCount = 0,[int]$OAuthGrantCount = 0,[string]$MetadataHash = 'hash-a')
     [pscustomobject]@{
         SnapshotPath = Join-Path $TestDrive ('snapshot-' + ([guid]::NewGuid().Guid) + '.json')

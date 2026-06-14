@@ -1,12 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
-function global:Write-TestJson {
+function script:Write-TestJson {
     param([string]$Path,[object]$InputObject)
     $null = New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force
     ($InputObject | ConvertTo-Json -Depth 40) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-function global:New-TestTarget {
+function script:New-TestTarget {
     param(
         [string]$Classification = 'CustomerOwned',
         [string]$Environment = 'Lab',
@@ -32,7 +32,7 @@ function global:New-TestTarget {
     }
 }
 
-function global:New-TestSnapshot {
+function script:New-TestSnapshot {
     param(
         [bool]$Enabled = $true,
         [int]$CredentialCount = 2,
@@ -57,7 +57,7 @@ function global:New-TestSnapshot {
     }
 }
 
-function global:New-TestObservationResult {
+function script:New-TestObservationResult {
     param(
         [bool]$ObservationWindowCompleted = $true,
         [string]$MonitoringOwner = 'lab-ops',

@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:Write-TestJson {
+function script:Write-Rev424TestJson {
     param(
         [Parameter(Mandatory)]
         [string]$Path,
@@ -13,7 +13,7 @@ function global:Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 40) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-function global:New-TestTarget {
+function script:New-Rev424TestTarget {
     param(
         [string]$Classification = 'CustomerOwned',
         [string]$Environment = 'Lab',
@@ -40,7 +40,7 @@ function global:New-TestTarget {
     }
 }
 
-function global:New-TestPackage {
+function script:New-Rev424TestPackage {
     param(
         [Parameter(Mandatory)]
         [string]$Name,
@@ -59,7 +59,7 @@ function global:New-TestPackage {
     [pscustomobject]$package
 }
 
-function global:Invoke-Rev424Package {
+function script:Invoke-Rev424Package {
     param(
         [object]$Target = $null,
         [object]$ApprovalManifest = $null,
@@ -81,21 +81,21 @@ function global:Invoke-Rev424Package {
         [string]$RunId = 'REV424-001'
     )
 
-    if (-not $PSBoundParameters.ContainsKey('Target')) { $Target = @(New-TestTarget) }
-    if (-not $PSBoundParameters.ContainsKey('ApprovalManifest')) { $ApprovalManifest = New-TestPackage -Name 'approval' -Extra @{ ApprovalManifestPath = (Join-Path $TestDrive 'approval.json'); ApprovedAction = 'ReversibleDisable'; ApprovalExpiresUtc = ([datetime]::UtcNow.AddDays(1).ToString('o')); TargetObjectId = '11111111-1111-1111-1111-111111111111' } }
-    if (-not $PSBoundParameters.ContainsKey('PreActionSnapshot')) { $PreActionSnapshot = New-TestPackage -Name 'snapshot' -Extra @{ SnapshotPath = (Join-Path $TestDrive 'snapshot.json'); AccountEnabled = $true } }
-    if (-not $PSBoundParameters.ContainsKey('ReadinessVerdict')) { $ReadinessVerdict = New-TestPackage -Name 'readiness' -Extra @{ Ready = $true; Readiness = 'Ready' } }
-    if (-not $PSBoundParameters.ContainsKey('DryRunPackage')) { $DryRunPackage = New-TestPackage -Name 'dryrun' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'dryrun.json'); Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('RollbackDrillPackage')) { $RollbackDrillPackage = New-TestPackage -Name 'rollbackdrill' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rollbackdrill.json'); Ready = $true; RollbackAction = 'ReEnableServicePrincipal' } }
-    if (-not $PSBoundParameters.ContainsKey('ControlledDisablePreview')) { $ControlledDisablePreview = New-TestPackage -Name 'disablepreview' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'disablepreview.json'); Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('FinalGoNoGoReviewPackage')) { $FinalGoNoGoReviewPackage = New-TestPackage -Name 'gono' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'gono.json'); GoNoGo = 'Go' } }
-    if (-not $PSBoundParameters.ContainsKey('EvidenceCapturePackage')) { $EvidenceCapturePackage = New-TestPackage -Name 'evidence' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'evidence.json'); Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('ObservationPackage')) { $ObservationPackage = New-TestPackage -Name 'observation' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'observation.json'); Ready = $true } }
-    if (-not $PSBoundParameters.ContainsKey('RollbackReadinessPackage')) { $RollbackReadinessPackage = New-TestPackage -Name 'rollbackreadiness' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rollbackreadiness.json'); RollbackReadiness = 'Ready' } }
-    if (-not $PSBoundParameters.ContainsKey('RollbackPreviewPackage')) { $RollbackPreviewPackage = New-TestPackage -Name 'rollbackpreview' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rollbackpreview.json'); RollbackAction = 'ReEnableServicePrincipal' } }
-    if (-not $PSBoundParameters.ContainsKey('FinalDeleteSimulationPackage')) { $FinalDeleteSimulationPackage = New-TestPackage -Name 'finaldelete' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'finaldelete.json'); FinalDeleteEligibility = 'Eligible' } }
-    if (-not $PSBoundParameters.ContainsKey('EndToEndRehearsalReport')) { $EndToEndRehearsalReport = New-TestPackage -Name 'rehearsal' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rehearsal.json'); RehearsalStatus = 'Complete' } }
-    if (-not $PSBoundParameters.ContainsKey('ConsultantOperatingGuide')) { $ConsultantOperatingGuide = New-TestPackage -Name 'guide' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'guide.md'); GuideId = 'REV423' } }
+    if (-not $PSBoundParameters.ContainsKey('Target')) { $Target = @(New-Rev424TestTarget) }
+    if (-not $PSBoundParameters.ContainsKey('ApprovalManifest')) { $ApprovalManifest = New-Rev424TestPackage -Name 'approval' -Extra @{ ApprovalManifestPath = (Join-Path $TestDrive 'approval.json'); ApprovedAction = 'ReversibleDisable'; ApprovalExpiresUtc = ([datetime]::UtcNow.AddDays(1).ToString('o')); TargetObjectId = '11111111-1111-1111-1111-111111111111' } }
+    if (-not $PSBoundParameters.ContainsKey('PreActionSnapshot')) { $PreActionSnapshot = New-Rev424TestPackage -Name 'snapshot' -Extra @{ SnapshotPath = (Join-Path $TestDrive 'snapshot.json'); AccountEnabled = $true } }
+    if (-not $PSBoundParameters.ContainsKey('ReadinessVerdict')) { $ReadinessVerdict = New-Rev424TestPackage -Name 'readiness' -Extra @{ Ready = $true; Readiness = 'Ready' } }
+    if (-not $PSBoundParameters.ContainsKey('DryRunPackage')) { $DryRunPackage = New-Rev424TestPackage -Name 'dryrun' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'dryrun.json'); Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('RollbackDrillPackage')) { $RollbackDrillPackage = New-Rev424TestPackage -Name 'rollbackdrill' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rollbackdrill.json'); Ready = $true; RollbackAction = 'ReEnableServicePrincipal' } }
+    if (-not $PSBoundParameters.ContainsKey('ControlledDisablePreview')) { $ControlledDisablePreview = New-Rev424TestPackage -Name 'disablepreview' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'disablepreview.json'); Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('FinalGoNoGoReviewPackage')) { $FinalGoNoGoReviewPackage = New-Rev424TestPackage -Name 'gono' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'gono.json'); GoNoGo = 'Go' } }
+    if (-not $PSBoundParameters.ContainsKey('EvidenceCapturePackage')) { $EvidenceCapturePackage = New-Rev424TestPackage -Name 'evidence' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'evidence.json'); Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('ObservationPackage')) { $ObservationPackage = New-Rev424TestPackage -Name 'observation' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'observation.json'); Ready = $true } }
+    if (-not $PSBoundParameters.ContainsKey('RollbackReadinessPackage')) { $RollbackReadinessPackage = New-Rev424TestPackage -Name 'rollbackreadiness' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rollbackreadiness.json'); RollbackReadiness = 'Ready' } }
+    if (-not $PSBoundParameters.ContainsKey('RollbackPreviewPackage')) { $RollbackPreviewPackage = New-Rev424TestPackage -Name 'rollbackpreview' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rollbackpreview.json'); RollbackAction = 'ReEnableServicePrincipal' } }
+    if (-not $PSBoundParameters.ContainsKey('FinalDeleteSimulationPackage')) { $FinalDeleteSimulationPackage = New-Rev424TestPackage -Name 'finaldelete' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'finaldelete.json'); FinalDeleteEligibility = 'Eligible' } }
+    if (-not $PSBoundParameters.ContainsKey('EndToEndRehearsalReport')) { $EndToEndRehearsalReport = New-Rev424TestPackage -Name 'rehearsal' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'rehearsal.json'); RehearsalStatus = 'Complete' } }
+    if (-not $PSBoundParameters.ContainsKey('ConsultantOperatingGuide')) { $ConsultantOperatingGuide = New-Rev424TestPackage -Name 'guide' -Extra @{ OutputArtifactPath = (Join-Path $TestDrive 'guide.md'); GuideId = 'REV423' } }
 
     New-NhiRun4CFinalControlledDisableTestPackage `
         -Target $Target `
@@ -126,11 +126,11 @@ Describe 'Rev4.24 Final Controlled Dev/Test Tenant Reversible Disable Test Packa
         Import-Module -Name $script:modulePath -Force
         $script:OutputPath = Join-Path $TestDrive 'rev424'
         $null = New-Item -ItemType Directory -Path $script:OutputPath -Force
-        $script:BlockedMicrosoft = New-TestTarget -Classification 'MicrosoftPlatform'
-        $script:BlockedExternal = New-TestTarget -Classification 'ExternalVendorPlatform'
-        $script:BlockedSuppressed = New-TestTarget -SuppressCustomerRemediation $true
-        $script:BlockedEvidenceOnly = New-TestTarget -EvidenceOnly $true
-        $script:BlockedInformationOnly = New-TestTarget -InformationOnly $true
+        $script:BlockedMicrosoft = New-Rev424TestTarget -Classification 'MicrosoftPlatform'
+        $script:BlockedExternal = New-Rev424TestTarget -Classification 'ExternalVendorPlatform'
+        $script:BlockedSuppressed = New-Rev424TestTarget -SuppressCustomerRemediation $true
+        $script:BlockedEvidenceOnly = New-Rev424TestTarget -EvidenceOnly $true
+        $script:BlockedInformationOnly = New-Rev424TestTarget -InformationOnly $true
     }
 
     It 'Complete artifact chain creates final controlled disable test package' {
@@ -171,6 +171,22 @@ Describe 'Rev4.24 Final Controlled Dev/Test Tenant Reversible Disable Test Packa
     It 'Missing rehearsal report returns NotReady' { (Invoke-Rev424Package -EndToEndRehearsalReport $null).PackageStatus | Should -Be 'NotReady' }
     It 'Missing consultant guide returns NotReady' { (Invoke-Rev424Package -ConsultantOperatingGuide $null).PackageStatus | Should -Be 'NotReady' }
     It 'MicrosoftPlatform target is blocked' { (Invoke-Rev424Package -Target @($script:BlockedMicrosoft)).PackageStatus | Should -Be 'NotReady' }
+    It 'MicrosoftPlatform boolean target with CustomerOwned classification is blocked' {
+        $target = New-Rev424TestTarget -Classification 'CustomerOwned'
+        $target | Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $true -Force
+        (Invoke-Rev424Package -Target @($target)).PackageStatus | Should -Be 'NotReady'
+    }
+    It 'FirstPartyMicrosoftApp boolean target with CustomerOwned classification is blocked' {
+        $target = New-Rev424TestTarget -Classification 'CustomerOwned'
+        $target | Add-Member -NotePropertyName FirstPartyMicrosoftApp -NotePropertyValue $true -Force
+        (Invoke-Rev424Package -Target @($target)).PackageStatus | Should -Be 'NotReady'
+    }
+    It 'InformationOnly boolean target is blocked' {
+        $target = New-Rev424TestTarget -Classification 'CustomerOwned'
+        $target | Add-Member -NotePropertyName InformationOnly -NotePropertyValue $true -Force
+        $target | Add-Member -NotePropertyName RemediationMode -NotePropertyValue 'ManualApprovalRequired' -Force
+        (Invoke-Rev424Package -Target @($target)).PackageStatus | Should -Be 'NotReady'
+    }
     It 'ExternalVendorPlatform target is blocked' { (Invoke-Rev424Package -Target @($script:BlockedExternal)).PackageStatus | Should -Be 'NotReady' }
     It 'Suppressed target is blocked' { (Invoke-Rev424Package -Target @($script:BlockedSuppressed)).PackageStatus | Should -Be 'NotReady' }
     It 'EvidenceOnly target is blocked' { (Invoke-Rev424Package -Target @($script:BlockedEvidenceOnly)).PackageStatus | Should -Be 'NotReady' }

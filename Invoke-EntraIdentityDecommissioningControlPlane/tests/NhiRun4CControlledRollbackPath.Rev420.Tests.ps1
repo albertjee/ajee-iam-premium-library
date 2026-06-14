@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-function global:Write-TestJson {
+function script:Write-TestJson {
     param(
         [Parameter(Mandatory)]
         [string]$Path,
@@ -13,7 +13,7 @@ function global:Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 30) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-function global:New-TestTarget {
+function script:New-TestTarget {
     param(
         [string]$Classification = 'CustomerOwned',
         [string]$Environment = 'Lab',
@@ -40,7 +40,7 @@ function global:New-TestTarget {
     }
 }
 
-function global:New-TestSnapshot {
+function script:New-TestSnapshot {
     [pscustomobject]@{
         SnapshotId = 'SNAP-RUN4C-ROLLBACK-001'
         SnapshotPath = Join-Path $TestDrive 'rollback-snapshot.json'
@@ -51,14 +51,14 @@ function global:New-TestSnapshot {
     }
 }
 
-function global:New-TestOriginalDisableEvidence {
+function script:New-TestOriginalDisableEvidence {
     [pscustomobject]@{
         PlannedAction = 'ReversibleDisable'
         OutputArtifactPath = Join-Path $TestDrive 'rollback-disable-evidence.json'
     }
 }
 
-function global:New-TestRollbackDrillPackage {
+function script:New-TestRollbackDrillPackage {
     [pscustomobject]@{
         RollbackPackageId = 'RB-DRILL-001'
         Ready = $true
@@ -67,7 +67,7 @@ function global:New-TestRollbackDrillPackage {
     }
 }
 
-function global:New-TestRollbackReadinessPackage {
+function script:New-TestRollbackReadinessPackage {
     [pscustomobject]@{
         RollbackReadinessPackageId = 'REV419-READY-001'
         RollbackReadiness = 'Ready'
@@ -75,7 +75,7 @@ function global:New-TestRollbackReadinessPackage {
     }
 }
 
-function global:New-TestObservation {
+function script:New-TestObservation {
     [pscustomobject]@{
         ObservationWindowMinutes = 60
         MonitoringOwner = 'lab-ops'
@@ -85,7 +85,7 @@ function global:New-TestObservation {
     }
 }
 
-function global:Invoke-RollbackPreview {
+function script:Invoke-RollbackPreview {
     param(
         [object]$Target = $null,
         [object]$OriginalDisableEvidence = $null,

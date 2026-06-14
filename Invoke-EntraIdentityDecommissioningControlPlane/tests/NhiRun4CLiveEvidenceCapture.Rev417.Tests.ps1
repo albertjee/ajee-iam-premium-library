@@ -8,7 +8,7 @@ function Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 30) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-function New-TestTarget {
+function New-Rev417TestTarget {
     param(
         [string]$Classification = 'CustomerOwned',
         [string]$Environment = 'Lab',
@@ -36,7 +36,7 @@ function New-TestTarget {
     }
 }
 
-function New-TestSnapshot {
+function New-Rev417TestSnapshot {
     param([string]$Name = 'snapshot')
     [pscustomobject]@{
         SnapshotId = "SNAP-$Name"
@@ -144,7 +144,7 @@ Describe 'Rev4.17 Live Evidence Capture Package' {
         }
     }
 
-    function global:Invoke-Package {
+    function script:Invoke-Rev417Package {
         param(
             [object]$Target = $null,
             [object]$Snapshot = $null,
@@ -167,7 +167,7 @@ Describe 'Rev4.17 Live Evidence Capture Package' {
     }
 
     It 'Complete approved dev/test target creates evidence capture package' {
-        $result = Invoke-Package
+        $result = Invoke-Rev417Package
         $result.EvidenceScope | Should -Be 'SingleTargetOnly'
         $result.TenantWritePerformed | Should -BeFalse
         $result.DisablePerformed | Should -BeFalse
@@ -178,13 +178,13 @@ Describe 'Rev4.17 Live Evidence Capture Package' {
     }
 
     It 'Package writes JSON artifact locally' {
-        $result = Invoke-Package -RunId 'REV417-ARTIFACT'
+        $result = Invoke-Rev417Package -RunId 'REV417-ARTIFACT'
         $artifact = Get-Content -LiteralPath $result.OutputArtifactPath -Raw | ConvertFrom-Json
         $artifact.EvidencePackageId | Should -Match '^REV417-'
     }
 
     It 'Package declares TenantWritePerformed=false and DisablePerformed=false' {
-        $result = Invoke-Package
+        $result = Invoke-Rev417Package
         $result.TenantWritePerformed | Should -BeFalse
         $result.DisablePerformed | Should -BeFalse
     }
@@ -203,7 +203,7 @@ Describe 'Rev4.17 Live Evidence Capture Package' {
     }
 
     It 'Package requires execution evidence placeholders' {
-        $result = Invoke-Package
+        $result = Invoke-Rev417Package
         $result.ExecutionEvidenceRequired | Should -BeTrue
         $result.OperatorIdentityPlaceholder | Should -Be 'Pending'
         $result.ExecutionStartUtcPlaceholder | Should -Be 'Pending'
@@ -211,7 +211,7 @@ Describe 'Rev4.17 Live Evidence Capture Package' {
     }
 
     It 'Package requires post-action evidence placeholders' {
-        $result = Invoke-Package
+        $result = Invoke-Rev417Package
         $result.AccountEnabledAfter | Should -BeNullOrEmpty
         $result.CredentialCountAfter | Should -BeNullOrEmpty
         $result.OwnerCountAfter | Should -BeNullOrEmpty
@@ -220,11 +220,11 @@ Describe 'Rev4.17 Live Evidence Capture Package' {
     }
 
     It 'Package states WhatChanged = AccountEnabled only' {
-        (Invoke-Package).WhatChanged | Should -Be 'AccountEnabled only'
+        (Invoke-Rev417Package).WhatChanged | Should -Be 'AccountEnabled only'
     }
 
     It 'Package states prohibited changes for grants, credentials, owners, metadata, service principal deletion, application deletion' {
-        $result = Invoke-Package
+        $result = Invoke-Rev417Package
         $result.WhatMustNotChange | Should -Contain 'grants'
         $result.WhatMustNotChange | Should -Contain 'credentials'
         $result.WhatMustNotChange | Should -Contain 'owners'
@@ -256,26 +256,26 @@ Describe 'Rev4.17 Live Evidence Capture Package' {
     }
 
     It 'MicrosoftPlatform target is blocked' {
-        (Invoke-Package -Target $script:MicrosoftTarget).Ready | Should -BeFalse
+        (Invoke-Rev417Package -Target $script:MicrosoftTarget).Ready | Should -BeFalse
     }
 
     It 'Suppressed target is blocked' {
-        (Invoke-Package -Target $script:SuppressedTarget).Ready | Should -BeFalse
+        (Invoke-Rev417Package -Target $script:SuppressedTarget).Ready | Should -BeFalse
     }
 
     It 'EvidenceOnly target is blocked' {
-        (Invoke-Package -Target $script:EvidenceOnlyTarget).Ready | Should -BeFalse
+        (Invoke-Rev417Package -Target $script:EvidenceOnlyTarget).Ready | Should -BeFalse
     }
 
     It 'Final delete request is blocked' {
-        (Invoke-Package -RequestedOperations @('FinalDelete')).Ready | Should -BeFalse
+        (Invoke-Rev417Package -RequestedOperations @('FinalDelete')).Ready | Should -BeFalse
     }
 
     It 'Grant cleanup request is blocked' {
-        (Invoke-Package -RequestedOperations @('GrantCleanup')).Ready | Should -BeFalse
+        (Invoke-Rev417Package -RequestedOperations @('GrantCleanup')).Ready | Should -BeFalse
     }
 
     It 'Credential deletion request is blocked' {
-        (Invoke-Package -RequestedOperations @('CredentialDelete')).Ready | Should -BeFalse
+        (Invoke-Rev417Package -RequestedOperations @('CredentialDelete')).Ready | Should -BeFalse
     }
 }
