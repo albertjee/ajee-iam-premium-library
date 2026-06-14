@@ -2,9 +2,7 @@
 
 #Requires -Version 5.1
 
-if (-not (Get-Command Get-DecomToolVersion -ErrorAction SilentlyContinue)) {
-    function Get-DecomToolVersion { 'Rev4.10' }
-}
+Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
 
 function Compare-DecomWhatIfToApproval {
     <#
