@@ -14,6 +14,7 @@ function Invoke-NhiAgentScan {
     $findings = @()
 
     foreach ($sp in $ServicePrincipals) {
+        $null = Set-DecomFindingTraceContext -SourceObject $sp -ClassificationSource 'NhiAgent'
         $blueprintId = $null
         if ($AgentBlueprintIdByObjectId -and $AgentBlueprintIdByObjectId.ContainsKey($sp.Id)) {
             $blueprintId = $AgentBlueprintIdByObjectId[$sp.Id]
@@ -161,6 +162,7 @@ function Invoke-NhiAgentScan {
         }
     }
 
+    Clear-DecomFindingTraceContext
     return $findings
 }
 

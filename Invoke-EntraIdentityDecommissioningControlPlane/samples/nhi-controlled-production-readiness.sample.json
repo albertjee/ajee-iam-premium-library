@@ -1,0 +1,160 @@
+{
+  "SchemaVersion": "4.9",
+  "RunId": "RUN-REV49-PROD-001",
+  "Status": "Approved",
+  "ApprovedBy": "external-qa-approver@example.com",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "ApprovalId": "APP-REV49-PROD-001",
+  "TargetId": "nhi-control-plane-rev49-001",
+  "TargetType": "ManagedIdentity",
+  "TargetObjectIds": [
+    "nhi-control-plane-rev49-001"
+  ],
+  "ApprovedActions": [
+    "ProductionReadiness"
+  ],
+  "BranchName": "feature/rev42-controlled-nhi-decommission",
+  "LatestCommit": "238e2ca5281b76decee87b14ab31883d8fd2efa9",
+  "GitStatusClean": true,
+  "FrozenFileDiffClean": true,
+  "Rev42PlannerEvidence": {
+    "Status": "Complete",
+    "LocalOnly": true,
+    "PlannerRunId": "RUN-REV42-SAMPLE-001"
+  },
+  "Rev43ServicePrincipalFinalDeleteSimulationEvidence": {
+    "Status": "Blocked",
+    "SimulationOnly": true,
+    "LiveDeleteExecutable": false,
+    "LocalOnly": true
+  },
+  "Rev44ApplicationReadinessEvidence": {
+    "Status": "ReadinessSatisfiedSimulationOnly",
+    "SimulationOnly": true,
+    "LiveDeleteExecutable": false,
+    "LocalOnly": true
+  },
+  "Rev45MetadataCleanupReadinessEvidence": {
+    "Status": "Ready",
+    "SimulationOnly": true,
+    "LiveCleanupExecutable": false,
+    "LocalOnly": true
+  },
+  "Rev46GrantsCleanupReadinessEvidence": {
+    "Status": "Ready",
+    "SimulationOnly": true,
+    "LiveCleanupExecutable": false,
+    "LocalOnly": true
+  },
+  "Rev47ManagedIdentityReadinessEvidence": {
+    "Status": "ManagedIdentityReadinessSatisfiedSimulationOnly",
+    "SimulationOnly": true,
+    "LiveCleanupExecutable": false,
+    "LocalOnly": true
+  },
+  "Rev48E2EEvidencePackEvidence": {
+    "Status": "Approved",
+    "SimulationOnly": true,
+    "LiveDeleteExecutable": false,
+    "LiveCleanupExecutable": false,
+    "LocalOnly": true
+  },
+  "ExternalQaApprovalEvidence": {
+    "Approved": true,
+    "Status": "Approved",
+    "ApprovedBy": "external-qa-approver@example.com",
+    "ApprovalId": "APP-REV49-PROD-001",
+    "LocalOnly": true
+  },
+  "FullPesterEvidence": {
+    "Passed": true,
+    "Status": "Passed",
+    "EvidencePath": "tests\\artifacts\\full-pester-rev49.json",
+    "LocalOnly": true
+  },
+  "SafetyScanEvidence": {
+    "Passed": true,
+    "Status": "Passed",
+    "EvidencePath": "tests\\artifacts\\safety-scan-rev49.json",
+    "LocalOnly": true
+  },
+  "FrozenFileDiffEvidence": {
+    "Clean": true,
+    "Status": "Clean",
+    "EvidencePath": "tests\\artifacts\\frozen-file-diff-rev49.json",
+    "LocalOnly": true
+  },
+  "GitStatusEvidence": {
+    "Clean": true,
+    "Status": "Clean",
+    "EvidencePath": "tests\\artifacts\\git-status-rev49.json",
+    "LocalOnly": true
+  },
+  "P0Findings": [],
+  "P1Findings": [],
+  "P2Findings": [
+    {
+      "Id": "P2-REV49-001",
+      "Title": "Tighten empty evidence object guard",
+      "Severity": "P2",
+      "Disposition": "Documented",
+      "Resolved": true
+    },
+    {
+      "Id": "P2-REV49-002",
+      "Title": "Review non-MI default evidence synthesis",
+      "Severity": "P2",
+      "Disposition": "Documented",
+      "Resolved": true
+    },
+    {
+      "Id": "P2-REV49-003",
+      "Title": "Improve future delta QA ZIP portability",
+      "Severity": "P2",
+      "Disposition": "Documented",
+      "Resolved": true
+    }
+  ],
+  "KnownWarnings": [
+    {
+      "Warning": "DemoMode traceability warning about $execEvidencePath not being set, if still present.",
+      "Severity": "Low",
+      "Disposition": "Documented",
+      "Source": "LegacyAssessmentPath"
+    },
+    {
+      "Warning": "Pester ConvertTo-DecomHtmlEncoded empty-string binding messages, if still present.",
+      "Severity": "Low",
+      "Disposition": "Documented",
+      "Source": "Pester"
+    },
+    {
+      "Warning": "Rev4.7/4.8 P2 follow-up: tighten empty evidence object guard.",
+      "Severity": "Medium",
+      "Disposition": "Open",
+      "Source": "Rev4.7"
+    },
+    {
+      "Warning": "Rev4.7/4.8 P2 follow-up: review non-MI default evidence synthesis.",
+      "Severity": "Medium",
+      "Disposition": "Open",
+      "Source": "Rev4.7"
+    },
+    {
+      "Warning": "Rev4.7/4.8 P2 follow-up: improve future delta QA ZIP portability.",
+      "Severity": "Medium",
+      "Disposition": "Open",
+      "Source": "Rev4.8"
+    }
+  ],
+  "OperatorMergeDecision": {
+    "Decision": "ReadyForReview",
+    "DecisionBy": "local-planner",
+    "DecisionAtUtc": "2099-01-01T00:00:00Z",
+    "Reason": "External QA and merge-gate evidence are present locally only.",
+    "Scope": "Rev4.9",
+    "IsExecuting": false
+  },
+  "Notes": "Single local file used as both plan and approval input for Rev4.9 production readiness simulation."
+}

@@ -143,6 +143,49 @@ Describe 'Rev1.1 Reporting Tests' {
             $content | Should -Match 'TEST-CRIT-001'
             $content | Should -Match 'TEST-HIGH-001'
         }
+
+        It 'Remediation plan keeps suppressed platform findings out of ACT sections' {
+            $planPath = Join-Path $script:TempDir 'test-remediation-suppressed-platform.md'
+            $findings = @(
+                New-DecomFinding -FindingId 'DEC-SPN-001' -Category 'Application' `
+                    -Severity 'High' -RiskScore 90 -Confidence 'High' `
+                    -ObjectType 'ServicePrincipal' -ObjectId ([guid]::NewGuid().Guid) `
+                    -DisplayName 'Microsoft Graph PowerShell' `
+                    -Evidence 'Known Microsoft platform identity' -EvidenceSource 'test' `
+                    -RecommendedAction 'Assign owner using AddApplicationOwner action' `
+                    -RemediationMode 'InformationOnly' `
+                    -Classification 'MicrosoftPlatform' `
+                    -ClassificationConfidence 'High' `
+                    -ClassificationSource 'Catalog' `
+                    -ClassificationSignals @('catalog') `
+                    -SuppressCustomerRemediation $true `
+                    -MicrosoftPlatform $true `
+                    -FirstPartyMicrosoftApp $true `
+                    -EvidenceOnly $true
+                New-DecomFinding -FindingId 'DEC-SPN-002' -Category 'Application' `
+                    -Severity 'High' -RiskScore 88 -Confidence 'High' `
+                    -ObjectType 'ServicePrincipal' -ObjectId ([guid]::NewGuid().Guid) `
+                    -DisplayName 'iOS Accounts' `
+                    -Evidence 'Known external vendor platform identity' -EvidenceSource 'test' `
+                    -RecommendedAction 'Verify publisher through Microsoft Partner Center' `
+                    -RemediationMode 'InformationOnly' `
+                    -Classification 'ExternalVendorPlatform' `
+                    -ClassificationConfidence 'High' `
+                    -ClassificationSource 'Catalog' `
+                    -ClassificationSignals @('catalog') `
+                    -SuppressCustomerRemediation $true `
+                    -MicrosoftPlatform $false `
+                    -FirstPartyMicrosoftApp $false `
+                    -EvidenceOnly $true
+            )
+            Export-DecomRemediationPlan -Findings $findings -Path $planPath -Context $script:TestContext
+            $content = Get-Content $planPath -Raw
+            $content | Should -Match 'Evidence-Only / Suppressed Platform Findings'
+            $content | Should -Match 'Microsoft Graph PowerShell'
+            $content | Should -Match 'iOS Accounts'
+            $content | Should -Not -Match 'Assign owner using AddApplicationOwner action|Assign owner|Assign accountable owner|Verify publisher through Microsoft Partner Center|Revoke consent|Reduce permission scope'
+            $content | Should -Not -Match '### ACT-'
+        }
     }
 
     Context 'Rev1.2 empty-findings and Medium plan sections' {

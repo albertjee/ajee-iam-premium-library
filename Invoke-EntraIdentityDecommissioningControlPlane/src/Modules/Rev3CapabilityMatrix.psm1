@@ -1,5 +1,11 @@
 #Requires -Version 5.1
 
+#Requires -Version 5.1
+
+if (-not (Get-Command Get-DecomToolVersion -ErrorAction SilentlyContinue)) {
+    function Get-DecomToolVersion { 'Rev4.10' }
+}
+
 function New-DecomRev3CapabilityMatrix {
     [CmdletBinding()]
     param(
@@ -69,7 +75,7 @@ function New-DecomRev3CapabilityMatrix {
     return [PSCustomObject]@{
         SchemaVersion    = '3.6'
         GeneratedUtc     = (Get-Date).ToUniversalTime().ToString('o')
-        ToolVersion = 'Rev4.1'
+        ToolVersion = Get-DecomToolVersion
         ExecutableActions = $actions
         PlanOnlyActions  = $planOnly
         DeferredActions  = $deferred

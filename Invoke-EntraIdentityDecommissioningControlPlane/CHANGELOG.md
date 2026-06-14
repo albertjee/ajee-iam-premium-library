@@ -1,5 +1,114 @@
 # Changelog
 
+## Rev4.9 - Production Readiness Guardrails and Merge Gate
+
+### Summary
+Added the final pre-merge production-readiness gate, release/merge manifest, operator merge decision
+record, known-warning inventory, and final safety assertions. Rev4.9 remains documentation-only and
+does not enable live execution.
+
+### Safety Boundary
+- `LiveDeleteExecutable`, `LiveCleanupExecutable`, `GraphWritePathAvailable`, and `ArmWritePathAvailable` remain `false`.
+- `ProductionExecutionEnabled` remains `false` and `ProductionUnlockGranted` remains `false`.
+- External QA evidence, full Pester evidence, safety-scan evidence, and frozen-file diff evidence are required.
+- Frozen modules remain untouched.
+
+### Tests
+- Added focused Rev4.9 production-readiness and safety tests.
+
+## Rev4.8 - Controlled Decommission Evidence Pack
+
+### Summary
+Added an end-to-end controlled decommission evidence pack, QA handoff manifest, and operator decision log.
+Rev4.8 remains simulation-only and does not introduce live delete or cleanup execution.
+
+### Safety Boundary
+- `LiveDeleteExecutable`, `LiveCleanupExecutable`, and `GraphWritePathAvailable` remain `false`.
+- `FinalDeleteSimulationOnly` remains `true`.
+- No new Microsoft Graph permissions or live cleanup cmdlets were added.
+- Frozen modules remain untouched.
+
+### Tests
+- Added focused Rev4.8 evidence-pack and safety tests.
+
+---
+
+## Rev4.7 - Managed Identity Controlled Decommission Readiness
+
+### Summary
+Added managed identity readiness and simulation-only evidence. Rev4.7 supports SystemAssigned and
+UserAssigned managed identities but does not introduce live deletion, ARM cleanup, or Graph write paths.
+
+### Safety Boundary
+- `ManagedIdentityReadinessSatisfiedSimulationOnly` is local evidence only.
+- `LiveCleanupExecutable` and `CleanupCmdletAvailable` remain `false`.
+- No live Managed Identity cleanup, role-assignment removal, or ARM deletion was added.
+- Frozen modules remain untouched.
+
+### Tests
+- Added focused Rev4.7 readiness and safety tests.
+
+---
+
+## Rev4.3 - Controlled Service Principal FinalDelete Guard
+
+### Summary
+Added a Service Principal-only FinalDelete gate simulation and evidence model. Rev4.3 evaluates
+high-friction delete gates but includes no live delete cmdlet, Graph write, or unattended execution.
+
+### Safety Boundary
+- `FinalDelete` remains blocked by default.
+- `-AllowFinalDelete` is accepted only with `-ExecutionStage FinalDelete` and WhatIf/Demo controlled flow.
+- All passing gates produce `GuardSatisfiedSimulationOnly`.
+- `LiveDeleteExecutable` and `DeleteCmdletAvailable` remain `false`.
+- No `Remove-MgServicePrincipal` or `Remove-MgApplication` invocation was added.
+- Frozen modules remain untouched.
+
+### Tests
+- Added 43 focused Rev4.3 gate and safety tests.
+
+---
+
+## Rev4.2-S1 - Controlled NHI Decommission Planner and Evidence
+
+### Summary
+Additive controlled NHI decommission planning, validation, and evidence generation.
+Rev4.2-S1 is planner/evidence/WhatIf/Demo only and performs no Graph connection or tenant mutation.
+
+### Changes
+- Added `src/Modules/NhiControlledDecommission.psm1` with schema, target and approval validation,
+  sanitized snapshot hashing, scream-test evaluation, dependency recheck, delete-readiness,
+  rollback-plan generation, and local evidence export.
+- Added entry-point switches for the controlled planner/evidence path.
+- Added sample Rev4.2 plan and approval manifests.
+- Added focused module and safety regression tests.
+- Added the controlled NHI decommission operator runbook and schema/permission documentation.
+
+### Safety Boundary
+- Live `FinalDelete` is blocked in Rev4.2-S1.
+- No `Remove-MgServicePrincipal` or `Remove-MgApplication` implementation or invocation.
+- No new Microsoft Graph write scopes.
+- Assessment, default, SelfTest, DemoMode, WhatIf, and controlled S1 planner paths remain write-free.
+- Required plan and approval inputs fail closed when absent or invalid.
+
+### Validation
+- Focused Rev4.2 tests: 71 passed, 0 failed.
+- Full Pester before documentation milestone: 1569 passed, 0 failed.
+
+### External QA P2 Polish
+- Evaluated updating entry-point `ToolVersion` to `Rev4.2-S1`; retained `Rev4.1` because the frozen
+  release-validation contract requires it and SelfTest fails on a different value.
+- Clarified that S1 scream-test evidence is illustrative/generated planner evidence, not live
+  monitoring evidence.
+- Clarified that rich sample evidence fields are examples only and runtime recomputes generated
+  evidence rather than trusting precomputed readiness as authority.
+- Documented that the controlled branch short-circuits before legacy Rev4.0 execution when both
+  execution switches are supplied.
+- Added a future hardening note for raw Graph object sanitization, including `AdditionalProperties`
+  and unusual secret-like fields. No broad sanitization behavior was added in S1.
+
+---
+
 ## Rev4.1 — NHI Activity Audit Hardening
 
 ### Summary

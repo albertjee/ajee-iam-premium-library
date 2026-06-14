@@ -1,0 +1,47 @@
+{
+  "SchemaVersion": "4.2",
+  "RunId": "RUN-REV43-SP-FINALDELETE-SAMPLE-001",
+  "Status": "Approved",
+  "ApprovedBy": "test-tenant-approver@example.com",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "TargetId": "sp-rev43-test-001",
+  "TargetType": "ServicePrincipal",
+  "DisplayName": "Rev43 Test Tenant Service Principal",
+  "ProtectedObject": false,
+  "MicrosoftFirstParty": false,
+  "EmergencyAccessIndicator": false,
+  "BreakGlassIndicator": false,
+  "HighConfidenceActive": false,
+  "Ambiguous": false,
+  "TargetObjectIds": [
+    "sp-rev43-test-001"
+  ],
+  "ApprovedActions": [
+    "FinalDelete"
+  ],
+  "FinalDeleteApproved": true,
+  "LiveMutationApproved": false,
+  "ScreamTestOverrideApproved": false,
+  "TestTenantGuard": {
+    "IsTestTenant": true,
+    "Environment": "Test",
+    "TenantAlias": "rev43-synthetic-test-tenant",
+    "LiveDeleteDuringBuild": false
+  },
+  "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
+    "Status": "Complete",
+    "WindowHours": 24,
+    "DependencyDetected": false,
+    "RecentActivityDetected": false,
+    "QuerySucceeded": true
+  },
+  "DeleteReadiness": {
+    "Status": "Ready",
+    "FinalDeleteLiveEnabled": false
+  },
+  "SimulationOnly": true,
+  "LiveDeleteExecutable": false,
+  "Notes": "Use this single file as both plan and approval input for local Rev4.3 FinalDelete guard simulation."
+}

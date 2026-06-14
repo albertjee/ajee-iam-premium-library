@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0",
+  "description": "Known Microsoft and vendor platform service-principal classifications used by the Entra decommissioning control plane.",
+  "lastReviewedUtc": "2026-06-12T00:00:00Z",
+  "identities": [
+    {
+      "displayName": "Microsoft Graph PowerShell",
+      "appId": "14d82eec-204b-4c2f-b7e8-296a70dab67e",
+      "ownerOrganizationId": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+      "verifiedPublisherName": "Microsoft Corporation",
+      "classification": "MicrosoftPlatform",
+      "firstPartyMicrosoftApp": true,
+      "suppressCustomerRemediation": true,
+      "reason": "Microsoft first-party Graph PowerShell application observed in live tenant metadata."
+    },
+    {
+      "displayName": "Microsoft Tech Community",
+      "appId": "09213cdc-9f30-4e82-aa6f-9b6e8d82dab3",
+      "ownerOrganizationId": "cdc5aeea-15c5-4db6-b079-fcadd2505dc2",
+      "verifiedPublisherName": null,
+      "classification": "MicrosoftPlatform",
+      "firstPartyMicrosoftApp": true,
+      "suppressCustomerRemediation": true,
+      "reason": "Known Microsoft platform application; publisher metadata may be blank in Graph output."
+    },
+    {
+      "displayName": "Flipgrid",
+      "appId": "f1143447-b07a-4557-b878-b78df8d45c13",
+      "ownerOrganizationId": "1bf12738-0df6-4c07-97c3-0b0642a2f1a0",
+      "verifiedPublisherName": null,
+      "classification": "MicrosoftPlatform",
+      "firstPartyMicrosoftApp": true,
+      "suppressCustomerRemediation": true,
+      "reason": "Known Microsoft-owned education platform application; publisher metadata may be blank in Graph output."
+    },
+    {
+      "displayName": "iOS Accounts",
+      "appId": "f8d98a96-0999-43f5-8af3-69971c7bb423",
+      "ownerOrganizationId": "e0fad04c-a04c-41ab-b35e-dc523af755a1",
+      "verifiedPublisherName": "Apple Inc.",
+      "classification": "ExternalVendorPlatform",
+      "firstPartyMicrosoftApp": false,
+      "suppressCustomerRemediation": true,
+      "reason": "Apple platform identity; should not be mislabeled as Microsoft first-party."
+    }
+  ]
+}

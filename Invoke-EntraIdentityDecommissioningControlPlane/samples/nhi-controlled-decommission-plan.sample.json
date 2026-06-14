@@ -1,0 +1,66 @@
+{
+  "SchemaVersion": "4.2",
+  "RunId": "RUN-REV42-SAMPLE-001",
+  "GeneratedUtc": "2026-06-11T00:00:00Z",
+  "TargetId": "sp-rev42-sample-001",
+  "TargetType": "ServicePrincipal",
+  "ExecutionStage": "DeleteReadinessOnly",
+  "WhatIf": true,
+  "DemoMode": true,
+  "PlanningOnly": true,
+  "LiveMutationEnabled": false,
+  "FinalDeleteLiveEnabled": false,
+  "Status": "Planned",
+  "EvidenceNotice": "Rich evidence fields in this sample are illustrative input examples only. Runtime recomputes generated evidence and does not trust precomputed readiness as authority.",
+  "TargetValidation": {
+    "Passed": true,
+    "Reasons": []
+  },
+  "SnapshotEvidence": {
+    "SchemaVersion": "4.2",
+    "SHA256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "ContainsCredentialMetadataOnly": true,
+    "ContainsSecretValues": false
+  },
+  "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
+    "Status": "Complete",
+    "WindowHours": 24,
+    "DependencyDetected": false,
+    "RecentActivityDetected": false,
+    "QuerySucceeded": true
+  },
+  "DeleteReadiness": {
+    "Status": "Ready",
+    "FinalDeleteLiveEnabled": false,
+    "Reasons": []
+  },
+  "Actions": [
+    {
+      "ActionId": "RUN-REV42-SAMPLE-001-DeleteReadinessOnly-sp-rev42-sample-001",
+      "RunId": "RUN-REV42-SAMPLE-001",
+      "TargetId": "sp-rev42-sample-001",
+      "TargetType": "ServicePrincipal",
+      "ActionType": "DeleteReadinessOnly",
+      "ExecutionStage": "DeleteReadinessOnly",
+      "WhatIf": true,
+      "Result": "Planned",
+      "RollbackAvailable": true,
+      "Warnings": []
+    },
+    {
+      "ActionId": "RUN-REV42-SAMPLE-001-FinalDelete-sp-rev42-sample-001",
+      "RunId": "RUN-REV42-SAMPLE-001",
+      "TargetId": "sp-rev42-sample-001",
+      "TargetType": "ServicePrincipal",
+      "ActionType": "FinalDelete",
+      "ExecutionStage": "FinalDelete",
+      "WhatIf": true,
+      "Result": "Blocked",
+      "RollbackAvailable": false,
+      "Warnings": [
+        "FinalDelete is blocked for live execution in Rev4.2-S1."
+      ]
+    }
+  ]
+}

@@ -20,6 +20,7 @@ function Invoke-NhiSignInScan {
     $findings = @()
 
     foreach ($sp in $ServicePrincipals) {
+        $null = Set-DecomFindingTraceContext -SourceObject $sp -ClassificationSource 'NhiSignIn'
         # Determine sign-in record
         $signIn = $null
         if ($SignInByAppId -and $SignInByAppId.ContainsKey($sp.AppId)) {
@@ -119,6 +120,7 @@ function Invoke-NhiSignInScan {
         $findings += $spFindings
     }
 
+    Clear-DecomFindingTraceContext
     return $findings
 }
 

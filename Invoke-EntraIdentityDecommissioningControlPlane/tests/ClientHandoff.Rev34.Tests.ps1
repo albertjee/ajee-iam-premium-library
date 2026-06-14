@@ -11,7 +11,7 @@ Describe 'ClientHandoff' {
 
         # Shared context used across tests
         $script:TestContext = [pscustomobject]@{
-            ToolVersion  = 'Rev4.1'
+            ToolVersion  = 'Rev4.10'
             EngagementId = 'eng-test-001'
             ClientName   = 'Test Client'
             TenantId     = 'tenant-test-001'
@@ -106,6 +106,24 @@ Describe 'ClientHandoff' {
             -RedactedFiles @($redactedPath)
 
         $pkg.ClientSafeFiles | Should -Contain $redactedPath
+    }
+
+    It 'Auto-discovers generated artifacts from PackagePath' {
+        $runFolder = Join-Path $env:TEMP "handoff-rev10-$([guid]::NewGuid().ToString('N'))"
+        $null = New-Item -ItemType Directory -Path $runFolder -Force
+        try {
+            Set-Content -Path (Join-Path $runFolder 'client-handoff-manifest-001.json') -Value '{}' -Encoding UTF8
+            Set-Content -Path (Join-Path $runFolder 'client-handoff-index-001.md') -Value '# index' -Encoding UTF8
+            Set-Content -Path (Join-Path $runFolder 'client-handoff-checklist-001.md') -Value '# checklist' -Encoding UTF8
+            Set-Content -Path (Join-Path $runFolder 'redaction-report-001.json') -Value '{}' -Encoding UTF8
+
+            $pkg = New-DecomClientHandoffPackage -Context $script:TestContext -RunId 'run-ch-007' -PackagePath $runFolder
+
+            @($pkg.Sections.ClientHandoffArtifacts).Count | Should -BeGreaterThan 0
+            @($pkg.ClientSafeFiles).Count | Should -BeGreaterThan 0
+        } finally {
+            Remove-Item $runFolder -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 
     # ── Missing validation report creates warning ────────────────────────────

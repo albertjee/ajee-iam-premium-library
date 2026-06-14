@@ -204,28 +204,32 @@ function Invoke-DecomNhiDiscovery {
                 }
             }
             $highRiskPermissions = Get-DecomNhiHighRiskPermissions -AppRoleAssignments $appRoleAssignments -OAuthGrants $oauthGrants
-            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $sp.PublisherName -VerifiedPublisher $sp.VerifiedPublisher
+            $normalizedIdentity = Get-DecomNormalizedNhiIdentity -InputObject $sp
+            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $normalizedIdentity.PublisherName -VerifiedPublisher $sp.VerifiedPublisher
+            $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $sp
 
             # Build NHI object
             $nhiObject = [PSCustomObject]@{
                 # Basic identification
                 ObjectId = $sp.Id
                 AppId = $sp.AppId
-                DisplayName = $sp.DisplayName
+                DisplayName = if ($normalizedIdentity.DisplayName) { $normalizedIdentity.DisplayName } else { $sp.DisplayName }
+                AppDisplayName = $normalizedIdentity.AppDisplayName
                 ObjectType = 'ServicePrincipal'
-                ServicePrincipalType = $sp.servicePrincipalType
+                ServicePrincipalType = if ($normalizedIdentity.ServicePrincipalType) { $normalizedIdentity.ServicePrincipalType } else { $sp.servicePrincipalType }
 
                 # Publisher info
-                PublisherName = $sp.PublisherName
+                PublisherName = $normalizedIdentity.PublisherName
+                VerifiedPublisherName = $normalizedIdentity.VerifiedPublisherName
                 IsVerifiedPublisher = $isVerifiedPublisher
 
                 # Other properties
                 SignInAudience = $sp.signInAudience
                 AccountEnabled = $sp.accountEnabled
                 CreatedDateTime = $sp.createdDateTime
-                Tags = $sp.tags
+                Tags = $normalizedIdentity.Tags
                 Homepage = $sp.homepage
-                AppOwnerOrganizationId = $sp.appOwnerOrganizationId
+                AppOwnerOrganizationId = $normalizedIdentity.AppOwnerOrganizationId
 
                 # Classification (to be filled by analysis)
                 NhiCandidate = $false
@@ -235,7 +239,15 @@ function Invoke-DecomNhiDiscovery {
                 Classification = 'UnclassifiedServicePrincipal'
                 ClassificationConfidence = 'Unknown'
                 ClassificationSignals = @()
+                ClassificationSource = 'Discovery/ServicePrincipal'
                 ClassificationScore = 0
+                MicrosoftPlatformReason = $platformClassification.Reason
+                NormalizedAppId = $normalizedIdentity.AppId
+                NormalizedPublisherName = $normalizedIdentity.PublisherName
+                NormalizedVerifiedPublisherName = $normalizedIdentity.VerifiedPublisherName
+                NormalizedAppOwnerOrganizationId = $normalizedIdentity.AppOwnerOrganizationId
+                NormalizedServicePrincipalType = $normalizedIdentity.ServicePrincipalType
+                NormalizedTags = $normalizedIdentity.Tags
 
                 # Evidence and risk
                 OwnerCount = $owners.Count
@@ -245,7 +257,10 @@ function Invoke-DecomNhiDiscovery {
                 HighRiskPermissionCount = $highRiskPermissions.Count
                 HighRiskOAuthGrantCount = 0  # Will be calculated in analysis
                 TenantWideConsent = $false  # Will be calculated in analysis
-                FirstPartyMicrosoftApp = ($sp.PublisherName -eq 'Microsoft Corporation')
+                FirstPartyMicrosoftApp = $platformClassification.MicrosoftFirstParty
+                MicrosoftFirstParty = $platformClassification.MicrosoftFirstParty
+                MicrosoftPlatform = $platformClassification.MicrosoftPlatform
+                SuppressCustomerRemediation = $platformClassification.SuppressCustomerRemediation
 
                 # Risk and coverage
                 RiskScore = 0  # Will be calculated in analysis
@@ -282,29 +297,32 @@ function Invoke-DecomNhiDiscovery {
             $appRoleAssignments = @()
             $oauthGrants = @()
             $highRiskPermissions = @()
-            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $app.PublisherDomain -VerifiedPublisher $app.VerifiedPublisher
+            $normalizedIdentity = Get-DecomNormalizedNhiIdentity -InputObject $app
+            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $normalizedIdentity.PublisherName -VerifiedPublisher $app.VerifiedPublisher
+            $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $app
 
             # Build NHI object
             $nhiObject = [PSCustomObject]@{
                 # Basic identification
                 ObjectId = $app.Id
                 AppId = $app.AppId
-                DisplayName = $app.DisplayName
+                DisplayName = if ($normalizedIdentity.DisplayName) { $normalizedIdentity.DisplayName } else { $app.DisplayName }
+                AppDisplayName = $normalizedIdentity.AppDisplayName
                 ObjectType = 'Application'
                 ServicePrincipalType = $null  # Applications don't have service principal type
 
                 # Publisher info
-                PublisherName = $app.PublisherDomain
-                VerifiedPublisherName = if ($app.VerifiedPublisher) { $app.VerifiedPublisher.DisplayName } else { $null }
+                PublisherName = $normalizedIdentity.PublisherName
+                VerifiedPublisherName = $normalizedIdentity.VerifiedPublisherName
                 IsVerifiedPublisher = $isVerifiedPublisher
 
                 # Other properties
                 SignInAudience = $app.signInAudience
                 AccountEnabled = $true  # Applications don't have disabled state in Graph
                 CreatedDateTime = $app.createdDateTime
-                Tags = $app.tags
+                Tags = $normalizedIdentity.Tags
                 Homepage = $app.homepage
-                AppOwnerOrganizationId = $null  # Applications don't have this property
+                AppOwnerOrganizationId = $normalizedIdentity.AppOwnerOrganizationId
 
                 # Classification (to be filled by analysis)
                 NhiCandidate = $false
@@ -314,7 +332,15 @@ function Invoke-DecomNhiDiscovery {
                 Classification = 'UnclassifiedApplication'
                 ClassificationConfidence = 'Unknown'
                 ClassificationSignals = @()
+                ClassificationSource = 'Discovery/Application'
                 ClassificationScore = 0
+                MicrosoftPlatformReason = $platformClassification.Reason
+                NormalizedAppId = $normalizedIdentity.AppId
+                NormalizedPublisherName = $normalizedIdentity.PublisherName
+                NormalizedVerifiedPublisherName = $normalizedIdentity.VerifiedPublisherName
+                NormalizedAppOwnerOrganizationId = $normalizedIdentity.AppOwnerOrganizationId
+                NormalizedServicePrincipalType = $normalizedIdentity.ServicePrincipalType
+                NormalizedTags = $normalizedIdentity.Tags
 
                 # Evidence and risk
                 OwnerCount = $owners.Count
@@ -324,7 +350,10 @@ function Invoke-DecomNhiDiscovery {
                 HighRiskPermissionCount = 0  # Applications don't have app role assignments
                 HighRiskOAuthGrantCount = 0  # Will be calculated in analysis
                 TenantWideConsent = $false  # Will be calculated in analysis
-                FirstPartyMicrosoftApp = ($app.PublisherDomain -eq 'Microsoft Corporation')
+                FirstPartyMicrosoftApp = $platformClassification.MicrosoftFirstParty
+                MicrosoftFirstParty = $platformClassification.MicrosoftFirstParty
+                MicrosoftPlatform = $platformClassification.MicrosoftPlatform
+                SuppressCustomerRemediation = $platformClassification.SuppressCustomerRemediation
 
                 # Risk and coverage
                 RiskScore = 0  # Will be calculated in analysis

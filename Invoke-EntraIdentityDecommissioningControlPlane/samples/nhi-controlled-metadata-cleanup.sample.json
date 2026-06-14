@@ -1,0 +1,72 @@
+{
+  "SchemaVersion": "4.5",
+  "RunId": "RUN-REV45-META-SAMPLE-001",
+  "Status": "Approved",
+  "ApprovedBy": "metadata-cleanup-approver@example.com",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "ApprovalId": "APP-REV45-META-001",
+  "TargetId": "sp-rev45-test-001",
+  "TargetType": "ServicePrincipal",
+  "TargetObjectIds": [
+    "sp-rev45-test-001"
+  ],
+  "ApprovedActions": [
+    "MetadataCleanupReadiness"
+  ],
+  "MetadataCleanupType": "CredentialMetadata",
+  "MetadataObjectId": "sp-rev45-test-001-credential-metadata",
+  "MetadataObjectType": "PasswordCredential",
+  "CredentialMetadataEvidence": [
+    {
+      "CredentialType": "PasswordCredential",
+      "KeyId": "cred-pass-rev45-001",
+      "CredentialId": "cred-pass-rev45-001",
+      "StartDateTime": "2025-01-01T00:00:00Z",
+      "EndDateTime": "2026-01-01T00:00:00Z",
+      "DisplayName": "Rev45 Password Credential Metadata"
+    },
+    {
+      "CredentialType": "X509Certificate",
+      "KeyId": "cred-cert-rev45-001",
+      "CredentialId": "cred-cert-rev45-001",
+      "StartDateTime": "2025-02-01T00:00:00Z",
+      "EndDateTime": "2026-02-01T00:00:00Z",
+      "DisplayName": "Rev45 Certificate Credential Metadata"
+    }
+  ],
+  "OwnerMetadataEvidence": {
+    "OwnerCount": 2,
+    "OwnerTypeSummary": {
+      "User": 2,
+      "Group": 0,
+      "ServicePrincipal": 0
+    },
+    "OwnerRiskNotes": [
+      "No live owner removal is permitted.",
+      "Owner evidence is informational only."
+    ]
+  },
+  "DecommissionMarkerEvidence": {
+    "MarkerPresent": true,
+    "LocalOnly": true,
+    "LiveGraphUpdateApproved": false
+  },
+  "RollbackLimitation": "Limited",
+  "CleanupReadiness": {
+    "Status": "Ready"
+  },
+  "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
+    "Status": "Complete",
+    "DependencyDetected": false,
+    "RecentActivityDetected": false,
+    "QuerySucceeded": true
+  },
+  "DeleteReadiness": {
+    "Status": "Ready"
+  },
+  "LiveCleanupApproved": false,
+  "LiveCleanupExecutable": false,
+  "Notes": "Single local file used as both plan and approval input for Rev4.5 metadata cleanup readiness simulation."
+}

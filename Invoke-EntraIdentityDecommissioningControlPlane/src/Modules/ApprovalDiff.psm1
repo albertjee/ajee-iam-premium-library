@@ -1,5 +1,11 @@
 #Requires -Version 5.1
 
+#Requires -Version 5.1
+
+if (-not (Get-Command Get-DecomToolVersion -ErrorAction SilentlyContinue)) {
+    function Get-DecomToolVersion { 'Rev4.10' }
+}
+
 function Compare-DecomWhatIfToApproval {
     <#
     .SYNOPSIS
@@ -27,7 +33,7 @@ function Compare-DecomWhatIfToApproval {
 
     $diff = [pscustomobject]@{
         SchemaVersion = '3.6'
-        ToolVersion   = 'Rev4.1'
+        ToolVersion   = Get-DecomToolVersion
         RunId         = $RunId
         GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
         Passed        = $true

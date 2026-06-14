@@ -10,13 +10,58 @@ function Invoke-DecomNhiGovernance {
     )
 
     Write-DecomInfo "Starting NHI governance processing for $($AnalyzedNhiObjects.Count) objects..."
+    Clear-DecomFindingTraceContext
 
     $governanceFindings = @()
 
     foreach ($nhiObject in $AnalyzedNhiObjects) {
+        $null = Set-DecomFindingTraceContext -SourceObject $nhiObject -ClassificationSource 'NhiGovernance'
         try {
             # Skip if not an NHI candidate
             if (-not $nhiObject.NhiCandidate) { continue }
+
+            if ($nhiObject.MicrosoftPlatform -eq $true) {
+                $finding001 = New-DecomFinding `
+                    -FindingId 'DEC-NHI-001' `
+                    -Category 'NHI Inventory' `
+                    -Severity 'Informational' `
+                    -RiskScore 0 `
+                    -Confidence 'High' `
+                    -ObjectType $nhiObject.ObjectType `
+                    -ObjectId $nhiObject.ObjectId `
+                    -DisplayName $nhiObject.DisplayName `
+                    -Evidence "Microsoft platform identity retained as evidence-only based on $($nhiObject.MicrosoftPlatformReason)" `
+                    -EvidenceSource 'graph' `
+                    -GraphEndpoint 'https://graph.microsoft.com/v1.0/servicePrincipals' `
+                    -RecommendedAction 'Evidence only - suppress customer remediation' `
+                    -RemediationMode 'InformationOnly' `
+                    -Classification $nhiObject.Classification `
+                    -ClassificationConfidence $nhiObject.ClassificationConfidence `
+                    -ClassificationSignals $nhiObject.ClassificationSignals `
+                    -ClassificationScore $nhiObject.ClassificationScore `
+                    -NhiCandidate $nhiObject.NhiCandidate `
+                    -AgenticCandidate $false `
+                    -AutomationCandidate $false `
+                    -WorkloadCandidate $false `
+                    -OwnerCount $nhiObject.OwnerCount `
+                    -CredentialCount $nhiObject.CredentialCount `
+                    -ExpiredCredentialCount $nhiObject.ExpiredCredentialCount `
+                    -ExpiringCredentialCount $nhiObject.ExpiringCredentialCount `
+                    -HighRiskPermissionCount $nhiObject.HighRiskPermissionCount `
+                    -HighRiskOAuthGrantCount $($nhiObject.HighRiskOAuthGrantCount) `
+                    -TenantWideConsent $nhiObject.TenantWideConsent `
+                    -VerifiedPublisherName $nhiObject.VerifiedPublisherName `
+                    -PublisherName $nhiObject.PublisherName `
+                    -FirstPartyMicrosoftApp $nhiObject.FirstPartyMicrosoftApp `
+                    -MicrosoftFirstParty $nhiObject.MicrosoftFirstParty `
+                    -MicrosoftPlatform $nhiObject.MicrosoftPlatform `
+                    -EvidenceOnly $true `
+                    -CoverageMode $nhiObject.CoverageMode `
+                    -RiskScoreMayBeUnderstated $nhiObject.RiskScoreMayBeUnderstated
+
+                $governanceFindings += $finding001
+                continue
+            }
 
             # Generate DEC-NHI-001 - Entra-visible NHI candidate detected
             $finding001 = New-DecomFinding `
@@ -51,6 +96,9 @@ function Invoke-DecomNhiGovernance {
                 -VerifiedPublisherName $nhiObject.VerifiedPublisherName `
                 -PublisherName $nhiObject.PublisherName `
                 -FirstPartyMicrosoftApp $nhiObject.FirstPartyMicrosoftApp `
+                -MicrosoftFirstParty $nhiObject.MicrosoftFirstParty `
+                -MicrosoftPlatform $nhiObject.MicrosoftPlatform `
+                -EvidenceOnly $false `
                 -CoverageMode $nhiObject.CoverageMode `
                 -RiskScoreMayBeUnderstated $nhiObject.RiskScoreMayBeUnderstated
 

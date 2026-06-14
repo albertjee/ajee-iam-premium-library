@@ -426,16 +426,24 @@ Describe 'ReplayValidation' {
         $result.SchemaVersion | Should -Be '3.6'
     }
 
-    It 'Invoke-DecomReplayValidation returns ToolVersion Rev4.1' {
+    It 'Invoke-DecomReplayValidation returns ToolVersion Rev4.10' {
         $result = Invoke-DecomReplayValidation -RunId 'run-tool-check'
-        $result.ToolVersion | Should -Be 'Rev4.1'
+        $result.ToolVersion | Should -Be 'Rev4.10'
     }
 
-    It 'Replay validation with no artifacts returns Passed=false' {
+    It 'Replay validation with no artifacts is skipped' {
         $result = Invoke-DecomReplayValidation -RunId 'run-empty'
+        $result.Status | Should -Be 'SkippedNoReplayInputs'
         $result.CheckCount | Should -Be 0
-        $result.Passed     | Should -Be $false
+        $result.Passed     | Should -Be $null
         $result.Warnings.Count | Should -Be 3
+    }
+
+    It 'Replay validation with no inputs is skipped' {
+        $result = Invoke-DecomReplayValidation
+        $result.Status | Should -Be 'SkippedNoReplayInputs'
+        $result.Passed | Should -Be $null
+        $result.CheckCount | Should -Be 0
     }
 
     It 'Invoke-DecomReplayValidation returns a Findings array' {

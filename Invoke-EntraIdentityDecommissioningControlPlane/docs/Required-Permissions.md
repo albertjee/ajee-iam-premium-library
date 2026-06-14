@@ -22,6 +22,48 @@ run with partial coverage and report which areas could not be assessed. Coverage
 are surfaced as Informational findings and noted in the Coverage Summary section of the
 HTML report.
 
+## Rev4.2-S1 - Controlled NHI Decommission Planner Permissions
+
+Rev4.2-S1 controlled NHI decommission is a local planner/evidence workflow only. It requires
+no Microsoft Graph connection and introduces no new Graph permissions or write scopes.
+
+- `-ExecuteNhiControlledDecommission` must be paired with `-WhatIfExecution` or `-DemoMode`.
+- Assessment permissions remain read-only.
+- The Rev4.2-S1 planner reads local plan and approval JSON files and writes local evidence JSON only.
+- Live `FinalDelete` is blocked.
+- `Remove-MgServicePrincipal` and `Remove-MgApplication` are not implemented or invoked.
+
+The sample plan and approval files can be validated without tenant credentials:
+
+- `samples/nhi-controlled-decommission-plan.sample.json`
+- `samples/nhi-controlled-decommission-approval.sample.json`
+
+## Rev4.3 - Service Principal FinalDelete Guard Permissions
+
+Rev4.3 adds local FinalDelete gate evaluation and simulation evidence only. It requires no new
+Microsoft Graph permissions or write scopes. No Service Principal delete cmdlet is implemented.
+The test-tenant guard metadata in the sample is local evidence and does not authorize tenant access.
+
+## Rev4.4–Rev4.6 Permission Boundary Notes
+
+Rev4.4, Rev4.5, and Rev4.6 remain local planner/evidence workflows only.
+
+- No new Microsoft Graph permissions are required.
+- `-WhatIfExecution` or `-DemoMode` is required for the controlled build paths.
+- The output is local evidence only; no tenant cleanup, delete, or write execution is performed.
+- Assessment permissions remain read-only.
+- Live delete/cleanup/write execution remains blocked.
+
+Rev4.7 and Rev4.8 extend the same boundary:
+
+- No new Microsoft Graph permissions are required.
+- `-WhatIfExecution` or `-DemoMode` is required for the controlled build paths.
+- The output is local evidence only; no tenant cleanup, delete, or write execution is performed.
+- Assessment permissions remain read-only.
+- Live delete/cleanup/write execution remains blocked.
+- No live Azure Resource Manager deletion is performed.
+- No live Managed Identity cleanup or end-to-end evidence execution is allowed outside simulation-only paths.
+
 ## Rev2.4 — No New Permissions Required
 
 Rev2.4 adds baseline comparison (`-BaselinePath`) and executive evidence pack (`-GenerateExecutivePack`)

@@ -1,0 +1,65 @@
+{
+  "SchemaVersion": "4.8",
+  "RunId": "RUN-REV48-E2E-SAMPLE-001",
+  "Status": "Approved",
+  "ApprovedBy": "e2e-qa-approver@example.com",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "ApprovalId": "APP-REV48-E2E-001",
+  "TargetId": "e2e-rev48-test-001",
+  "TargetType": "ManagedIdentity",
+  "TargetObjectIds": [
+    "e2e-rev48-test-001"
+  ],
+  "ApprovedActions": [
+    "E2EEvidencePack"
+  ],
+  "ManagedIdentityType": "SystemAssigned",
+  "TargetCountsByType": {
+    "ServicePrincipal": 2,
+    "Application": 1,
+    "ManagedIdentity": 1
+  },
+  "DependencyRecheck": {
+    "SchemaVersion": "4.8",
+    "Status": "Clean",
+    "QuerySucceeded": true,
+    "Blocked": false,
+    "SkippedWithApproval": false
+  },
+  "DeleteReadiness": {
+    "Status": "Ready"
+  },
+  "MetadataReadiness": {
+    "Status": "MetadataCleanupSatisfiedSimulationOnly"
+  },
+  "GrantReadiness": {
+    "Status": "GrantCleanupSatisfiedSimulationOnly"
+  },
+  "ManagedIdentityReadiness": {
+    "Status": "ManagedIdentityReadinessSatisfiedSimulationOnly"
+  },
+  "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
+    "Status": "Complete",
+    "DependencyDetected": false,
+    "RecentActivityDetected": false,
+    "QuerySucceeded": true
+  },
+  "OperatorDecision": {
+    "Decision": "SimulationOnly",
+    "DecisionBy": "local-planner",
+    "DecisionAtUtc": "2099-01-01T00:00:00Z",
+    "Reason": "No live tenant execution is allowed.",
+    "Scope": "Rev4.8",
+    "IsSimulationOnly": true
+  },
+  "KnownWarnings": [
+    "DemoMode traceability warning may still appear in legacy assessment paths."
+  ],
+  "LiveDeleteExecutable": false,
+  "LiveCleanupExecutable": false,
+  "GraphWritePathAvailable": false,
+  "FinalDeleteSimulationOnly": true,
+  "Notes": "Single local file used as both plan and approval input for Rev4.8 evidence pack simulation."
+}

@@ -22,9 +22,11 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
                 [bool]$TenantWide      = $false,
                 [bool]$IsVerified      = $true,
                 [string]$Publisher     = 'TestCorp',
+                [string]$VerifiedPublisherName = $null,
+                [string]$AppOwnerOrganizationId = 'tenant-test-001',
                 [bool]$RiskScoreMayBeUnderstated = $false
             )
-            [PSCustomObject]@{
+            $obj = [PSCustomObject]@{
                 ObjectId                  = [guid]::NewGuid().Guid
                 DisplayName               = $DisplayName
                 ObjectType                = $ObjectType
@@ -38,7 +40,9 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
                 TenantWideConsent         = $TenantWide
                 IsVerifiedPublisher       = $IsVerified
                 PublisherName             = $Publisher
-                FirstPartyMicrosoftApp    = ($Publisher -eq 'Microsoft Corporation')
+                VerifiedPublisherName     = $VerifiedPublisherName
+                AppOwnerOrganizationId    = $AppOwnerOrganizationId
+                FirstPartyMicrosoftApp    = $false
                 CoverageMode              = 'Full'
                 CoverageLimitations       = @()
                 RiskScoreMayBeUnderstated = $RiskScoreMayBeUnderstated
@@ -48,10 +52,15 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
                 WorkloadCandidate         = $false
                 RawOwners                 = @()
                 RawOAuthGrants            = @()
-                VerifiedPublisherName     = $null
                 EvidenceSource            = 'graph'
                 EvidenceConfidence        = 'High'
             }
+            $platform = Test-DecomMicrosoftPlatformIdentity -NhiObject $obj
+            $obj | Add-Member -NotePropertyName MicrosoftFirstParty -NotePropertyValue $platform.MicrosoftFirstParty -Force
+            $obj | Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $platform.MicrosoftPlatform -Force
+            $obj | Add-Member -NotePropertyName MicrosoftPlatformReason -NotePropertyValue $platform.Reason -Force
+            $obj.FirstPartyMicrosoftApp = $platform.MicrosoftFirstParty
+            return $obj
         }
     }
 
@@ -261,20 +270,119 @@ Describe 'NhiAnalysis.Rev35 — NHI Classification and Scoring Engine' {
 
     # ── Microsoft first-party exclusion ───────────────────────────────────────
 
-    Context 'Microsoft first-party SPN exclusion' {
+    Context 'Microsoft platform identities remain evidence-only' {
 
-        It 'Microsoft first-party SPN does not generate DEC-NHI findings' {
-            $msftSp = script:New-TestNhiObject -DisplayName 'Microsoft Graph' -Publisher 'Microsoft Corporation'
+        It 'Microsoft platform SPN is retained with MicrosoftPlatform classification' {
+            $msftSp = [PSCustomObject]@{
+                appId                 = '1b730954-1685-4b74-9bfd-dac224a7b894'
+                displayName           = 'Microsoft Graph PowerShell'
+                appDisplayName        = 'Microsoft Graph PowerShell'
+                servicePrincipalType  = 'Application'
+                appOwnerOrganizationId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+                tags                  = @('WindowsAzureActiveDirectoryIntegratedApp')
+                publisherName         = $null
+                verifiedPublisher     = [PSCustomObject]@{ displayName = 'Microsoft' }
+                NhiCandidate          = $true
+                AgenticCandidate      = $false
+                AutomationCandidate   = $false
+                WorkloadCandidate     = $false
+                OwnerCount            = 0
+                CredentialCount       = 0
+                ExpiredCredentialCount = 0
+                ExpiringCredentialCount = 0
+                HighRiskPermissionCount = 0
+                HighRiskOAuthGrantCount = 0
+                TenantWideConsent     = $false
+                IsVerifiedPublisher   = $true
+                CoverageMode          = 'Full'
+                CoverageLimitations   = @()
+                RiskScoreMayBeUnderstated = $false
+                RawOwners             = @()
+                RawOAuthGrants        = @()
+            }
             $ctx = [PSCustomObject]@{ DemoMode = $false }
             $results = Invoke-DecomNhiAnalysis -NhiObjects @($msftSp) -Context $ctx
-            $results | Should -BeNullOrEmpty
+            $results.Count | Should -Be 1
+            $results[0].MicrosoftPlatform | Should -Be $true
+            $results[0].Classification | Should -Be 'MicrosoftPlatform'
+            $results[0].CoverageMode | Should -Be 'EvidenceOnly'
         }
 
-        It 'Microsoft first-party SPN does not generate DEC-AGENT findings' {
-            $msftAgent = script:New-TestNhiObject -DisplayName 'Azure AI Foundry' -Publisher 'Microsoft Corporation'
+        It 'Microsoft platform SPN is recognized from nested live metadata fields' {
+            $msftSp = [PSCustomObject]@{
+                appId                  = 'fb50aeb4-1f6f-4d14-8f83-6d4cfe11d9d2'
+                displayName            = 'Microsoft Tech Community'
+                appDisplayName         = 'Microsoft Tech Community'
+                servicePrincipalType   = 'Application'
+                appOwnerOrganizationId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+                tags                   = @('WindowsAzureActiveDirectoryIntegratedApp')
+                publisherName          = $null
+                verifiedPublisher      = $null
+                AdditionalProperties   = @{
+                    verifiedPublisher = [PSCustomObject]@{ displayName = '' }
+                }
+                NhiCandidate           = $true
+                AgenticCandidate       = $false
+                AutomationCandidate    = $false
+                WorkloadCandidate      = $false
+                OwnerCount             = 0
+                CredentialCount        = 0
+                ExpiredCredentialCount = 0
+                ExpiringCredentialCount = 0
+                HighRiskPermissionCount = 0
+                HighRiskOAuthGrantCount = 0
+                TenantWideConsent      = $false
+                IsVerifiedPublisher    = $false
+                CoverageMode           = 'Full'
+                CoverageLimitations    = @()
+                RiskScoreMayBeUnderstated = $false
+                RawOwners              = @()
+                RawOAuthGrants         = @()
+            }
             $ctx = [PSCustomObject]@{ DemoMode = $false }
-            $results = Invoke-DecomNhiAnalysis -NhiObjects @($msftAgent) -Context $ctx
-            $results | Should -BeNullOrEmpty
+            $results = Invoke-DecomNhiAnalysis -NhiObjects @($msftSp) -Context $ctx
+            $results[0].MicrosoftPlatform | Should -Be $true
+            $results[0].MicrosoftFirstParty | Should -Be $true
+            $results[0].Classification | Should -Be 'MicrosoftPlatform'
+            $results[0].ClassificationSignals | Should -Contain 'Microsoft platform identity'
+        }
+
+        It 'Microsoft platform SPN is not misclassified by name alone' {
+            $fakeMsft = script:New-TestNhiObject -DisplayName 'Microsoft Graph clone' -Publisher 'Microsoft Corporation' -VerifiedPublisherName $null -AppOwnerOrganizationId 'tenant-test-001'
+            $ctx = [PSCustomObject]@{ DemoMode = $false }
+            $results = Invoke-DecomNhiAnalysis -NhiObjects @($fakeMsft) -Context $ctx
+            $results[0].MicrosoftPlatform | Should -Be $false
+            $results[0].Classification | Should -BeIn @('UnclassifiedServicePrincipal','LikelyAutomation','LikelyAIAgent')
+        }
+
+        It 'Microsoft platform internal inventory record is recognized after normalization' {
+            $inventoryRecord = [PSCustomObject]@{
+                AppId                  = '1b730954-1685-4b74-9bfd-dac224a7b894'
+                DisplayName            = 'Microsoft Graph PowerShell'
+                AppDisplayName         = 'Microsoft Graph PowerShell'
+                ObjectType             = 'ServicePrincipal'
+                ServicePrincipalType   = 'Application'
+                PublisherName          = $null
+                VerifiedPublisherName  = 'Microsoft'
+                AppOwnerOrganizationId = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a'
+                Tags                   = @('WindowsAzureActiveDirectoryIntegratedApp')
+                NhiCandidate           = $true
+                AgenticCandidate       = $false
+                AutomationCandidate    = $false
+                WorkloadCandidate      = $false
+                OwnerCount             = 0
+                CredentialCount        = 0
+                ExpiredCredentialCount = 0
+                ExpiringCredentialCount = 0
+                HighRiskPermissionCount = 0
+                HighRiskOAuthGrantCount = 0
+                TenantWideConsent      = $false
+                CoverageMode           = 'EvidenceOnly'
+            }
+            $result = Test-DecomMicrosoftPlatformIdentity -NhiObject $inventoryRecord
+            $result.MicrosoftPlatform | Should -Be $true
+            $result.MicrosoftFirstParty | Should -Be $true
+            $result.Reason | Should -BeIn @('MicrosoftOwnerTenant','MicrosoftAppIdAllowlist','MicrosoftPublisherAndVerifiedPublisher')
         }
 
         It 'Non-Microsoft SPN generates NHI findings when criteria met' {

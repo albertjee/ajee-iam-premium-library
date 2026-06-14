@@ -25,6 +25,7 @@ function Invoke-NhiOwnerScan {
     }
 
     foreach ($sp in $ServicePrincipals) {
+        $null = Set-DecomFindingTraceContext -SourceObject $sp -ClassificationSource 'NhiOwner'
         $owners = @()
         if ($OwnersByObjectId -and $OwnersByObjectId.ContainsKey($sp.Id)) {
             $owners = @($OwnersByObjectId[$sp.Id])
@@ -163,6 +164,7 @@ function Invoke-NhiOwnerScan {
             -ConsultantNote 'Coverage gap - owner-based findings are dormant for this run. All NHI-OWNER findings suppressed due to data unavailability.'
     }
 
+    Clear-DecomFindingTraceContext
     return $findings
 }
 

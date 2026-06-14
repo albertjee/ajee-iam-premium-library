@@ -1,0 +1,54 @@
+{
+  "SchemaVersion": "4.2",
+  "RunId": "RUN-REV44-APPLICATION-SAMPLE-001",
+  "Status": "Approved",
+  "ApprovedBy": "application-readiness-approver@example.com",
+  "ExpiresUtc": "2099-01-01T00:00:00Z",
+  "Reusable": false,
+  "TargetId": "app-rev44-test-001",
+  "TargetType": "Application",
+  "DisplayName": "Rev44 Test Application Registration",
+  "ProtectedObject": false,
+  "MicrosoftFirstParty": false,
+  "EmergencyAccessIndicator": false,
+  "BreakGlassIndicator": false,
+  "HighConfidenceActive": false,
+  "Ambiguous": false,
+  "TargetObjectIds": [
+    "app-rev44-test-001"
+  ],
+  "ApprovedActions": [
+    "FinalDelete"
+  ],
+  "FinalDeleteApproved": true,
+  "ApplicationFinalDeleteApproved": true,
+  "LiveMutationApproved": false,
+  "ScreamTestOverrideApproved": false,
+  "ActiveCredentialOverrideApproved": false,
+  "ScreamTestEvidence": {
+    "EvidenceType": "IllustrativeGeneratedPlannerEvidenceNotLiveMonitoring",
+    "Status": "Complete",
+    "DependencyDetected": false,
+    "RecentActivityDetected": false,
+    "QuerySucceeded": true
+  },
+  "ApplicationRelationshipEvidence": {
+    "QuerySucceeded": true,
+    "ActiveServicePrincipalCount": 0,
+    "UnresolvedAppRoleAssignmentCount": 0,
+    "UnresolvedOAuthGrantCount": 0,
+    "ActiveCredentialCount": 0,
+    "MultiTenant": false,
+    "PublisherEvidenceCaptured": true,
+    "VerifiedPublisherDisplayName": "Synthetic Test Publisher",
+    "OwnershipEvidenceCaptured": true,
+    "OwnerCount": 2
+  },
+  "DeleteReadiness": {
+    "Status": "Ready",
+    "FinalDeleteLiveEnabled": false
+  },
+  "SimulationOnly": true,
+  "LiveDeleteExecutable": false,
+  "Notes": "Use this single file as both plan and approval input for local Rev4.4 Application readiness simulation."
+}
