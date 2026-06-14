@@ -578,6 +578,8 @@ function Invoke-DecomNhiGovernance {
             }
         } catch {
             Write-Warning "Failed to process governance for NHI object $($nhiObject.DisplayName): $_"
+        } finally {
+            Clear-DecomFindingTraceContext
         }
     }
 
