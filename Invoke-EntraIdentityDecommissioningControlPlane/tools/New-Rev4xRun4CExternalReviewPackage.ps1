@@ -54,11 +54,19 @@ $script:ReviewManifest = [System.Collections.Generic.List[object]]::new()
 $missing = [System.Collections.Generic.List[string]]::new()
 
 $requiredFiles = @(
+    'tools\New-Rev4xRun4CExternalReviewPackage.ps1'
     'src\Modules\NhiControlledDecommission.psm1'
     'src\Modules\NhiExecution.psm1'
     'src\Modules\NhiExecutionSchema.psm1'
     'src\Modules\ApprovalManifest.psm1'
     'src\Modules\Utilities.psm1'
+    'src\Modules\NhiGovernance.psm1'
+    'src\Modules\NhiPermission.psm1'
+    'src\Modules\NhiOwner.psm1'
+    'src\Modules\NhiCredential.psm1'
+    'src\Modules\NhiSignIn.psm1'
+    'src\Modules\NhiPublisher.psm1'
+    'src\Modules\Discovery.psm1'
     'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
     'docs\RUNBOOK-PARAMETERS-AND-OPERATING-MODES.md'
     'config\platform-identity-catalog.json'

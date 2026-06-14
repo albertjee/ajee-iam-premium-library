@@ -171,14 +171,18 @@ Describe 'Rev4.21 Final Delete Eligibility Simulation Only' {
         $target = New-Rev421TestTarget -Classification 'CustomerOwned'
         $target | Add-Member -NotePropertyName MicrosoftPlatform -NotePropertyValue $true -Force
 
-        (Invoke-Rev421FinalDeleteSimulation -Target $target).FinalDeleteEligibility | Should -Be 'NotEligible'
+        $result = Invoke-Rev421FinalDeleteSimulation -Target $target
+        $result.FinalDeleteEligibility | Should -Be 'NotEligible'
+        ($result.EligibilityGates | Where-Object GateName -eq 'NotMicrosoftPlatform').Passed | Should -BeFalse
     }
 
     It 'FirstPartyMicrosoftApp boolean target with CustomerOwned classification returns NotEligible' {
         $target = New-Rev421TestTarget -Classification 'CustomerOwned'
         $target | Add-Member -NotePropertyName FirstPartyMicrosoftApp -NotePropertyValue $true -Force
 
-        (Invoke-Rev421FinalDeleteSimulation -Target $target).FinalDeleteEligibility | Should -Be 'NotEligible'
+        $result = Invoke-Rev421FinalDeleteSimulation -Target $target
+        $result.FinalDeleteEligibility | Should -Be 'NotEligible'
+        ($result.EligibilityGates | Where-Object GateName -eq 'NotFirstPartyMicrosoftApp').Passed | Should -BeFalse
     }
 
     It 'InformationOnly boolean target returns NotEligible' {

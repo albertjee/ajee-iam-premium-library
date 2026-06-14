@@ -3933,6 +3933,8 @@ function Get-NhiRun4CTargetContext {
         $evidenceOnly = [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('EvidenceOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'EvidenceOnly'
     }
     $informationOnly = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('InformationOnly') -Default $false) -or [string](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('RemediationMode')) -eq 'InformationOnly' } else { $false }
+    $microsoftPlatform = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('MicrosoftPlatform') -Default $false) -or [string]$classification -eq 'MicrosoftPlatform' } else { $false }
+    $firstPartyMicrosoftApp = if ($targetObject) { [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('FirstPartyMicrosoftApp', 'MicrosoftFirstParty') -Default $false) } else { $false }
     $isLabOrDevTest = $targetObject -and (
         [string]$environment -in @('Lab', 'DevTest', 'DevTestLab', 'Test') -or
         [bool](Get-NhiControlledPropertyValue -InputObject $targetObject -PropertyNames @('IsLabTarget') -Default $false) -eq $true -or
@@ -4326,7 +4328,8 @@ function New-NhiFinalDeleteEligibilitySimulationPackage {
     $gateDefinitions = @(
         @{ GateName = 'ExactlyOneTarget'; Passed = ($targetContext.TargetCount -eq 1); Reason = if ($targetContext.TargetCount -eq 1) { 'Exactly one target supplied.' } else { 'Exactly one target is required.' } },
         @{ GateName = 'LabOrDevTestOnly'; Passed = $targetContext.IsLabOrDevTest; Reason = if ($targetContext.IsLabOrDevTest) { 'Target is labeled as lab/dev/test.' } else { 'Target is not labeled as lab/dev/test.' } },
-        @{ GateName = 'NotMicrosoftPlatform'; Passed = -not ($targetContext.Classification -eq 'MicrosoftPlatform'); Reason = if ($targetContext.Classification -eq 'MicrosoftPlatform') { 'MicrosoftPlatform target is blocked.' } else { 'Target is not MicrosoftPlatform.' } },
+        @{ GateName = 'NotMicrosoftPlatform'; Passed = -not $targetContext.MicrosoftPlatform; Reason = if ($targetContext.MicrosoftPlatform) { 'MicrosoftPlatform target is blocked.' } else { 'Target is not MicrosoftPlatform.' } },
+        @{ GateName = 'NotFirstPartyMicrosoftApp'; Passed = -not $targetContext.FirstPartyMicrosoftApp; Reason = if ($targetContext.FirstPartyMicrosoftApp) { 'First-party Microsoft app target is blocked.' } else { 'Target is not a first-party Microsoft app.' } },
         @{ GateName = 'NotExternalVendorPlatform'; Passed = -not ($targetContext.Classification -eq 'ExternalVendorPlatform'); Reason = if ($targetContext.Classification -eq 'ExternalVendorPlatform') { 'ExternalVendorPlatform target is blocked.' } else { 'Target is not ExternalVendorPlatform.' } },
         @{ GateName = 'NotSuppressed'; Passed = -not $targetContext.SuppressCustomerRemediation; Reason = if ($targetContext.SuppressCustomerRemediation) { 'SuppressCustomerRemediation target is blocked.' } else { 'Target is not suppressed.' } },
         @{ GateName = 'NotEvidenceOnly'; Passed = -not $targetContext.EvidenceOnly; Reason = if ($targetContext.EvidenceOnly) { 'EvidenceOnly target is blocked.' } else { 'Target is not evidence-only.' } },
