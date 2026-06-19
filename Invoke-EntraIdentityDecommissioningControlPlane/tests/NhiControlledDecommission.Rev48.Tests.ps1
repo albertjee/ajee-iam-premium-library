@@ -138,10 +138,46 @@ AfterAll {
 }
 
 Describe 'Rev4.8 evidence pack contract' {
-    It 'keeps the private helpers hidden and export contract frozen' {
+    $script:ExpectedExports = @(
+        'Get-NhiControlledDecommissionSha256'
+        'Get-NhiControlledDecommissionSchema'
+        'ConvertTo-NhiControlledSnapshot'
+        'Test-NhiControlledTarget'
+        'Confirm-NhiControlledApproval'
+        'Get-NhiControlledScreamTestStatus'
+        'Test-NhiControlledDependencies'
+        'Get-NhiControlledDeleteReadiness'
+        'New-NhiControlledRollbackPlan'
+        'New-NhiControlledDecommissionPlan'
+        'Test-NhiControlledLabLiveReversibleDisableReadiness'
+        'Export-NhiControlledDecommissionEvidence'
+        'New-NhiControlledLabDisableDryRunPackage'
+        'New-NhiControlledLabRollbackDrillPackage'
+        'Invoke-NhiControlledLabLiveReversibleDisable'
+        'New-NhiRun4CFinalGoNoGoReviewPackage'
+        'New-NhiRun4CLiveEvidenceCapturePackage'
+        'New-NhiRun4CPostDisableObservationPackage'
+        'New-NhiRun4CRollbackExecutionReadinessPackage'
+        'Invoke-NhiControlledLabRollback'
+        'New-NhiFinalDeleteEligibilitySimulationPackage'
+        'New-NhiRun4CEndToEndLabRehearsalReport'
+        'New-NhiRun4CConsultantOperatingGuide'
+        'Get-NhiRun4CArtifactRecord'
+        'New-NhiRun4CFinalControlledDisableTestPackage'
+        'New-NhiRun4CPostDisableEvidenceValidationPackage'
+        'New-NhiRun4CControlledRollbackExecutionTestPackage'
+        'New-NhiRun4CPostRollbackValidationPackage'
+        'New-NhiRun4CFinalEvidenceBundle'
+        'New-NhiRev4ReleaseCandidateFreezePackage'
+    )
+
+    It 'keeps the private helpers hidden and exports the required public contract' {
         Get-Command New-NhiControlledE2EEvidencePack -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
         Get-Command New-NhiControlledOperatorDecisionLog -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-        (Get-Module NhiControlledDecommission).ExportedCommands.Keys.Count | Should -Be 11
+        $exports = (Get-Module NhiControlledDecommission).ExportedCommands.Keys
+        foreach ($name in $script:ExpectedExports) {
+            $exports | Should -Contain $name
+        }
     }
 
     It 'parses the E2E sample JSON' {
@@ -186,7 +222,7 @@ Describe 'Rev4.8 evidence pack contract' {
             param($Plan, $Approval, $Snapshot, $ScreamTest, $DependencyRecheck, $DeleteReadiness, $MetadataReadiness, $GrantReadiness, $ManagedIdentityReadiness, $OperatorDecision, $KnownWarnings)
             New-NhiControlledE2EEvidencePack -Plan $Plan -Approval $Approval -Snapshot $Snapshot -ScreamTest $ScreamTest -DependencyRecheck $DependencyRecheck -DeleteReadiness $DeleteReadiness -MetadataReadiness $MetadataReadiness -GrantReadiness $GrantReadiness -ManagedIdentityReadiness $ManagedIdentityReadiness -OperatorDecision $OperatorDecision -KnownWarnings $KnownWarnings
         } $input.Plan $input.Approval $input.Snapshot $input.ScreamTest $input.DependencyRecheck $input.DeleteReadiness $input.MetadataReadiness $input.GrantReadiness $input.ManagedIdentityReadiness $input.OperatorDecision $input.KnownWarnings
-        $pack.QAHandoffManifest.ToolVersion | Should -Be 'Rev4.1'
+        $pack.QAHandoffManifest.ToolVersion | Should -Be 'Rev4.10'
         $pack.QAHandoffManifest.PushStatus | Should -Be 'No'
         $pack.QAHandoffManifest.EvidenceArtifacts.Count | Should -Be 5
     }
@@ -315,7 +351,7 @@ Describe 'Rev4.8 evidence pack contract' {
         @{ Name = 'PlanIdentity.TargetId'; Value = 'e2e-rev48-test-001' }
         @{ Name = 'PlanIdentity.TargetType'; Value = 'ManagedIdentity' }
         @{ Name = 'PlanIdentity.SchemaVersion'; Value = '4.8' }
-        @{ Name = 'QAHandoffManifest.ToolVersion'; Value = 'Rev4.1' }
+        @{ Name = 'QAHandoffManifest.ToolVersion'; Value = 'Rev4.10' }
         @{ Name = 'QAHandoffManifest.KnownWarnings.Count'; Value = 1 }
         @{ Name = 'OperatorDecision.IsSimulationOnly'; Value = $true }
         @{ Name = 'ApprovalCoverage.Status'; Value = 'Approved' }

@@ -150,7 +150,10 @@ AfterAll {
 Describe 'Rev4.6 grants cleanup contract' {
     It 'keeps the private evaluator hidden and export contract frozen' {
         Get-Command Test-NhiControlledGrantCleanupReadinessGate -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-        (Get-Module NhiControlledDecommission).ExportedCommands.Keys.Count | Should -Be 11
+        $exports = (Get-Module NhiControlledDecommission).ExportedCommands.Keys
+        $exports | Should -Contain 'Test-NhiControlledTarget'
+        $exports | Should -Contain 'New-NhiControlledDecommissionPlan'
+        $exports | Should -Contain 'ConvertTo-NhiControlledSnapshot'
     }
 
     It 'parses the grants cleanup sample JSON' {

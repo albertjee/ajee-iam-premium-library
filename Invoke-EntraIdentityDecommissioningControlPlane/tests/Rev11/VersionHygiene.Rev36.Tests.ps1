@@ -16,9 +16,9 @@ Describe 'VersionHygiene.Rev36 — Version consistency and anti-drift' {
     }
 
     Context 'Entry point ToolVersion' {
-        It 'Entry point declares ToolVersion = Rev4.1' {
+        It 'Entry point declares ToolVersion = current release version' {
             $content = Get-Content $script:EntryPoint -Raw
-            $content | Should -Match "\`$script:ToolVersion\s*=\s*'Rev4\.1'"
+            $content | Should -Match "\`$script:ToolVersion\s*=\s*'$([regex]::Escape($script:ExpectedToolVersion))'"
         }
 
         It 'Entry point declares current ToolVersion, not stale' {

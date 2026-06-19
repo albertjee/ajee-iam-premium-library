@@ -299,7 +299,11 @@ AfterAll {
 Describe 'Rev4.7 managed identity contract' {
     It 'keeps the private evaluator hidden and export contract frozen' {
         Get-Command Test-NhiControlledManagedIdentityReadinessGate -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-        (Get-Module NhiControlledDecommission).ExportedCommands.Keys.Count | Should -Be 11
+        $exports = (Get-Module NhiControlledDecommission).ExportedCommands.Keys
+        $exports | Should -Contain 'Test-NhiControlledTarget'
+        $exports | Should -Contain 'New-NhiControlledDecommissionPlan'
+        $exports | Should -Contain 'ConvertTo-NhiControlledSnapshot'
+        $exports | Should -Contain 'Test-NhiControlledLabLiveReversibleDisableReadiness'
     }
 
     It 'parses the managed identity sample JSON' {

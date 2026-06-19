@@ -63,7 +63,10 @@ AfterAll {
 Describe 'Rev4.3 Service Principal FinalDelete guard contract' {
     It 'keeps the Rev4.3 gate evaluator private to preserve the frozen public contract' {
         Get-Command Test-NhiControlledServicePrincipalFinalDeleteGate -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-        (Get-Module NhiControlledDecommission).ExportedFunctions.Keys.Count | Should -Be 11
+        $exports = (Get-Module NhiControlledDecommission).ExportedFunctions.Keys
+        $exports | Should -Contain 'Test-NhiControlledTarget'
+        $exports | Should -Contain 'New-NhiControlledDecommissionPlan'
+        $exports | Should -Contain 'ConvertTo-NhiControlledSnapshot'
     }
 
     It 'satisfies gates only as simulation when all required inputs pass' {

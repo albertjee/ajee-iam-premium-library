@@ -11,9 +11,10 @@ Describe 'Rev4.10 NHI Controlled Removal Simulation' {
             Remove-Module $m -Force -ErrorAction SilentlyContinue
         }
 
-        Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking
+        $script:UtilitiesModule = Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking -PassThru
         Import-Module (Join-Path $script:ModulesPath 'ApprovalManifest.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'NhiControlledDecommission.psm1') -Force -DisableNameChecking
+        $script:NewDecomFindingCommand = $script:UtilitiesModule.ExportedFunctions['New-DecomFinding']
 
         function script:New-TestFinding {
             param(
@@ -32,7 +33,7 @@ Describe 'Rev4.10 NHI Controlled Removal Simulation' {
                 [object[]]$ClassificationSignals = @('catalog')
             )
 
-            $finding = New-DecomFinding `
+            $finding = & $script:NewDecomFindingCommand `
                 -FindingId $FindingId `
                 -Category 'Application' `
                 -Severity 'High' `

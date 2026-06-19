@@ -10,10 +10,11 @@ Describe 'Rev4.11 approved reversible lab NHI planning' {
             Remove-Module $m -Force -ErrorAction SilentlyContinue
         }
 
-        Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking
+        $script:UtilitiesModule = Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking -PassThru
         Import-Module (Join-Path $script:ModulesPath 'ApprovalManifest.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'NhiControlledDecommission.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'NhiExecutionSchema.psm1') -Force -DisableNameChecking
+        $script:NewDecomFindingCommand = $script:UtilitiesModule.ExportedFunctions['New-DecomFinding']
 
         function script:Get-TestSha256Hex {
             param([Parameter(Mandatory)][string]$InputString)
@@ -38,7 +39,7 @@ Describe 'Rev4.11 approved reversible lab NHI planning' {
                 [Parameter(Mandatory)][string]$VerifiedPublisherName
             )
 
-            New-DecomFinding `
+            & $script:NewDecomFindingCommand `
                 -FindingId $FindingId `
                 -Category 'NHI Planning' `
                 -Severity 'Informational' `

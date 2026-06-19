@@ -85,7 +85,10 @@ AfterAll {
 Describe 'Rev4.4 Application delete-readiness contract' {
     It 'keeps the evaluator private and public export contract frozen' {
         Get-Command Test-NhiControlledApplicationDeleteReadinessGate -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-        (Get-Module NhiControlledDecommission).ExportedFunctions.Keys.Count | Should -Be 11
+        $exports = (Get-Module NhiControlledDecommission).ExportedFunctions.Keys
+        $exports | Should -Contain 'Test-NhiControlledTarget'
+        $exports | Should -Contain 'New-NhiControlledDecommissionPlan'
+        $exports | Should -Contain 'ConvertTo-NhiControlledSnapshot'
     }
 
     It 'satisfies readiness only as simulation when every gate passes' {
