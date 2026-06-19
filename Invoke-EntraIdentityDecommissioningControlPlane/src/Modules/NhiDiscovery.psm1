@@ -165,51 +165,70 @@ function Invoke-DecomNhiDiscovery {
 
     # Process service principals
     Write-DecomInfo "Processing $($servicePrincipals.Count) service principals..."
-    foreach ($sp in $servicePrincipals) {
-        try {
-            $riskUnderstated = $false
-            $coverageNotes   = @()
+    $spCount = @($servicePrincipals).Count
+    $heartbeatInterval = if ($spCount -ge 500) { 50 } else { 25 }
+    $showProgress = Test-DecomInteractiveHost
+    $progressActivity = 'NHI discovery service principals'
+    $processedCount = 0
+    $lastHeartbeatCount = 0
 
-            # In DemoMode, use pre-populated synthetic data fields; in real mode, call Graph
-            if ($Context.DemoMode -and ($sp.PSObject.Properties.Name -contains 'Owners')) {
-                $owners             = if ($sp.Owners)             { $sp.Owners }             else { @() }
-                $credentials        = if ($sp.Credentials)        { $sp.Credentials }        else { @() }
-                $appRoleAssignments = if ($sp.AppRoleAssignments) { $sp.AppRoleAssignments } else { @() }
-                $oauthGrants        = if ($sp.OAuthGrants)        { $sp.OAuthGrants }        else { @() }
-            } else {
-                try {
-                    $owners = @(Get-DecomNhiOwners -ObjectId $sp.Id -ObjectType 'ServicePrincipal')
-                } catch {
-                    $owners = @()
-                    $riskUnderstated = $true
-                    $coverageNotes += 'Owner data unavailable'
-                }
-
-                $credentials = Get-DecomNhiCredentials -ServicePrincipalOrApp $sp
-
-                try {
-                    $appRoleAssignments = @(Get-DecomNhiAppRoleAssignments -ServicePrincipalId $sp.Id)
-                } catch {
-                    $appRoleAssignments = @()
-                    $riskUnderstated = $true
-                    $coverageNotes += 'App role assignment data unavailable'
-                }
-
-                try {
-                    $oauthGrants = @(Get-DecomNhiOAuthGrants -ServicePrincipalId $sp.Id)
-                } catch {
-                    $oauthGrants = @()
-                    $riskUnderstated = $true
-                    $coverageNotes += 'OAuth grant data unavailable'
-                }
+    try {
+        foreach ($sp in $servicePrincipals) {
+            $processedCount++
+            if ($showProgress) {
+                $percentComplete = if ($spCount -gt 0) { [math]::Min(100, [math]::Round(($processedCount / $spCount) * 100, 0)) } else { 100 }
+                Write-Progress -Activity $progressActivity -Status "Processing service principal $processedCount of $spCount" -PercentComplete $percentComplete
             }
-            $highRiskPermissions = Get-DecomNhiHighRiskPermissions -AppRoleAssignments $appRoleAssignments -OAuthGrants $oauthGrants
-            $normalizedIdentity = Get-DecomNormalizedNhiIdentity -InputObject $sp
-            $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $normalizedIdentity.PublisherName -VerifiedPublisher $sp.VerifiedPublisher
-            $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $sp
+            if (($processedCount % $heartbeatInterval -eq 0) -or $processedCount -eq $spCount) {
+                $percentComplete = if ($spCount -gt 0) { [math]::Min(100, [math]::Round(($processedCount / $spCount) * 100, 0)) } else { 100 }
+                Write-DecomInfo "Service principal progress: $processedCount / $spCount processed ($percentComplete%)"
+                $lastHeartbeatCount = $processedCount
+            }
 
-            # Build NHI object
-            $nhiObject = [PSCustomObject]@{
+            try {
+                $riskUnderstated = $false
+                $coverageNotes   = @()
+
+                # In DemoMode, use pre-populated synthetic data fields; in real mode, call Graph
+                if ($Context.DemoMode -and ($sp.PSObject.Properties.Name -contains 'Owners')) {
+                    $owners             = if ($sp.Owners)             { $sp.Owners }             else { @() }
+                    $credentials        = if ($sp.Credentials)        { $sp.Credentials }        else { @() }
+                    $appRoleAssignments = if ($sp.AppRoleAssignments) { $sp.AppRoleAssignments } else { @() }
+                    $oauthGrants        = if ($sp.OAuthGrants)        { $sp.OAuthGrants }        else { @() }
+                } else {
+                    try {
+                        $owners = @(Get-DecomNhiOwners -ObjectId $sp.Id -ObjectType 'ServicePrincipal')
+                    } catch {
+                        $owners = @()
+                        $riskUnderstated = $true
+                        $coverageNotes += 'Owner data unavailable'
+                    }
+
+                    $credentials = Get-DecomNhiCredentials -ServicePrincipalOrApp $sp
+
+                    try {
+                        $appRoleAssignments = @(Get-DecomNhiAppRoleAssignments -ServicePrincipalId $sp.Id)
+                    } catch {
+                        $appRoleAssignments = @()
+                        $riskUnderstated = $true
+                        $coverageNotes += 'App role assignment data unavailable'
+                    }
+
+                    try {
+                        $oauthGrants = @(Get-DecomNhiOAuthGrants -ServicePrincipalId $sp.Id)
+                    } catch {
+                        $oauthGrants = @()
+                        $riskUnderstated = $true
+                        $coverageNotes += 'OAuth grant data unavailable'
+                    }
+                }
+                $highRiskPermissions = Get-DecomNhiHighRiskPermissions -AppRoleAssignments $appRoleAssignments -OAuthGrants $oauthGrants
+                $normalizedIdentity = Get-DecomNormalizedNhiIdentity -InputObject $sp
+                $isVerifiedPublisher = Get-DecomNhiPublisherVerification -PublisherName $normalizedIdentity.PublisherName -VerifiedPublisher $sp.VerifiedPublisher
+                $platformClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $sp
+
+                # Build NHI object
+                $nhiObject = [PSCustomObject]@{
                 # Basic identification
                 ObjectId = $sp.Id
                 AppId = $sp.AppId
@@ -280,9 +299,20 @@ function Invoke-DecomNhiDiscovery {
                 RawHighRiskPermissions = $highRiskPermissions
             }
 
-            $nhiFindings += $nhiObject
-        } catch {
-            Write-Warning "Failed to process service principal $($sp.DisplayName): $_"
+                $nhiFindings += $nhiObject
+            } catch {
+                Write-Warning "Failed to process service principal $($sp.DisplayName): $_"
+            }
+        }
+    } finally {
+        if ($spCount -gt 0 -and $lastHeartbeatCount -ne $spCount) {
+            Write-DecomInfo "Service principal progress: $spCount / $spCount processed (100%)"
+        }
+        if ($spCount -gt 0) {
+            Write-DecomInfo "Service principal processing complete: $spCount / $spCount processed"
+        }
+        if ($showProgress) {
+            Write-Progress -Activity $progressActivity -Completed
         }
     }
 

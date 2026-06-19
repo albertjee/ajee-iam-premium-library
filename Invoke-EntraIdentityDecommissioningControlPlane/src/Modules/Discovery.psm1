@@ -1354,14 +1354,16 @@ function Invoke-DecomAssessmentDiscovery {
     }
 
     # --- Rev2.2 PIM: Eligible privileged assignment visibility ---
-    try {
-        $pimCmdlet = Get-Command 'Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance' -ErrorAction SilentlyContinue
-        if ($null -eq $pimCmdlet) {
-            Write-DecomWarn 'PIM eligible assignment cmdlet unavailable in installed Graph module'
-        } else {
-            $eligibleAssignments = @(Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance -All -ErrorAction Stop)
-            $coverage.PimEligibleAssignments = $true
-            Write-DecomInfo "PIM eligible assignment discovery: OK ($($eligibleAssignments.Count) eligible assignments)"
+    $pimCapabilityKey = 'PimEligibleAssignments.Unavailable'
+    if (Test-DecomCapabilityAvailable -Key $pimCapabilityKey) {
+        try {
+            $pimCmdlet = Get-Command 'Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance' -ErrorAction SilentlyContinue
+            if ($null -eq $pimCmdlet) {
+                $null = Set-DecomCapabilityUnavailable -Key $pimCapabilityKey -Message 'PIM eligible assignment cmdlet unavailable in installed Graph module'
+            } else {
+                $eligibleAssignments = @(Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance -All -ErrorAction Stop)
+                $coverage.PimEligibleAssignments = $true
+                Write-DecomInfo "PIM eligible assignment discovery: OK ($($eligibleAssignments.Count) eligible assignments)"
 
             # Build lookup sets for disabled and guest users (reuse from earlier in function)
             $pimDisabledIdSet = [System.Collections.Generic.HashSet[string]]::new()
@@ -1482,9 +1484,10 @@ function Invoke-DecomAssessmentDiscovery {
                     -RemediationMode   'InformationOnly' `
                     -ConsultantNote    'PIM evidence gap — not a finding against tenant configuration'))
             }
+            }
+        } catch {
+            $null = Set-DecomCapabilityUnavailable -Key $pimCapabilityKey -Message "PIM eligible assignment discovery unavailable: $($_.Exception.Message)" -Error $_.Exception.Message
         }
-    } catch {
-        Write-DecomWarn "PIM eligible assignment discovery unavailable: $_"
     }
 
     # --- Coverage probes for remaining areas (no detection logic yet) ---
@@ -1505,31 +1508,36 @@ function Invoke-DecomAssessmentDiscovery {
     }
 
 
-    try {
-        $null = Get-MgAuditLogSignIn -Top 1 -ErrorAction Stop
-        $coverage.AuditLogs = $true
-        Write-DecomInfo "Audit log discovery: OK"
-    } catch {
-        Write-DecomWarn "Audit log discovery unavailable (AuditLog.Read.All required): $_"
+    $auditCapabilityKey = 'AuditLogs.Unavailable'
+    if (Test-DecomCapabilityAvailable -Key $auditCapabilityKey) {
+        try {
+            $null = Get-MgAuditLogSignIn -Top 1 -ErrorAction Stop
+            $coverage.AuditLogs = $true
+            Write-DecomInfo "Audit log discovery: OK"
+        } catch {
+            $null = Set-DecomCapabilityUnavailable -Key $auditCapabilityKey -Message "Audit log discovery unavailable (AuditLog.Read.All required / tenant not premium / B2C limitation): $($_.Exception.Message)" -Error $_.Exception.Message
+        }
     }
 
     # --- Rev2.2 AP: Access Package assignment visibility ---
-    try {
-        # Check cmdlet availability first
-        $apAssignCmdlet  = Get-Command 'Get-MgEntitlementManagementAssignment' -ErrorAction SilentlyContinue
-        $apAssignCmdlet2 = Get-Command 'Get-MgIdentityGovernanceEntitlementManagementAccessPackageAssignment' -ErrorAction SilentlyContinue
+    $apCapabilityKey = 'AccessPackages.Unavailable'
+    if (Test-DecomCapabilityAvailable -Key $apCapabilityKey) {
+        try {
+            # Check cmdlet availability first
+            $apAssignCmdlet  = Get-Command 'Get-MgEntitlementManagementAssignment' -ErrorAction SilentlyContinue
+            $apAssignCmdlet2 = Get-Command 'Get-MgIdentityGovernanceEntitlementManagementAccessPackageAssignment' -ErrorAction SilentlyContinue
 
-        $apAssignments = $null
-        if ($null -ne $apAssignCmdlet) {
-            $apAssignments = @(Get-MgEntitlementManagementAssignment -All -ErrorAction Stop)
-        } elseif ($null -ne $apAssignCmdlet2) {
-            $apAssignments = @(Get-MgIdentityGovernanceEntitlementManagementAccessPackageAssignment -All -ErrorAction Stop)
-        }
+            $apAssignments = $null
+            if ($null -ne $apAssignCmdlet) {
+                $apAssignments = @(Get-MgEntitlementManagementAssignment -All -ErrorAction Stop)
+            } elseif ($null -ne $apAssignCmdlet2) {
+                $apAssignments = @(Get-MgIdentityGovernanceEntitlementManagementAccessPackageAssignment -All -ErrorAction Stop)
+            }
 
-        if ($null -ne $apAssignments) {
-            $coverage.EntitlementManagement  = $true
-            $coverage.EntitlementAssignments = $true
-            Write-DecomInfo "Access package assignment discovery: OK ($($apAssignments.Count) assignments)"
+            if ($null -ne $apAssignments) {
+                $coverage.EntitlementManagement  = $true
+                $coverage.EntitlementAssignments = $true
+                Write-DecomInfo "Access package assignment discovery: OK ($($apAssignments.Count) assignments)"
 
             # Build lookup sets
             $apDisabledIdSet = [System.Collections.Generic.HashSet[string]]::new()
@@ -1692,11 +1700,12 @@ function Invoke-DecomAssessmentDiscovery {
                     -ConsultantNote    'Access review coverage gap — not a finding against tenant configuration'))
             }
 
-        } else {
-            Write-DecomWarn 'Access package assignment cmdlets unavailable in installed Graph module'
+            } else {
+                $null = Set-DecomCapabilityUnavailable -Key $apCapabilityKey -Message 'Access package assignment cmdlets unavailable in installed Graph module'
+            }
+        } catch {
+            $null = Set-DecomCapabilityUnavailable -Key $apCapabilityKey -Message "Access package assignment discovery unavailable (EntitlementManagement.Read.All required): $($_.Exception.Message)" -Error $_.Exception.Message
         }
-    } catch {
-        Write-DecomWarn "Access package assignment discovery unavailable (EntitlementManagement.Read.All required): $_"
     }
 
     # =========================================================================
@@ -1713,13 +1722,18 @@ function Invoke-DecomAssessmentDiscovery {
     $arInstances        = @()
     $arDecisions        = @()
 
-    $arDefCmdlet = Get-DecomAvailableCommand -Names @(
-        'Get-MgIdentityGovernanceAccessReviewDefinition',
-        'Get-MgAccessReviewDefinition'
-    )
+    $accessReviewCapabilityKey = 'AccessReviews.Unavailable'
+    $arDefCmdlet = $null
+
+    if (Test-DecomCapabilityAvailable -Key $accessReviewCapabilityKey) {
+        $arDefCmdlet = Get-DecomAvailableCommand -Names @(
+            'Get-MgIdentityGovernanceAccessReviewDefinition',
+            'Get-MgAccessReviewDefinition'
+        )
+    }
 
     if ($null -eq $arDefCmdlet) {
-        Write-DecomWarn 'Access review definition cmdlet unavailable in installed Graph module'
+        $null = Set-DecomCapabilityUnavailable -Key $accessReviewCapabilityKey -Message 'Access review definition cmdlet unavailable in installed Graph module'
         $govApiAvailable = $false
         $govKey = 'DEC-GOV-002|tenant-scope'
         if ($emittedRev23.Add($govKey)) {
@@ -1821,7 +1835,7 @@ function Invoke-DecomAssessmentDiscovery {
             }
 
         } catch {
-            Write-DecomWarn "Access review data collection failed: $_"
+            $null = Set-DecomCapabilityUnavailable -Key $accessReviewCapabilityKey -Message "Access review data collection failed: $($_.Exception.Message)" -Error $_.Exception.Message
             $govApiAvailable = $false
             $govKey = 'DEC-GOV-002|tenant-scope'
             if ($emittedRev23.Add($govKey)) {

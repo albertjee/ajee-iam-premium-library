@@ -347,6 +347,7 @@ Describe 'Invoke-NhiComplianceAuditScan - Graph failure suppresses NHI-COMPLY-00
 
 Describe 'Invoke-NhiComplianceAuditScan - reports NHI-COMPLY-004 when no findings' {
     It 'Returns NHI-COMPLY-004 when query succeeds and no compliance operations detected' {
+        Mock Test-DecomCapabilityAvailable -ModuleName NhiComplianceAudit { $true }
         Mock Get-MgAuditLogDirectoryAudit -ModuleName NhiComplianceAudit {
             return @()
         }

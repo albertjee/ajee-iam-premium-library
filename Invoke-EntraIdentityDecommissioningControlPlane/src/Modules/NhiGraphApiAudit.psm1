@@ -21,6 +21,12 @@ function Get-NhiAgentGraphApiAudit {
         [datetime]$EndTime
     )
 
+    $capabilityKey = 'NhiGraphApiAudit.Unavailable'
+    if (-not (Test-DecomCapabilityAvailable -Key $capabilityKey)) {
+        $state = Get-DecomCapabilityState -Key $capabilityKey
+        return New-DecomUnavailableQueryResult -CapabilityKey $capabilityKey -Error ([string]$state.LastError) -ObjectId $ObjectId
+    }
+
     try {
         # Build OData filter for initiatedBy/app/servicePrincipalId
         $filter = "initiatedBy/app/servicePrincipalId eq '{0}'" -f $ObjectId
@@ -63,8 +69,9 @@ function Get-NhiAgentGraphApiAudit {
         return $auditLogs
     }
     catch {
-        Write-DecomWarn "Get-NhiAgentGraphApiAudit failed for ObjectId '$ObjectId': $($_.Exception.Message)"
-        return @()
+        $message = "Get-NhiAgentGraphApiAudit failed for ObjectId '$ObjectId': $($_.Exception.Message)"
+        $null = Set-DecomCapabilityUnavailable -Key $capabilityKey -Message $message -Error $_.Exception.Message
+        return New-DecomUnavailableQueryResult -CapabilityKey $capabilityKey -Error $_.Exception.Message -ObjectId $ObjectId
     }
 }
 
@@ -85,9 +92,34 @@ function Invoke-NhiGraphApiOperationAnalysis {
         [string]$ObjectId
     )
 
+    if (Test-DecomQueryUnavailableResult -InputObject $AuditLogs) {
+        return [PSCustomObject]@{
+            QuerySucceeded       = $false
+            CapabilityAvailable  = $false
+            PSTypeName           = 'NhiGraphApiAudit.AnalysisResult'
+            TotalOperations      = 0
+            SuccessfulOperations = 0
+            FailedOperations     = 0
+            FailureRate          = 0.0
+            UserModificationOps  = 0
+            RoleAssignmentOps    = 0
+            ConsentGrantOps      = 0
+            MailboxModificationOps = 0
+            PolicyModificationOps = 0
+            HighRiskOpCount      = 0
+            ComplianceSensitiveOpCount = 0
+            PrivilegeEscalationOpCount = 0
+            OverallRiskScore     = 0
+            RiskSignals          = @()
+            Error                = $AuditLogs.Error
+        }
+    }
+
     # Handle empty input
     if ($null -eq $AuditLogs -or $AuditLogs.Count -eq 0) {
         return [PSCustomObject]@{
+            QuerySucceeded       = $true
+            CapabilityAvailable  = $true
             PSTypeName                    = 'NhiGraphApiAudit.AnalysisResult'
             TotalOperations               = 0
             SuccessfulOperations          = 0
@@ -243,6 +275,8 @@ function Invoke-NhiGraphApiOperationAnalysis {
     if ($roleAssign -gt 0) { $highRiskCount += $roleAssign }
 
     return [PSCustomObject]@{
+        QuerySucceeded             = $true
+        CapabilityAvailable        = $true
         PSTypeName                    = 'NhiGraphApiAudit.AnalysisResult'
         TotalOperations               = $totalOps
         SuccessfulOperations          = $successfulOps
@@ -302,6 +336,9 @@ function Invoke-NhiGraphApiAuditScan {
     }
 
     $auditLogs = Get-NhiAgentGraphApiAudit @invokeParams
+    if (Test-DecomQueryUnavailableResult -InputObject $auditLogs) {
+        return @()
+    }
     $analysis = Invoke-NhiGraphApiOperationAnalysis -AuditLogs $auditLogs -ObjectId $objectId
 
     # Store analysis on NhiObject if available
@@ -313,32 +350,32 @@ function Invoke-NhiGraphApiAuditScan {
     # Generate findings — all New-DecomFinding calls on single lines (no backtick continuation)
     $findings = [System.Collections.Generic.List[PSCustomObject]]::new()
 
-    if ($analysis.TotalOperations -eq 0) {
+    if ($analysis.QuerySucceeded -and $analysis.TotalOperations -eq 0) {
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-000' -Category 'NHI Activity - Graph API Audit' -Severity 'Informational' -RiskScore 0 -Evidence 'No Graph API operations detected in assessment window' -ObjectId $objectId -DisplayName $displayName))
-    } else {
+    } elseif ($analysis.QuerySucceeded) {
         $sev001 = if ($analysis.OverallRiskScore -lt 50) { 'Medium' } else { 'High' }
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-001' -Category 'NHI Activity - Graph API Audit' -Severity $sev001 -RiskScore $analysis.OverallRiskScore -Evidence "Agent initiated $($analysis.TotalOperations) Graph operations: $($analysis.SuccessfulOperations) successful, $($analysis.FailedOperations) failed" -ObjectId $objectId -DisplayName $displayName))
     }
 
-    if ($analysis.UserModificationOps -gt 0) {
+    if ($analysis.QuerySucceeded -and $analysis.UserModificationOps -gt 0) {
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-002' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 65 -Evidence "User modification operations: $($analysis.UserModificationOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-    if ($analysis.RoleAssignmentOps -gt 0) {
+    if ($analysis.QuerySucceeded -and $analysis.RoleAssignmentOps -gt 0) {
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-003' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 90 -Evidence "CRITICAL: Role assignment operations: $($analysis.RoleAssignmentOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-    if ($analysis.ConsentGrantOps -gt 0) {
+    if ($analysis.QuerySucceeded -and $analysis.ConsentGrantOps -gt 0) {
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-004' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 75 -Evidence "Application consent grants: $($analysis.ConsentGrantOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-    if ($analysis.ComplianceSensitiveOpCount -gt 0) {
+    if ($analysis.QuerySucceeded -and $analysis.ComplianceSensitiveOpCount -gt 0) {
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-005' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 95 -Evidence "CRITICAL: Compliance-sensitive operations: $($analysis.ComplianceSensitiveOpCount)" -ObjectId $objectId -DisplayName $displayName))
     }
-    if ($analysis.PolicyModificationOps -gt 0) {
+    if ($analysis.QuerySucceeded -and $analysis.PolicyModificationOps -gt 0) {
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-006' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 88 -Evidence "CRITICAL: Security policy modifications: $($analysis.PolicyModificationOps)" -ObjectId $objectId -DisplayName $displayName))
     }
-    if ($analysis.HighRiskOpCount -gt 0) {
+    if ($analysis.QuerySucceeded -and $analysis.HighRiskOpCount -gt 0) {
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-007' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 70 -Evidence "High-risk operations: $($analysis.HighRiskOpCount)" -ObjectId $objectId -DisplayName $displayName))
     }
-    if ($analysis.FailureRate -gt 0.5) {
+    if ($analysis.QuerySucceeded -and $analysis.FailureRate -gt 0.5) {
         $failurePct = [math]::Round($analysis.FailureRate * 100, 1)
         $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-008' -Category 'NHI Activity - Graph API Audit' -Severity 'Medium' -RiskScore 45 -Evidence "High operation failure rate: ${failurePct}% failure rate ($($analysis.FailedOperations) of $($analysis.TotalOperations) operations failed)" -ObjectId $objectId -DisplayName $displayName))
     }
