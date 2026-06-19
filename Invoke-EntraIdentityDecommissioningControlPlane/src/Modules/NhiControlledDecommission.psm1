@@ -9,6 +9,8 @@
     -AllowFinalDelete is set; live execution stays blocked.
 #>
 
+Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
+
 $script:ControlledSchemaVersion = '4.2'
 $script:SupportedTargetTypes = @('ServicePrincipal', 'Application', 'ManagedIdentity')
 $script:SupportedStages = @('ValidateOnly', 'SnapshotOnly', 'TagOnly', 'DisableOnly', 'ScreamTestOnly', 'DeleteReadinessOnly', 'MetadataCleanupReadiness', 'GrantCleanupReadiness', 'ManagedIdentityReadiness', 'E2EEvidencePack', 'ProductionReadiness', 'FinalDelete')

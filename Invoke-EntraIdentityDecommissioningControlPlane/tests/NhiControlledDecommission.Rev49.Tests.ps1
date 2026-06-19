@@ -92,10 +92,46 @@ AfterAll {
 }
 
 Describe 'Rev4.9 production readiness contract' {
-    It 'keeps the private builders hidden and the export contract frozen' {
+    $script:ExpectedExports = @(
+        'Get-NhiControlledDecommissionSha256'
+        'Get-NhiControlledDecommissionSchema'
+        'ConvertTo-NhiControlledSnapshot'
+        'Test-NhiControlledTarget'
+        'Confirm-NhiControlledApproval'
+        'Get-NhiControlledScreamTestStatus'
+        'Test-NhiControlledDependencies'
+        'Get-NhiControlledDeleteReadiness'
+        'New-NhiControlledRollbackPlan'
+        'New-NhiControlledDecommissionPlan'
+        'Test-NhiControlledLabLiveReversibleDisableReadiness'
+        'Export-NhiControlledDecommissionEvidence'
+        'New-NhiControlledLabDisableDryRunPackage'
+        'New-NhiControlledLabRollbackDrillPackage'
+        'Invoke-NhiControlledLabLiveReversibleDisable'
+        'New-NhiRun4CFinalGoNoGoReviewPackage'
+        'New-NhiRun4CLiveEvidenceCapturePackage'
+        'New-NhiRun4CPostDisableObservationPackage'
+        'New-NhiRun4CRollbackExecutionReadinessPackage'
+        'Invoke-NhiControlledLabRollback'
+        'New-NhiFinalDeleteEligibilitySimulationPackage'
+        'New-NhiRun4CEndToEndLabRehearsalReport'
+        'New-NhiRun4CConsultantOperatingGuide'
+        'Get-NhiRun4CArtifactRecord'
+        'New-NhiRun4CFinalControlledDisableTestPackage'
+        'New-NhiRun4CPostDisableEvidenceValidationPackage'
+        'New-NhiRun4CControlledRollbackExecutionTestPackage'
+        'New-NhiRun4CPostRollbackValidationPackage'
+        'New-NhiRun4CFinalEvidenceBundle'
+        'New-NhiRev4ReleaseCandidateFreezePackage'
+    )
+
+    It 'keeps the private builders hidden and exports the required public contract' {
         Get-Command New-NhiControlledProductionReadinessGate -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
         Get-Command New-NhiControlledProductionReadinessEvidencePack -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
-        (Get-Module NhiControlledDecommission).ExportedCommands.Keys.Count | Should -Be 11
+        $exports = (Get-Module NhiControlledDecommission).ExportedCommands.Keys
+        foreach ($name in $script:ExpectedExports) {
+            $exports | Should -Contain $name
+        }
     }
 
     It 'advertises the Rev4.9 schema contract' {

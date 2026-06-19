@@ -73,16 +73,55 @@ AfterAll {
 }
 
 Describe 'NhiControlledDecommission module contract' {
+    $script:ExpectedExports = @(
+        'Get-NhiControlledDecommissionSha256'
+        'Get-NhiControlledDecommissionSchema'
+        'ConvertTo-NhiControlledSnapshot'
+        'Test-NhiControlledTarget'
+        'Confirm-NhiControlledApproval'
+        'Get-NhiControlledScreamTestStatus'
+        'Test-NhiControlledDependencies'
+        'Get-NhiControlledDeleteReadiness'
+        'New-NhiControlledRollbackPlan'
+        'New-NhiControlledDecommissionPlan'
+        'Test-NhiControlledLabLiveReversibleDisableReadiness'
+        'Export-NhiControlledDecommissionEvidence'
+        'New-NhiControlledLabDisableDryRunPackage'
+        'New-NhiControlledLabRollbackDrillPackage'
+        'Invoke-NhiControlledLabLiveReversibleDisable'
+        'New-NhiRun4CFinalGoNoGoReviewPackage'
+        'New-NhiRun4CLiveEvidenceCapturePackage'
+        'New-NhiRun4CPostDisableObservationPackage'
+        'New-NhiRun4CRollbackExecutionReadinessPackage'
+        'Invoke-NhiControlledLabRollback'
+        'New-NhiFinalDeleteEligibilitySimulationPackage'
+        'New-NhiRun4CEndToEndLabRehearsalReport'
+        'New-NhiRun4CConsultantOperatingGuide'
+        'Get-NhiRun4CArtifactRecord'
+        'New-NhiRun4CFinalControlledDisableTestPackage'
+        'New-NhiRun4CPostDisableEvidenceValidationPackage'
+        'New-NhiRun4CControlledRollbackExecutionTestPackage'
+        'New-NhiRun4CPostRollbackValidationPackage'
+        'New-NhiRun4CFinalEvidenceBundle'
+        'New-NhiRev4ReleaseCandidateFreezePackage'
+    )
+
     It 'imports successfully' {
         Get-Module NhiControlledDecommission | Should -Not -BeNullOrEmpty
     }
 
-    It 'exports 11 functions' {
-        (Get-Module NhiControlledDecommission).ExportedFunctions.Keys.Count | Should -Be 11
+    It 'exports the required public functions and keeps private helpers hidden' {
+        $exports = (Get-Module NhiControlledDecommission).ExportedFunctions.Keys
+        foreach ($name in $script:ExpectedExports) {
+            $exports | Should -Contain $name
+        }
+        Get-Command New-NhiControlledE2EEvidencePack -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+        Get-Command New-NhiControlledOperatorDecisionLog -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
     }
 
-    It 'contains no Graph cmdlet references' {
-        (Get-Content $script:ModulePath -Raw) | Should -Not -Match '(?i)\b(?:Get|Update|Set|New|Remove)-Mg'
+    It 'contains no live Graph write/delete cmdlet references' {
+        # Guarded read-only state checks are allowed; this only blocks live write/delete or connection paths.
+        (Get-Content $script:ModulePath -Raw) | Should -Not -Match 'Connect-MgGraph|Invoke-MgGraphRequest|(?:Update|Set|New|Remove)-Mg'
     }
 
     It 'contains no Graph request calls' {

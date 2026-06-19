@@ -10,10 +10,11 @@ Describe 'Rev4.12 lab live reversible disable readiness' {
             Remove-Module $m -Force -ErrorAction SilentlyContinue
         }
 
-        Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking
+        $script:UtilitiesModule = Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1') -Force -DisableNameChecking -PassThru
         Import-Module (Join-Path $script:ModulesPath 'ApprovalManifest.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'NhiControlledDecommission.psm1') -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'NhiExecutionSchema.psm1') -Force -DisableNameChecking
+        $script:TestDecomMicrosoftPlatformIdentityCommand = $script:UtilitiesModule.ExportedFunctions['Test-DecomMicrosoftPlatformIdentity']
 
         function script:Get-TestSha256Hex {
             param([Parameter(Mandatory)][string]$InputString)
@@ -286,8 +287,8 @@ Describe 'Rev4.12 lab live reversible disable readiness' {
         }
 
         It 'blocks Microsoft Graph PowerShell and iOS Accounts' {
-            $graphClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $script:PlatformGraph
-            $iosClassification = Test-DecomMicrosoftPlatformIdentity -NhiObject $script:PlatformIos
+            $graphClassification = & $script:TestDecomMicrosoftPlatformIdentityCommand -NhiObject $script:PlatformGraph
+            $iosClassification = & $script:TestDecomMicrosoftPlatformIdentityCommand -NhiObject $script:PlatformIos
 
             $graphTarget = New-TestTarget -DisplayName $script:PlatformGraph.displayName -AppId $script:PlatformGraph.appId -ObjectId ([guid]::NewGuid().Guid) -Classification $graphClassification.Classification -MicrosoftPlatform $graphClassification.MicrosoftPlatform -FirstPartyMicrosoftApp $graphClassification.MicrosoftFirstParty -SuppressCustomerRemediation $graphClassification.SuppressCustomerRemediation -RemediationMode 'InformationOnly'
             $iosTarget = New-TestTarget -DisplayName $script:PlatformIos.displayName -AppId $script:PlatformIos.appId -ObjectId ([guid]::NewGuid().Guid) -Classification $iosClassification.Classification -MicrosoftPlatform $iosClassification.MicrosoftPlatform -FirstPartyMicrosoftApp $iosClassification.MicrosoftFirstParty -SuppressCustomerRemediation $iosClassification.SuppressCustomerRemediation -RemediationMode 'InformationOnly' -VerifiedPublisherName 'Apple Inc.'
