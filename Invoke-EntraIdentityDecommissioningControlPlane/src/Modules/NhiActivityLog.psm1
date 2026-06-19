@@ -10,14 +10,15 @@ Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChec
 function Get-ODataTimeFilter {
     param(
         [DateTime]$StartTime,
-        [DateTime]$EndTime
+        [DateTime]$EndTime,
+        [string]$PropertyName = 'createdDateTime'
     )
     $filters = @()
     if ($StartTime) {
-        $filters += "createdDateTime ge $((Get-Date $StartTime -Format 'yyyy-MM-ddTHH:mm:ssZ'))"
+        $filters += "$PropertyName ge $((Get-Date $StartTime -Format 'yyyy-MM-ddTHH:mm:ssZ'))"
     }
     if ($EndTime) {
-        $filters += "createdDateTime le $((Get-Date $EndTime -Format 'yyyy-MM-ddTHH:mm:ssZ'))"
+        $filters += "$PropertyName le $((Get-Date $EndTime -Format 'yyyy-MM-ddTHH:mm:ssZ'))"
     }
     if ($filters.Count -gt 0) {
         return $filters -join ' and '
@@ -56,7 +57,7 @@ function Get-NhiAgentSignInLog {
             $filter = "$filter and $timeFilter"
         }
 
-        Get-MgAuditLogSignIn -Filter $filter -All -ErrorAction Stop
+        Get-MgBetaAuditLogSignIn -Filter $filter -All -ErrorAction Stop
     } catch {
         Write-DecomWarn "Get-NhiAgentSignInLog failed for $ObjectType '$ObjectId': $_"
         return @()
@@ -232,7 +233,7 @@ function Get-NhiAgentDirectoryAuditLog {
     try {
         $filter = "initiatedBy/app/servicePrincipalId eq '$ObjectId'"
 
-        $timeFilter = Get-ODataTimeFilter -StartTime $StartTime -EndTime $EndTime
+        $timeFilter = Get-ODataTimeFilter -StartTime $StartTime -EndTime $EndTime -PropertyName 'activityDateTime'
         if ($timeFilter) {
             $filter = "$filter and $timeFilter"
         }

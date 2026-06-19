@@ -30,11 +30,11 @@ function Get-NhiAgentGraphApiAudit {
             $timeConditions = @()
             if ($PSBoundParameters.ContainsKey('StartTime')) {
                 $isoTime = $StartTime.ToString('yyyy-MM-ddTHH:mm:ssZ')
-                $timeConditions += "createdDateTime ge $isoTime"
+                $timeConditions += "activityDateTime ge $isoTime"
             }
             if ($PSBoundParameters.ContainsKey('EndTime')) {
                 $isoTime = $EndTime.ToString('yyyy-MM-ddTHH:mm:ssZ')
-                $timeConditions += "createdDateTime le $isoTime"
+                $timeConditions += "activityDateTime le $isoTime"
             }
             if ($timeConditions.Count -gt 0) {
                 $filter = $filter + " and " + ($timeConditions -join " and ")
@@ -51,7 +51,7 @@ function Get-NhiAgentGraphApiAudit {
             'ResultReason',
             'TargetResources',
             'InitiatedBy',
-            'createdDateTime'
+            'activityDateTime'
         ) -join ','
 
         $auditLogs = Get-MgAuditLogDirectoryAudit `

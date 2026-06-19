@@ -24,7 +24,7 @@ function Get-NhiComplianceAuditLog {
     Write-DecomWarn "Time window: $startStr to $endStr"
 
     try {
-        $filter = "createdDateTime ge $startStr and createdDateTime le $endStr"
+        $filter = "activityDateTime ge $startStr and activityDateTime le $endStr"
         try {
             $logs = @(Get-MgAuditLogDirectoryAudit -Filter $filter -All -ErrorAction Stop)
         } catch {
