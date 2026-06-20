@@ -9,7 +9,7 @@ param(
 
     [Parameter()]
     [ValidateNotNullOrEmpty()]
-    [string]$OutputPath = (Join-Path $PSScriptRoot '..\out\rev437-lab\rev437-synthetic-nhi-lab-inventory.json')
+    [string]$OutputPath = (Join-Path $PSScriptRoot '..\out\rev437-lab')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -120,6 +120,41 @@ function Get-Rev437GraphServicePrincipalByAppId {
     @(Get-MgServicePrincipal -Filter "appId eq '$AppId'" -All -ErrorAction SilentlyContinue | Where-Object { $_.AppId -eq $AppId })
 }
 
+function Resolve-Rev437SyntheticNhiLabInventoryPath {
+    param([Parameter(Mandatory)][string]$OutputPath)
+
+    $resolvedOutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+    $isExplicitJsonPath = [System.IO.Path]::GetExtension($resolvedOutputPath) -ieq '.json'
+
+    if (Test-Path -LiteralPath $resolvedOutputPath -PathType Container) {
+        $inventoryDirectory = $resolvedOutputPath
+        return [pscustomobject]@{
+            OutputDirectory = $inventoryDirectory
+            InventoryFile   = (Join-Path $inventoryDirectory 'rev437-synthetic-nhi-lab-inventory.json')
+            ExplicitFilePath = $false
+        }
+    }
+
+    if ($isExplicitJsonPath) {
+        $inventoryDirectory = Split-Path -Parent $resolvedOutputPath
+        if ([string]::IsNullOrWhiteSpace($inventoryDirectory)) {
+            $inventoryDirectory = '.'
+        }
+
+        return [pscustomobject]@{
+            OutputDirectory = $inventoryDirectory
+            InventoryFile   = $resolvedOutputPath
+            ExplicitFilePath = $true
+        }
+    }
+
+    return [pscustomobject]@{
+        OutputDirectory = $resolvedOutputPath
+        InventoryFile   = (Join-Path $resolvedOutputPath 'rev437-synthetic-nhi-lab-inventory.json')
+        ExplicitFilePath = $false
+    }
+}
+
 function Get-Rev437InventoryRecord {
     param(
         [Parameter(Mandatory)][object]$Definition,
@@ -150,6 +185,7 @@ function Export-Rev437SyntheticNhiLabInventory {
         [Parameter(Mandatory)][string]$OutputPath
     )
 
+    $resolvedPath = Resolve-Rev437SyntheticNhiLabInventoryPath -OutputPath $OutputPath
     $payload = [pscustomobject]@{
         SchemaVersion = '1.0'
         CreatedAt     = [DateTime]::UtcNow.ToString('o')
@@ -157,13 +193,15 @@ function Export-Rev437SyntheticNhiLabInventory {
         Inventory     = @($Inventory)
     }
 
-    $parent = Split-Path -Parent $OutputPath
-    if ($parent -and -not (Test-Path -LiteralPath $parent)) {
-        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $resolvedPath.OutputDirectory)) {
+        New-Item -ItemType Directory -Path $resolvedPath.OutputDirectory -Force | Out-Null
     }
 
-    $payload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputPath -Encoding utf8
-    return $payload
+    $payload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $resolvedPath.InventoryFile -Encoding utf8
+    return [pscustomobject]@{
+        InventoryFile = $resolvedPath.InventoryFile
+        Payload       = $payload
+    }
 }
 
 function Invoke-Rev437SyntheticNhiLabCreation {
@@ -245,14 +283,14 @@ function Invoke-Rev437SyntheticNhiLabCreation {
         $inventory.Add((Get-Rev437InventoryRecord -Definition $definition -Application $application -ServicePrincipal $servicePrincipal -TenantId $TenantId)) | Out-Null
     }
 
-    $inventoryPayload = Export-Rev437SyntheticNhiLabInventory -Inventory $inventory -TenantId $TenantId -OutputPath $OutputPath
+    $inventoryExport = Export-Rev437SyntheticNhiLabInventory -Inventory $inventory -TenantId $TenantId -OutputPath $OutputPath
     [pscustomobject]@{
         TenantId      = $TenantId
         OutputPath    = $OutputPath
-        CreatedAt     = $inventoryPayload.CreatedAt
+        CreatedAt     = $inventoryExport.Payload.CreatedAt
         ObjectCount   = $inventory.Count
         Inventory     = @($inventory)
-        InventoryFile = $OutputPath
+        InventoryFile = $inventoryExport.InventoryFile
     }
 }
 

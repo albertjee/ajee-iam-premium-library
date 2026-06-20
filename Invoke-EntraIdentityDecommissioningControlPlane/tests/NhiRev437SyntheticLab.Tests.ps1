@@ -57,6 +57,97 @@ Describe 'Rev4.37 synthetic NHI lab assets' {
         }
     }
 
+    Context 'generator inventory export path resolution' {
+        It 'writes inventory JSON inside a directory OutputPath and returns the full inventory file path' {
+            $outputDir = Join-Path $TestDrive 'rev437-output'
+            $inventory = @(
+                [pscustomobject]@{
+                    DisplayName             = 'AJEE-LAB-NHI-KEEP-CONTROL'
+                    AppId                   = '11111111-1111-1111-1111-111111111111'
+                    ApplicationObjectId     = '22222222-2222-2222-2222-222222222222'
+                    ServicePrincipalObjectId = '33333333-3333-3333-3333-333333333333'
+                    TargetType              = 'ServicePrincipal'
+                    Purpose                 = 'control'
+                    CreatedAt               = [DateTime]::UtcNow.ToString('o')
+                    TenantId                = '00000000-0000-0000-0000-000000000001'
+                    SafeToDisable           = $false
+                    SafeToRollback          = $false
+                    ControlObject           = $true
+                }
+            )
+
+            $result = Export-Rev437SyntheticNhiLabInventory -Inventory $inventory -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath $outputDir
+            $expectedFile = Join-Path $outputDir 'rev437-synthetic-nhi-lab-inventory.json'
+
+            $result.InventoryFile | Should -Be $expectedFile
+            Test-Path -LiteralPath $outputDir -PathType Container | Should -BeTrue
+            Test-Path -LiteralPath $expectedFile -PathType Leaf | Should -BeTrue
+
+            $written = Get-Content -LiteralPath $expectedFile -Raw | ConvertFrom-Json
+            $written.Inventory.Count | Should -Be 1
+            $written.Inventory[0].DisplayName | Should -Be 'AJEE-LAB-NHI-KEEP-CONTROL'
+        }
+
+        It 'supports an explicit json file OutputPath' {
+            $outputFile = Join-Path $TestDrive 'custom-rev437-inventory.json'
+            $inventory = @(
+                [pscustomobject]@{
+                    DisplayName             = 'AJEE-LAB-NHI-DISABLE-ROLLBACK'
+                    AppId                   = '44444444-4444-4444-4444-444444444444'
+                    ApplicationObjectId     = '55555555-5555-5555-5555-555555555555'
+                    ServicePrincipalObjectId = '66666666-6666-6666-6666-666666666666'
+                    TargetType              = 'ServicePrincipal'
+                    Purpose                 = 'candidate'
+                    CreatedAt               = [DateTime]::UtcNow.ToString('o')
+                    TenantId                = '00000000-0000-0000-0000-000000000001'
+                    SafeToDisable           = $true
+                    SafeToRollback          = $true
+                    ControlObject           = $false
+                }
+            )
+
+            $result = Export-Rev437SyntheticNhiLabInventory -Inventory $inventory -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath $outputFile
+
+            $result.InventoryFile | Should -Be $outputFile
+            Test-Path -LiteralPath $outputFile -PathType Leaf | Should -BeTrue
+        }
+
+        It 'passes the resolved inventory file path to Set-Content instead of the directory path' {
+            $outputDir = Join-Path $TestDrive 'rev437-setcontent'
+            $inventory = @(
+                [pscustomobject]@{
+                    DisplayName             = 'AJEE-LAB-NHI-MARK-ONLY'
+                    AppId                   = '77777777-7777-7777-7777-777777777777'
+                    ApplicationObjectId     = '88888888-8888-8888-8888-888888888888'
+                    ServicePrincipalObjectId = '99999999-9999-9999-9999-999999999999'
+                    TargetType              = 'ServicePrincipal'
+                    Purpose                 = 'candidate'
+                    CreatedAt               = [DateTime]::UtcNow.ToString('o')
+                    TenantId                = '00000000-0000-0000-0000-000000000001'
+                    SafeToDisable           = $false
+                    SafeToRollback          = $false
+                    ControlObject           = $false
+                }
+            )
+
+            $script:CapturedSetContentPath = $null
+            Mock Set-Content {
+                if (Test-Path -LiteralPath $LiteralPath -PathType Container) {
+                    throw 'Set-Content received a directory path.'
+                }
+
+                $script:CapturedSetContentPath = $LiteralPath
+            }
+
+            $result = Export-Rev437SyntheticNhiLabInventory -Inventory $inventory -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath $outputDir
+            $expectedFile = Join-Path $outputDir 'rev437-synthetic-nhi-lab-inventory.json'
+
+            $script:CapturedSetContentPath | Should -Be $expectedFile
+            $result.InventoryFile | Should -Be $expectedFile
+            Assert-MockCalled Set-Content -Times 1 -Exactly
+        }
+    }
+
     It 'inventory record contains the required output fields' {
         $definition = (Get-Rev437RequiredLabDefinitions)[1]
         $application = [pscustomobject]@{ Id = '11111111-1111-1111-1111-111111111111'; AppId = '22222222-2222-2222-2222-222222222222' }

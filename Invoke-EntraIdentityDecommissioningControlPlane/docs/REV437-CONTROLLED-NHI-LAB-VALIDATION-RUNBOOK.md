@@ -62,7 +62,8 @@ Each inventory record must include:
 
 Inventory output path:
 
-- `out/rev437-lab/rev437-synthetic-nhi-lab-inventory.json`
+- `out/rev437-lab/`
+- Inventory file: `out/rev437-lab/rev437-synthetic-nhi-lab-inventory.json`
 
 ## Read-Only Discovery
 
