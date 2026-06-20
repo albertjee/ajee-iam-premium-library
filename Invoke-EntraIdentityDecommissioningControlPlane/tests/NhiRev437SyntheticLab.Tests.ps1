@@ -58,23 +58,21 @@ Describe 'Rev4.37 synthetic NHI lab assets' {
     }
 
     Context 'generator inventory export path resolution' {
-        It 'writes inventory JSON inside a directory OutputPath and returns the full inventory file path' {
+        It 'writes inventory JSON inside a directory OutputPath as a direct record array' {
             $outputDir = Join-Path $TestDrive 'rev437-output'
-            $inventory = @(
-                [pscustomobject]@{
-                    DisplayName             = 'AJEE-LAB-NHI-KEEP-CONTROL'
-                    AppId                   = '11111111-1111-1111-1111-111111111111'
-                    ApplicationObjectId     = '22222222-2222-2222-2222-222222222222'
-                    ServicePrincipalObjectId = '33333333-3333-3333-3333-333333333333'
-                    TargetType              = 'ServicePrincipal'
-                    Purpose                 = 'control'
-                    CreatedAt               = [DateTime]::UtcNow.ToString('o')
-                    TenantId                = '00000000-0000-0000-0000-000000000001'
-                    SafeToDisable           = $false
-                    SafeToRollback          = $false
-                    ControlObject           = $true
+            $definitions = @(Get-Rev437RequiredLabDefinitions)
+            $inventory = foreach ($definition in $definitions) {
+                $suffix = [array]::IndexOf($definitions, $definition) + 1
+                $application = [pscustomobject]@{
+                    Id    = "11111111-1111-1111-1111-11111111111$suffix"
+                    AppId = "22222222-2222-2222-2222-22222222222$suffix"
                 }
-            )
+                $servicePrincipal = [pscustomobject]@{
+                    Id = "33333333-3333-3333-3333-33333333333$suffix"
+                }
+
+                Get-Rev437InventoryRecord -Definition $definition -Application $application -ServicePrincipal $servicePrincipal -TenantId '00000000-0000-0000-0000-000000000001'
+            }
 
             $result = Export-Rev437SyntheticNhiLabInventory -Inventory $inventory -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath $outputDir
             $expectedFile = Join-Path $outputDir 'rev437-synthetic-nhi-lab-inventory.json'
@@ -84,8 +82,25 @@ Describe 'Rev4.37 synthetic NHI lab assets' {
             Test-Path -LiteralPath $expectedFile -PathType Leaf | Should -BeTrue
 
             $written = Get-Content -LiteralPath $expectedFile -Raw | ConvertFrom-Json
-            $written.Inventory.Count | Should -Be 1
-            $written.Inventory[0].DisplayName | Should -Be 'AJEE-LAB-NHI-KEEP-CONTROL'
+            $written -is [array] | Should -BeTrue
+            $written.Count | Should -Be 6
+            foreach ($record in $written) {
+                { Assert-Rev437SyntheticNhiLabDefinition -Definition $record } | Should -Not -Throw
+            }
+
+            $written[0].PSObject.Properties.Name | Should -Contain 'DisplayName'
+            $written[0].PSObject.Properties.Name | Should -Contain 'AppId'
+            $written[0].PSObject.Properties.Name | Should -Contain 'ApplicationObjectId'
+            $written[0].PSObject.Properties.Name | Should -Contain 'ServicePrincipalObjectId'
+            $written[0].PSObject.Properties.Name | Should -Contain 'TargetType'
+            $written[0].PSObject.Properties.Name | Should -Contain 'Purpose'
+            $written[0].PSObject.Properties.Name | Should -Contain 'CreatedAt'
+            $written[0].PSObject.Properties.Name | Should -Contain 'TenantId'
+            $written[0].PSObject.Properties.Name | Should -Contain 'SafeToDisable'
+            $written[0].PSObject.Properties.Name | Should -Contain 'SafeToRollback'
+            $written[0].PSObject.Properties.Name | Should -Contain 'ControlObject'
+
+            ($written | Where-Object { $_.ControlObject -eq $true }).Count | Should -Be 1
         }
 
         It 'supports an explicit json file OutputPath' {
@@ -145,6 +160,38 @@ Describe 'Rev4.37 synthetic NHI lab assets' {
             $script:CapturedSetContentPath | Should -Be $expectedFile
             $result.InventoryFile | Should -Be $expectedFile
             Assert-MockCalled Set-Content -Times 1 -Exactly
+        }
+
+        It 'cleanup WhatIf can consume the generated inventory file shape' {
+            $outputDir = Join-Path $TestDrive 'rev437-generated-cleanup'
+            $definitions = @(Get-Rev437RequiredLabDefinitions)
+            $inventory = foreach ($definition in $definitions) {
+                $suffix = [array]::IndexOf($definitions, $definition) + 1
+                $application = [pscustomobject]@{
+                    Id    = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa$suffix"
+                    AppId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb$suffix"
+                }
+                $servicePrincipal = [pscustomobject]@{
+                    Id = "cccccccc-cccc-cccc-cccc-ccccccccccc$suffix"
+                }
+
+                Get-Rev437InventoryRecord -Definition $definition -Application $application -ServicePrincipal $servicePrincipal -TenantId '00000000-0000-0000-0000-000000000001'
+            }
+
+            $export = Export-Rev437SyntheticNhiLabInventory -Inventory $inventory -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath $outputDir
+            Mock Remove-MgApplication { throw 'Remove-MgApplication must not be called in WhatIf.' }
+            Mock Remove-MgServicePrincipal { throw 'Remove-MgServicePrincipal must not be called in WhatIf.' }
+
+            $result = Remove-Rev437SyntheticNhiLab -TenantId '00000000-0000-0000-0000-000000000001' -InventoryPath $export.InventoryFile -ConfirmCleanupPhrase 'DELETE AJEE-LAB-NHI INVENTORY OBJECTS' -WhatIf
+
+            $result.WhatIf | Should -BeTrue
+            $result.DeletableCount | Should -Be 5
+            $result.PlannedDeleteCount | Should -Be 5
+            $result.ControlObjectCount | Should -Be 1
+            $result.PlannedDeletes.Count | Should -Be 5
+            $result.PreservedControl.Count | Should -Be 1
+            Assert-MockCalled Remove-MgApplication -Times 0 -Exactly
+            Assert-MockCalled Remove-MgServicePrincipal -Times 0 -Exactly
         }
     }
 

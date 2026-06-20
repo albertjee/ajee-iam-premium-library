@@ -186,21 +186,18 @@ function Export-Rev437SyntheticNhiLabInventory {
     )
 
     $resolvedPath = Resolve-Rev437SyntheticNhiLabInventoryPath -OutputPath $OutputPath
-    $payload = [pscustomobject]@{
-        SchemaVersion = '1.0'
-        CreatedAt     = [DateTime]::UtcNow.ToString('o')
-        TenantId      = $TenantId
-        Inventory     = @($Inventory)
-    }
+    $inventoryRecords = @($Inventory)
+    $createdAt = [DateTime]::UtcNow.ToString('o')
 
     if (-not (Test-Path -LiteralPath $resolvedPath.OutputDirectory)) {
         New-Item -ItemType Directory -Path $resolvedPath.OutputDirectory -Force | Out-Null
     }
 
-    $payload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $resolvedPath.InventoryFile -Encoding utf8
+    $inventoryRecords | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $resolvedPath.InventoryFile -Encoding utf8
     return [pscustomobject]@{
         InventoryFile = $resolvedPath.InventoryFile
-        Payload       = $payload
+        CreatedAt     = $createdAt
+        Inventory     = $inventoryRecords
     }
 }
 
@@ -287,7 +284,7 @@ function Invoke-Rev437SyntheticNhiLabCreation {
     [pscustomobject]@{
         TenantId      = $TenantId
         OutputPath    = $OutputPath
-        CreatedAt     = $inventoryExport.Payload.CreatedAt
+        CreatedAt     = $inventoryExport.CreatedAt
         ObjectCount   = $inventory.Count
         Inventory     = @($inventory)
         InventoryFile = $inventoryExport.InventoryFile
