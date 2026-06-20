@@ -15,6 +15,10 @@ Describe 'Rev2.3 Access Review Governance — M2 Coverage' {
         Import-Module (Join-Path $script:ModulesPath 'Discovery.psm1')  -Force -DisableNameChecking
     }
 
+    BeforeEach {
+        Reset-DecomRuntimeState
+    }
+
     # Test 1: AR cmdlet unavailable emits DEC-GOV-002
     It 'Access review cmdlet unavailable emits DEC-GOV-002 and does not throw' {
         InModuleScope Discovery {

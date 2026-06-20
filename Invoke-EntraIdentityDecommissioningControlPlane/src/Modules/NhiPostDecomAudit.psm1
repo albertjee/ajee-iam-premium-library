@@ -17,6 +17,12 @@ function Get-NhiPostDecomAuditLog {
         [int]$WindowMinutes = 60
     )
 
+    $capabilityKey = 'NhiPostDecomAudit.Unavailable'
+    if (-not (Test-DecomCapabilityAvailable -Key $capabilityKey)) {
+        $state = Get-DecomCapabilityState -Key $capabilityKey
+        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = [string]$state.LastError; CapabilityAvailable = $false; CapabilityKey = $capabilityKey }
+    }
+
     $windowEnd = $DecomTimestamp.AddMinutes($WindowMinutes)
     $startStr  = $DecomTimestamp.ToUniversalTime().ToString('o')
     $endStr    = $windowEnd.ToUniversalTime().ToString('o')
@@ -38,8 +44,9 @@ function Get-NhiPostDecomAuditLog {
         })
         return [PSCustomObject]@{ QuerySucceeded = $true;  Entries = [array]@($windowed); Error = $null }
     } catch {
-        Write-DecomWarn "Get-NhiPostDecomAuditLog: Graph query failed for ObjectId '$ObjectId': $($_.Exception.Message)"
-        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message }
+        $message = "Get-NhiPostDecomAuditLog: Graph query failed for ObjectId '$ObjectId': $($_.Exception.Message)"
+        $null = Set-DecomCapabilityUnavailable -Key $capabilityKey -Message $message -Error $_.Exception.Message
+        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message; CapabilityAvailable = $false; CapabilityKey = $capabilityKey }
     }
 }
 

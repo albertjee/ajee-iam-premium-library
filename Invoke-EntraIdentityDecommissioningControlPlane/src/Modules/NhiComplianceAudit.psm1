@@ -18,6 +18,12 @@ function Get-NhiComplianceAuditLog {
         [datetime]$EndTime = (Get-Date)
     )
 
+    $capabilityKey = 'NhiComplianceAudit.Unavailable'
+    if (-not (Test-DecomCapabilityAvailable -Key $capabilityKey)) {
+        $state = Get-DecomCapabilityState -Key $capabilityKey
+        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = [string]$state.LastError; CapabilityAvailable = $false; CapabilityKey = $capabilityKey }
+    }
+
     $startStr = $StartTime.ToUniversalTime().ToString('o')
     $endStr   = $EndTime.ToUniversalTime().ToString('o')
     Write-DecomWarn "Querying compliance audit logs for ObjectId: $ObjectId"
@@ -28,14 +34,16 @@ function Get-NhiComplianceAuditLog {
         try {
             $logs = @(Get-MgAuditLogDirectoryAudit -Filter $filter -All -ErrorAction Stop)
         } catch {
-            Write-DecomWarn "Time-filtered query failed: $($_.Exception.Message)"
-            return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message }
+            $message = "Time-filtered query failed: $($_.Exception.Message)"
+            $null = Set-DecomCapabilityUnavailable -Key $capabilityKey -Message $message -Error $_.Exception.Message
+            return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message; CapabilityAvailable = $false; CapabilityKey = $capabilityKey }
         }
         Write-DecomWarn "Retrieved $($logs.Count) audit log entries"
         return [array]@($logs)
     } catch {
-        Write-DecomWarn "Failed to retrieve audit logs: $($_.Exception.Message)"
-        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message }
+        $message = "Failed to retrieve audit logs: $($_.Exception.Message)"
+        $null = Set-DecomCapabilityUnavailable -Key $capabilityKey -Message $message -Error $_.Exception.Message
+        return [PSCustomObject]@{ QuerySucceeded = $false; Entries = @(); Error = $_.Exception.Message; CapabilityAvailable = $false; CapabilityKey = $capabilityKey }
     }
 }
 

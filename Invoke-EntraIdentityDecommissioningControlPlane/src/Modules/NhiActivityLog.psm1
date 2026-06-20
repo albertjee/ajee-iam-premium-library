@@ -44,6 +44,12 @@ function Get-NhiAgentSignInLog {
         [DateTime]$EndTime = (Get-Date)
     )
 
+    $capabilityKey = 'NhiActivityLog.SignInLogs.Unavailable'
+    if (-not (Test-DecomCapabilityAvailable -Key $capabilityKey)) {
+        $state = Get-DecomCapabilityState -Key $capabilityKey
+        return New-DecomUnavailableQueryResult -CapabilityKey $capabilityKey -Error ([string]$state.LastError) -ObjectId $ObjectId -ObjectType $ObjectType
+    }
+
     try {
         if ($ObjectType -eq 'ServicePrincipal') {
             $filter = "servicePrincipalId eq '$ObjectId'"
@@ -59,8 +65,9 @@ function Get-NhiAgentSignInLog {
 
         Get-MgBetaAuditLogSignIn -Filter $filter -All -ErrorAction Stop
     } catch {
-        Write-DecomWarn "Get-NhiAgentSignInLog failed for $ObjectType '$ObjectId': $_"
-        return @()
+        $message = "Get-NhiAgentSignInLog failed for $ObjectType '$ObjectId': $($_.Exception.Message)"
+        $null = Set-DecomCapabilityUnavailable -Key $capabilityKey -Message $message -Error $_.Exception.Message
+        return New-DecomUnavailableQueryResult -CapabilityKey $capabilityKey -Error $_.Exception.Message -ObjectId $ObjectId -ObjectType $ObjectType
     }
 }
 
@@ -78,9 +85,31 @@ function Invoke-NhiAgentSignInAnalysis {
         [string]$ObjectId
     )
 
-    # Handle empty input
-    if (-not $SignInLogs -or $SignInLogs.Count -eq 0) {
+    if (Test-DecomQueryUnavailableResult -InputObject $SignInLogs) {
         return [PSCustomObject]@{
+            QuerySucceeded       = $false
+            CapabilityAvailable  = $false
+            SignInCount          = 0
+            SuccessCount         = 0
+            FailureCount         = 0
+            FailureRate          = 0
+            MaxSignInInOneHour   = 0
+            ConditionalAccessBlockCount = 0
+            ImpossibleTravelDetected = $false
+            UniqueIpCount        = 0
+            OverallRiskScore     = 0
+            RiskSignals          = @()
+            Error                = $SignInLogs.Error
+        }
+    }
+
+    $signInEntries = Get-DecomQueryResultEntries -InputObject $SignInLogs
+
+    # Handle empty input
+    if (-not $signInEntries -or $signInEntries.Count -eq 0) {
+        return [PSCustomObject]@{
+            QuerySucceeded       = $true
+            CapabilityAvailable  = $true
             SignInCount              = 0
             SuccessCount             = 0
             FailureCount             = 0
@@ -95,7 +124,7 @@ function Invoke-NhiAgentSignInAnalysis {
     }
 
     # Sort by CreatedDateTime ascending for temporal analysis
-    $sorted = $SignInLogs | Sort-Object { try { [DateTime]$_.CreatedDateTime } catch { [DateTime]::MinValue } }
+    $sorted = $signInEntries | Sort-Object { try { [DateTime]$_.CreatedDateTime } catch { [DateTime]::MinValue } }
 
     $successCount = 0
     $failureCount = 0
@@ -203,6 +232,8 @@ function Invoke-NhiAgentSignInAnalysis {
     if ($riskScore -gt 100) { $riskScore = 100 }
 
     return [PSCustomObject]@{
+        QuerySucceeded             = $true
+        CapabilityAvailable        = $true
         SignInCount                 = $signInCount
         SuccessCount               = $successCount
         FailureCount               = $failureCount
@@ -230,6 +261,12 @@ function Get-NhiAgentDirectoryAuditLog {
         [DateTime]$EndTime = (Get-Date)
     )
 
+    $capabilityKey = 'NhiActivityLog.DirectoryAuditLogs.Unavailable'
+    if (-not (Test-DecomCapabilityAvailable -Key $capabilityKey)) {
+        $state = Get-DecomCapabilityState -Key $capabilityKey
+        return New-DecomUnavailableQueryResult -CapabilityKey $capabilityKey -Error ([string]$state.LastError) -ObjectId $ObjectId
+    }
+
     try {
         $filter = "initiatedBy/app/servicePrincipalId eq '$ObjectId'"
 
@@ -240,8 +277,9 @@ function Get-NhiAgentDirectoryAuditLog {
 
         Get-MgAuditLogDirectoryAudit -Filter $filter -All -ErrorAction Stop
     } catch {
-        Write-DecomWarn "Get-NhiAgentDirectoryAuditLog failed for '$ObjectId': $_"
-        return @()
+        $message = "Get-NhiAgentDirectoryAuditLog failed for '$ObjectId': $($_.Exception.Message)"
+        $null = Set-DecomCapabilityUnavailable -Key $capabilityKey -Message $message -Error $_.Exception.Message
+        return New-DecomUnavailableQueryResult -CapabilityKey $capabilityKey -Error $_.Exception.Message -ObjectId $ObjectId
     }
 }
 
@@ -259,8 +297,32 @@ function Invoke-NhiAgentDirectoryAuditAnalysis {
         [string]$ObjectId
     )
 
-    if (-not $DirectoryLogs -or $DirectoryLogs.Count -eq 0) {
+    if (Test-DecomQueryUnavailableResult -InputObject $DirectoryLogs) {
         return [PSCustomObject]@{
+            QuerySucceeded       = $false
+            CapabilityAvailable  = $false
+            DirectoryOperationCount      = 0
+            SuccessCount                 = 0
+            FailureCount                 = 0
+            UserModificationCount        = 0
+            PrivilegedRoleChangeCount   = 0
+            GroupMembershipChangeCount  = 0
+            ApplicationConsentGrantCount = 0
+            MailboxModificationCount     = 0
+            PolicyModificationCount      = 0
+            ComplianceEvasionSignals     = @()
+            OverallRiskScore             = 0
+            RiskSignals                  = @()
+            Error                        = $DirectoryLogs.Error
+        }
+    }
+
+    $directoryEntries = Get-DecomQueryResultEntries -InputObject $DirectoryLogs
+
+    if (-not $directoryEntries -or $directoryEntries.Count -eq 0) {
+        return [PSCustomObject]@{
+            QuerySucceeded       = $true
+            CapabilityAvailable  = $true
             DirectoryOperationCount      = 0
             SuccessCount                 = 0
             FailureCount                 = 0
@@ -290,7 +352,7 @@ function Invoke-NhiAgentDirectoryAuditAnalysis {
     $complianceEvasionSignals = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $riskSignals = @()
 
-    foreach ($log in $DirectoryLogs) {
+    foreach ($log in $directoryEntries) {
         $operation = $log.OperationType
         $displayName = $log.OperationDisplayName
 
@@ -347,7 +409,7 @@ function Invoke-NhiAgentDirectoryAuditAnalysis {
     }
 
     # Build directory operation count
-    $directoryOperationCount = $DirectoryLogs.Count
+    $directoryOperationCount = $directoryEntries.Count
 
     # Calculate overall risk score
     $riskScore = 0
@@ -360,6 +422,8 @@ function Invoke-NhiAgentDirectoryAuditAnalysis {
     if ($riskScore -gt 100) { $riskScore = 100 }
 
     return [PSCustomObject]@{
+        QuerySucceeded                = $true
+        CapabilityAvailable           = $true
         DirectoryOperationCount       = $directoryOperationCount
         SuccessCount                  = $successCount
         FailureCount                  = $failureCount
@@ -417,7 +481,7 @@ function Invoke-NhiActivityLogScan {
     if ($days -eq 0) { $days = 30 }
 
     # NHI-ACT-001: Agent active sign-in (if SignInCount > 0)
-    if ($signInAnalysis.SignInCount -gt 0) {
+    if ($signInAnalysis.QuerySucceeded -and $signInAnalysis.SignInCount -gt 0) {
         $severity = if ($signInAnalysis.OverallRiskScore -lt 50) { 'Medium' } else { 'High' }
         $daysActive = [math]::Round(($endTime - $startTime).TotalDays, 0)
         if ($daysActive -eq 0) { $daysActive = 30 }
@@ -432,7 +496,7 @@ function Invoke-NhiActivityLogScan {
     }
 
     # NHI-ACT-002: Impossible travel detected
-    if ($signInAnalysis.ImpossibleTravelDetected) {
+    if ($signInAnalysis.QuerySucceeded -and $signInAnalysis.ImpossibleTravelDetected) {
         $findings += New-DecomFinding -FindingId 'NHI-ACT-002' `
             -Category 'NHI Activity - Impossible Travel' `
             -Severity 'Critical' `
@@ -443,7 +507,7 @@ function Invoke-NhiActivityLogScan {
     }
 
     # NHI-ACT-003: Burst sign-in pattern (> 10 in 1-hour window)
-    if ($signInAnalysis.MaxSignInInOneHour -gt 10) {
+    if ($signInAnalysis.QuerySucceeded -and $signInAnalysis.MaxSignInInOneHour -gt 10) {
         $findings += New-DecomFinding -FindingId 'NHI-ACT-003' `
             -Category 'NHI Activity - Burst Sign-in Pattern' `
             -Severity 'High' `
@@ -454,7 +518,7 @@ function Invoke-NhiActivityLogScan {
     }
 
     # NHI-ACT-004: Compliance evasion signals
-    if ($dirAnalysis.ComplianceEvasionSignals -and $dirAnalysis.ComplianceEvasionSignals.Count -gt 0) {
+    if ($dirAnalysis.QuerySucceeded -and $dirAnalysis.ComplianceEvasionSignals -and $dirAnalysis.ComplianceEvasionSignals.Count -gt 0) {
         $signalsJoined = $dirAnalysis.ComplianceEvasionSignals -join '; '
 
         $findings += New-DecomFinding -FindingId 'NHI-ACT-004' `
@@ -467,7 +531,7 @@ function Invoke-NhiActivityLogScan {
     }
 
     # NHI-ACT-005: No sign-in activity (informational)
-    if ($signInAnalysis.SignInCount -eq 0) {
+    if ($signInAnalysis.QuerySucceeded -and $signInAnalysis.SignInCount -eq 0) {
         $findings += New-DecomFinding -FindingId 'NHI-ACT-005' `
             -Category 'NHI Activity - No Sign-in Activity' `
             -Severity 'Informational' `

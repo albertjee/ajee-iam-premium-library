@@ -16,6 +16,10 @@ Describe 'Rev2.2 Discovery Coverage Model' {
         Import-Module (Join-Path $script:ModulesPath 'Analysis.psm1')   -Force -DisableNameChecking
     }
 
+    BeforeEach {
+        Reset-DecomRuntimeState
+    }
+
     Context 'New-DecomCoverage includes Rev2.2 fields' {
         It 'New-DecomCoverage contains PimEligibleAssignments initialised false' {
             $coverage = New-DecomCoverage
@@ -88,6 +92,10 @@ Describe 'Rev2.2 PIM Detection Logic' {
 
         Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1')  -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'Discovery.psm1')  -Force -DisableNameChecking
+    }
+
+    BeforeEach {
+        Reset-DecomRuntimeState
     }
 
     It 'PIM cmdlet unavailable does not throw' {
@@ -270,6 +278,10 @@ Describe 'Rev2.2 AP Detection Logic' {
 
         Import-Module (Join-Path $script:ModulesPath 'Utilities.psm1')  -Force -DisableNameChecking
         Import-Module (Join-Path $script:ModulesPath 'Discovery.psm1')  -Force -DisableNameChecking
+    }
+
+    BeforeEach {
+        Reset-DecomRuntimeState
     }
 
     It 'Disabled user with active access package assignment emits DEC-AP-001' {
