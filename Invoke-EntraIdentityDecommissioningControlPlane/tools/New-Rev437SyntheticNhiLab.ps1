@@ -167,6 +167,7 @@ function Export-Rev437SyntheticNhiLabInventory {
 }
 
 function Invoke-Rev437SyntheticNhiLabCreation {
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
         [Parameter(Mandatory)][string]$TenantId,
         [Parameter(Mandatory)][string]$OutputPath,
@@ -180,6 +181,37 @@ function Invoke-Rev437SyntheticNhiLabCreation {
     $definitions = @(Get-Rev437RequiredLabDefinitions)
     foreach ($definition in $definitions) {
         Assert-Rev437SyntheticNhiLabDefinition -Definition $definition
+    }
+
+    if ($WhatIfPreference) {
+        $dryRunInventory = foreach ($definition in $definitions) {
+            [pscustomobject]@{
+                DisplayName             = $definition.DisplayName
+                AppId                   = $null
+                ApplicationObjectId     = $null
+                ServicePrincipalObjectId = $null
+                TargetType              = [string]$definition.TargetType
+                Purpose                 = [string]$definition.Purpose
+                CreatedAt               = $null
+                TenantId                = $TenantId
+                SafeToDisable           = [bool]$definition.SafeToDisable
+                SafeToRollback          = [bool]$definition.SafeToRollback
+                ControlObject           = [bool]$definition.ControlObject
+                WhatIf                  = $true
+            }
+        }
+
+        return [pscustomobject]@{
+            TenantId               = $TenantId
+            OutputPath             = $OutputPath
+            WhatIf                 = $true
+            InventoryExported      = $false
+            LiveIdsAvailable       = $false
+            ObjectCount            = @($dryRunInventory).Count
+            Inventory              = @($dryRunInventory)
+            InventoryFile          = $null
+            Message                = 'WhatIf dry-run only. Live IDs are available after running without -WhatIf.'
+        }
     }
 
     if (-not (Get-Command Get-MgApplication -ErrorAction SilentlyContinue) -or
@@ -231,5 +263,5 @@ if ($MyInvocation.InvocationName -ne '.') {
     if (-not $ConfirmLabCreation) {
         throw 'ConfirmLabCreation is required.'
     }
-    Invoke-Rev437SyntheticNhiLabCreation -TenantId $TenantId -OutputPath $OutputPath -ConfirmLabCreation:$ConfirmLabCreation
+    Invoke-Rev437SyntheticNhiLabCreation -TenantId $TenantId -OutputPath $OutputPath -ConfirmLabCreation:$ConfirmLabCreation -WhatIf:$WhatIfPreference
 }

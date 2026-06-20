@@ -29,6 +29,34 @@ Describe 'Rev4.37 synthetic NHI lab assets' {
         { Invoke-Rev437SyntheticNhiLabCreation -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath (Join-Path $TestDrive 'rev437.json') } | Should -Throw
     }
 
+    Context 'generator WhatIf dry-run' {
+        BeforeEach {
+            Mock Get-MgApplication { @() }
+            Mock Get-MgServicePrincipal { @() }
+            Mock New-MgApplication { $null }
+            Mock New-MgServicePrincipal -ParameterFilter { [string]::IsNullOrWhiteSpace($AppId) } -MockWith {
+                throw 'empty AppId must never be used in WhatIf mode.'
+            }
+        }
+
+        It 'completes when New-MgApplication would not produce a real AppId' {
+            { Invoke-Rev437SyntheticNhiLabCreation -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath (Join-Path $TestDrive 'rev437.json') -ConfirmLabCreation -WhatIf } | Should -Not -Throw
+        }
+
+        It 'does not attempt service-principal creation with an empty AppId' {
+            $result = Invoke-Rev437SyntheticNhiLabCreation -TenantId '00000000-0000-0000-0000-000000000001' -OutputPath (Join-Path $TestDrive 'rev437.json') -ConfirmLabCreation -WhatIf
+
+            $result.WhatIf | Should -BeTrue
+            $result.InventoryExported | Should -BeFalse
+            $result.LiveIdsAvailable | Should -BeFalse
+            $result.InventoryFile | Should -BeNullOrEmpty
+
+            Assert-MockCalled New-MgApplication -Times 0 -Exactly
+            Assert-MockCalled New-MgServicePrincipal -Times 0 -Exactly
+            Assert-MockCalled Get-MgServicePrincipal -Times 0 -Exactly
+        }
+    }
+
     It 'inventory record contains the required output fields' {
         $definition = (Get-Rev437RequiredLabDefinitions)[1]
         $application = [pscustomobject]@{ Id = '11111111-1111-1111-1111-111111111111'; AppId = '22222222-2222-2222-2222-222222222222' }
