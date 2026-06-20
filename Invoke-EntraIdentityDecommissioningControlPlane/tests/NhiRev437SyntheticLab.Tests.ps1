@@ -111,6 +111,69 @@ Describe 'Rev4.37 synthetic NHI lab assets' {
         { Assert-Rev437SyntheticNhiLabInventory -Inventory (Get-Content -LiteralPath $badInventoryPath -Raw | ConvertFrom-Json) } | Should -Throw
     }
 
+    Context 'cleanup WhatIf dry-run' {
+        BeforeEach {
+            $script:CleanupWhatIfInventoryPath = Join-Path $TestDrive 'cleanup-whatif.json'
+            [pscustomobject]@{
+                SchemaVersion = '1.0'
+                CreatedAt = [DateTime]::UtcNow.ToString('o')
+                TenantId = '00000000-0000-0000-0000-000000000001'
+                Inventory = @(
+                    [pscustomobject]@{
+                        DisplayName = 'AJEE-LAB-NHI-KEEP-CONTROL'
+                        AppId = '11111111-1111-1111-1111-111111111111'
+                        ApplicationObjectId = '22222222-2222-2222-2222-222222222222'
+                        ServicePrincipalObjectId = '33333333-3333-3333-3333-333333333333'
+                        TargetType = 'ServicePrincipal'
+                        Purpose = 'control'
+                        CreatedAt = [DateTime]::UtcNow.ToString('o')
+                        TenantId = '00000000-0000-0000-0000-000000000001'
+                        SafeToDisable = $false
+                        SafeToRollback = $false
+                        ControlObject = $true
+                    }
+                    [pscustomobject]@{
+                        DisplayName = 'AJEE-LAB-NHI-DISABLE-ROLLBACK'
+                        AppId = '44444444-4444-4444-4444-444444444444'
+                        ApplicationObjectId = '55555555-5555-5555-5555-555555555555'
+                        ServicePrincipalObjectId = '66666666-6666-6666-6666-666666666666'
+                        TargetType = 'ServicePrincipal'
+                        Purpose = 'candidate'
+                        CreatedAt = [DateTime]::UtcNow.ToString('o')
+                        TenantId = '00000000-0000-0000-0000-000000000001'
+                        SafeToDisable = $true
+                        SafeToRollback = $true
+                        ControlObject = $false
+                    }
+                )
+            } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $script:CleanupWhatIfInventoryPath -Encoding utf8
+
+            Mock Remove-MgApplication { throw 'Remove-MgApplication must not be called in WhatIf.' }
+            Mock Remove-MgServicePrincipal { throw 'Remove-MgServicePrincipal must not be called in WhatIf.' }
+        }
+
+        It 'reports one planned delete and one preserved control object' {
+            $result = Remove-Rev437SyntheticNhiLab -TenantId '00000000-0000-0000-0000-000000000001' -InventoryPath $script:CleanupWhatIfInventoryPath -ConfirmCleanupPhrase 'DELETE AJEE-LAB-NHI INVENTORY OBJECTS' -WhatIf
+
+            $result.WhatIf | Should -BeTrue
+            $result.DeletableCount | Should -Be 1
+            $result.PlannedDeleteCount | Should -Be 1
+            $result.ControlObjectCount | Should -Be 1
+            $result.PlannedDeletes.Count | Should -Be 1
+            $result.PlannedDeletes[0].DisplayName | Should -Be 'AJEE-LAB-NHI-DISABLE-ROLLBACK'
+            $result.Deleted.Count | Should -Be 0
+            $result.PreservedControl.Count | Should -Be 1
+            $result.PreservedControl[0].DisplayName | Should -Be 'AJEE-LAB-NHI-KEEP-CONTROL'
+        }
+
+        It 'does not call Graph removal cmdlets in WhatIf' {
+            $null = Remove-Rev437SyntheticNhiLab -TenantId '00000000-0000-0000-0000-000000000001' -InventoryPath $script:CleanupWhatIfInventoryPath -ConfirmCleanupPhrase 'DELETE AJEE-LAB-NHI INVENTORY OBJECTS' -WhatIf
+
+            Assert-MockCalled Remove-MgServicePrincipal -Times 0 -Exactly
+            Assert-MockCalled Remove-MgApplication -Times 0 -Exactly
+        }
+    }
+
     It 'cleanup requires the explicit confirmation phrase' {
         { Remove-Rev437SyntheticNhiLab -TenantId '00000000-0000-0000-0000-000000000001' -InventoryPath (Join-Path $TestDrive 'missing.json') -ConfirmCleanupPhrase 'wrong phrase' } | Should -Throw
     }

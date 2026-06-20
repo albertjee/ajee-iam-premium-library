@@ -82,10 +82,11 @@ function Assert-Rev437SyntheticNhiLabInventory {
         }
     }
 
-    return ,$records
+    return $records
 }
 
 function Remove-Rev437SyntheticNhiLab {
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
         [Parameter(Mandatory)][string]$TenantId,
         [Parameter(Mandatory)][string]$InventoryPath,
@@ -98,8 +99,43 @@ function Remove-Rev437SyntheticNhiLab {
 
     $inventory = Read-Rev437SyntheticNhiLabInventory -Path $InventoryPath
     $records = @(Assert-Rev437SyntheticNhiLabInventory -Inventory $inventory)
-    $deletableRecords = @($records | Where-Object { $_.ControlObject -ne $true })
-    $controlRecords = @($records | Where-Object { $_.ControlObject -eq $true })
+    $deletableRecords = [System.Collections.Generic.List[object]]::new()
+    $controlRecords = [System.Collections.Generic.List[object]]::new()
+    foreach ($record in $records) {
+        $isControl = [bool]::Parse([string]$record.ControlObject)
+        if ($isControl) {
+            $controlRecords.Add($record) | Out-Null
+            continue
+        }
+
+        $deletableRecords.Add($record) | Out-Null
+    }
+
+    $plannedDeletes = foreach ($record in $deletableRecords) {
+        [pscustomobject]@{
+            DisplayName             = $record.DisplayName
+            ApplicationObjectId     = $record.ApplicationObjectId
+            ServicePrincipalObjectId = $record.ServicePrincipalObjectId
+            ControlObject           = [bool]$record.ControlObject
+            PlannedDelete           = $true
+        }
+    }
+
+    if ($WhatIfPreference) {
+        return [pscustomobject]@{
+            TenantId           = $TenantId
+            InventoryPath       = $InventoryPath
+            ExpectedPrefix      = $script:RequiredPrefix
+            ConfirmationPhrase  = $ConfirmCleanupPhrase
+            WhatIf              = $true
+            DeletableCount      = ($plannedDeletes | Measure-Object).Count
+            PlannedDeleteCount   = ($plannedDeletes | Measure-Object).Count
+            ControlObjectCount   = ($controlRecords | Measure-Object).Count
+            PlannedDeletes      = @($plannedDeletes)
+            Deleted            = @()
+            PreservedControl   = @($controlRecords)
+        }
+    }
 
     if (-not (Get-Command Remove-MgApplication -ErrorAction SilentlyContinue) -or
         -not (Get-Command Remove-MgServicePrincipal -ErrorAction SilentlyContinue)) {
@@ -137,8 +173,10 @@ function Remove-Rev437SyntheticNhiLab {
         InventoryPath       = $InventoryPath
         ExpectedPrefix      = $script:RequiredPrefix
         ConfirmationPhrase  = $ConfirmCleanupPhrase
-        DeletableCount      = $deletableRecords.Count
-        ControlObjectCount   = $controlRecords.Count
+        DeletableCount      = ($plannedDeletes | Measure-Object).Count
+        PlannedDeleteCount   = ($plannedDeletes | Measure-Object).Count
+        ControlObjectCount   = ($controlRecords | Measure-Object).Count
+        PlannedDeletes      = @($plannedDeletes)
         Deleted             = @($actions)
         PreservedControl    = @($controlRecords)
     }
@@ -154,5 +192,5 @@ if ($MyInvocation.InvocationName -ne '.') {
     if ([string]::IsNullOrWhiteSpace($ConfirmCleanupPhrase)) {
         throw 'ConfirmCleanupPhrase is required.'
     }
-    Remove-Rev437SyntheticNhiLab -TenantId $TenantId -InventoryPath $InventoryPath -ConfirmCleanupPhrase $ConfirmCleanupPhrase
+    Remove-Rev437SyntheticNhiLab -TenantId $TenantId -InventoryPath $InventoryPath -ConfirmCleanupPhrase $ConfirmCleanupPhrase -WhatIf:$WhatIfPreference
 }
