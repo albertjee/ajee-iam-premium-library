@@ -47,6 +47,41 @@ $script:Rev438ReadinessScriptPath = Join-Path $PSScriptRoot 'Test-Rev438LabLiveD
 $script:Rev438DisableScriptPath = Join-Path $PSScriptRoot 'Invoke-Rev438LabLiveReversibleDisable.ps1'
 $script:Rev439RollbackScriptPath = Join-Path $PSScriptRoot 'Invoke-Rev439LabLiveRollback.ps1'
 
+function Get-NhiExpectedApprovalPhrase {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('ReversibleDisable', 'RollbackDisable')]
+        [string]$Action
+    )
+
+    switch ($Action) {
+        'ReversibleDisable' { return $script:ExpectedRev438ApprovalPhrase }
+        'RollbackDisable' { return $script:ExpectedRev439ApprovalPhrase }
+    }
+}
+
+function Assert-NhiApprovalPhrase {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('ReversibleDisable', 'RollbackDisable')]
+        [string]$Action,
+
+        [Parameter(Mandatory)]
+        [string]$ApprovalPhrase
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ApprovalPhrase)) {
+        throw 'ApprovalPhrase is required for Execute mode.'
+    }
+
+    $expectedApprovalPhrase = Get-NhiExpectedApprovalPhrase -Action $Action
+    if ($ApprovalPhrase -ne $expectedApprovalPhrase) {
+        throw "ApprovalPhrase does not match the approved phrase for $Action."
+    }
+
+    return $expectedApprovalPhrase
+}
+
 function Write-NhiJsonArtifact {
     param(
         [Parameter(Mandatory)]
@@ -69,14 +104,23 @@ function Write-NhiJsonArtifact {
 function Get-NhiRunRoot {
     param(
         [AllowNull()]
-        [string]$OutputRoot
+        [string]$OutputRoot,
+
+        [switch]$CreateIfMissing
     )
 
     if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
-        return Join-Path 'C:\temp\IAM' ('Rev440SingleObjectLifecycleRun-{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+        $runRoot = Join-Path 'C:\temp\IAM' ('Rev440SingleObjectLifecycleRun-{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    }
+    else {
+        $runRoot = [System.IO.Path]::GetFullPath($OutputRoot)
     }
 
-    return [System.IO.Path]::GetFullPath($OutputRoot)
+    if ($CreateIfMissing -and -not (Test-Path -LiteralPath $runRoot -PathType Container)) {
+        $null = New-Item -ItemType Directory -Path $runRoot -Force
+    }
+
+    return $runRoot
 }
 
 function Get-NhiModeOutputPath {
@@ -85,10 +129,17 @@ function Get-NhiModeOutputPath {
         [string]$RunRoot,
 
         [Parameter(Mandatory)]
-        [string]$Mode
+        [string]$Mode,
+
+        [switch]$CreateIfMissing
     )
 
-    return Join-Path $RunRoot $Mode.ToLowerInvariant()
+    $outputPath = Join-Path $RunRoot $Mode.ToLowerInvariant()
+    if ($CreateIfMissing -and -not (Test-Path -LiteralPath $outputPath -PathType Container)) {
+        $null = New-Item -ItemType Directory -Path $outputPath -Force
+    }
+
+    return $outputPath
 }
 
 function New-NhiRev438ApprovalManifest {
@@ -369,14 +420,18 @@ function Start-NhiSingleObjectLifecycle {
         throw 'Readiness mode is only supported for ReversibleDisable.'
     }
 
-    $runRoot = Get-NhiRunRoot -OutputRoot $OutputRoot
-    if (-not (Test-Path -LiteralPath $runRoot -PathType Container)) {
-        $null = New-Item -ItemType Directory -Path $runRoot -Force
-    }
+    $createIfMissing = $Mode -ne 'Closeout'
+    $runRoot = Get-NhiRunRoot -OutputRoot $OutputRoot -CreateIfMissing:$createIfMissing
+    $outputPath = Get-NhiModeOutputPath -RunRoot $runRoot -Mode $Mode -CreateIfMissing:$createIfMissing
 
-    $outputPath = Get-NhiModeOutputPath -RunRoot $runRoot -Mode $Mode
-    if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
-        $null = New-Item -ItemType Directory -Path $outputPath -Force
+    if (-not $createIfMissing) {
+        if (-not (Test-Path -LiteralPath $runRoot -PathType Container)) {
+            throw "STOP: Closeout requires an existing run root. Create or reuse the prior lifecycle output root before running Closeout."
+        }
+
+        if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
+            throw "STOP: Closeout requires an existing output path. Aggregate only from pre-existing lifecycle artifacts."
+        }
     }
 
     $runId = 'REV440-{0}' -f ([guid]::NewGuid().ToString('N'))
@@ -431,27 +486,25 @@ function Start-NhiSingleObjectLifecycle {
         }
 
         'Execute' {
-            if ([string]::IsNullOrWhiteSpace($ApprovalPhrase)) {
-                throw 'ApprovalPhrase is required for Execute mode.'
-            }
+            $approvalToUse = Assert-NhiApprovalPhrase -Action $Action -ApprovalPhrase $ApprovalPhrase
 
             if (-not $PSCmdlet.ShouldProcess($TargetObjectId, "Execute $Action")) {
                 break
             }
 
             if ($Action -eq 'ReversibleDisable') {
-                $approvalManifest = New-NhiRev438ApprovalManifest -RunId $runId -TenantId $TenantId -TargetObjectId $TargetObjectId -TargetDisplayName $targetDisplayName -AppId $targetAppId -ApprovalPhrase $ApprovalPhrase
+                $approvalManifest = New-NhiRev438ApprovalManifest -RunId $runId -TenantId $TenantId -TargetObjectId $TargetObjectId -TargetDisplayName $targetDisplayName -AppId $targetAppId -ApprovalPhrase $approvalToUse
                 $approvalManifestPath = Write-NhiJsonArtifact -Path (Join-Path $outputPath 'rev438-live-disable-approval.json') -InputObject $approvalManifest
                 $underlyingScript = $script:Rev438DisableScriptPath
-                $childSummary = Invoke-NhiRev438LiveDisable -TenantId $TenantId -InventoryPath $InventoryPath -ApprovalManifestPath $approvalManifestPath -OutputPath $outputPath -ConfirmLiveDisablePhrase $ApprovalPhrase -Confirm:$false
+                $childSummary = Invoke-NhiRev438LiveDisable -TenantId $TenantId -InventoryPath $InventoryPath -ApprovalManifestPath $approvalManifestPath -OutputPath $outputPath -ConfirmLiveDisablePhrase $approvalToUse -Confirm:$false
                 $childRunSummaryPath = [string]$childSummary.OutputArtifactPath
                 $safetyGatePassed = [bool]$childSummary.SafetyGatePassed
                 $liveMutationPerformed = [bool]$childSummary.LiveMutationPerformed
             } elseif ($Action -eq 'RollbackDisable') {
-                $approvalManifest = New-NhiRev439ApprovalManifest -RunId $runId -TenantId $TenantId -TargetObjectId $TargetObjectId -TargetDisplayName $targetDisplayName -AppId $targetAppId -ApprovalPhrase $ApprovalPhrase
+                $approvalManifest = New-NhiRev439ApprovalManifest -RunId $runId -TenantId $TenantId -TargetObjectId $TargetObjectId -TargetDisplayName $targetDisplayName -AppId $targetAppId -ApprovalPhrase $approvalToUse
                 $approvalManifestPath = Write-NhiJsonArtifact -Path (Join-Path $outputPath 'rev439-live-rollback-approval.json') -InputObject $approvalManifest
                 $underlyingScript = $script:Rev439RollbackScriptPath
-                $childSummary = Invoke-NhiRev439LiveRollback -TenantId $TenantId -InventoryPath $InventoryPath -ApprovalManifestPath $approvalManifestPath -OutputPath $outputPath -ConfirmLiveRollbackPhrase $ApprovalPhrase -Confirm:$false
+                $childSummary = Invoke-NhiRev439LiveRollback -TenantId $TenantId -InventoryPath $InventoryPath -ApprovalManifestPath $approvalManifestPath -OutputPath $outputPath -ConfirmLiveRollbackPhrase $approvalToUse -Confirm:$false
                 $childRunSummaryPath = [string]$childSummary.OutputArtifactPath
                 $safetyGatePassed = [bool]$childSummary.SafetyGatePassed
                 $liveMutationPerformed = [bool]$childSummary.LiveMutationPerformed
@@ -484,7 +537,7 @@ function Start-NhiSingleObjectLifecycle {
         UnderlyingScript = $underlyingScript
         ApprovalManifestPath = $approvalManifestPath
         OutputPath = $outputPath
-        WhatIf = [bool]$WhatIfPreference
+        WhatIf = ($Mode -eq 'WhatIf') -or [bool]$WhatIfPreference
         LiveMutationRequested = $liveMutationRequested
         LiveMutationPerformed = $liveMutationPerformed
         SafetyGatePassed = $safetyGatePassed

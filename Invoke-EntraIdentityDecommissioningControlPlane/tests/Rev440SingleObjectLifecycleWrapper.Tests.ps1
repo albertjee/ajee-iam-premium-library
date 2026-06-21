@@ -105,7 +105,7 @@ function script:New-FakeLiveSummary {
     return $summary
 }
 
-function global:Get-MgServicePrincipal {
+function script:Get-MgServicePrincipal {
     throw 'Graph cmdlet stub must be mocked in tests.'
 }
 
@@ -130,6 +130,10 @@ Describe 'Rev4.40 single object lifecycle wrapper' {
     BeforeEach {
         $script:RunRoot = Join-Path $TestDrive ('rev440-' + [guid]::NewGuid().ToString('N'))
         $null = New-Item -ItemType Directory -Path $script:RunRoot -Force
+    }
+
+    AfterAll {
+        Remove-Item -LiteralPath Function:\Get-MgServicePrincipal -ErrorAction SilentlyContinue
     }
 
     It 'exists' {
@@ -214,9 +218,12 @@ Describe 'Rev4.40 single object lifecycle wrapper' {
             New-FakeLiveSummary -OutputPath $OutputPath -ArtifactName 'rev438-run-summary.json'
         }
 
-        $null = Start-NhiSingleObjectLifecycle -TenantId $script:TenantId -Action ReversibleDisable -Mode WhatIf -TargetObjectId $script:TargetObjectId -InventoryPath $script:InventoryPath -OutputRoot $script:RunRoot
+        $result = Start-NhiSingleObjectLifecycle -TenantId $script:TenantId -Action ReversibleDisable -Mode WhatIf -TargetObjectId $script:TargetObjectId -InventoryPath $script:InventoryPath -OutputRoot $script:RunRoot
+        $summary = Get-Content -Raw -LiteralPath $result.WrapperRunSummaryPath | ConvertFrom-Json
 
         Assert-MockCalled Invoke-NhiRev438LiveDisable -Times 1 -Exactly -ParameterFilter { $WhatIf }
+        $summary.Mode | Should -Be 'WhatIf'
+        $summary.WhatIf | Should -BeTrue
     }
 
     It 'WhatIf mode calls the Rev4.39 child helper with -WhatIf' {
@@ -225,13 +232,28 @@ Describe 'Rev4.40 single object lifecycle wrapper' {
             New-FakeLiveSummary -OutputPath $OutputPath -ArtifactName 'rev439-run-summary.json'
         }
 
-        $null = Start-NhiSingleObjectLifecycle -TenantId $script:TenantId -Action RollbackDisable -Mode WhatIf -TargetObjectId $script:TargetObjectId -InventoryPath $script:InventoryPath -OutputRoot $script:RunRoot
+        $result = Start-NhiSingleObjectLifecycle -TenantId $script:TenantId -Action RollbackDisable -Mode WhatIf -TargetObjectId $script:TargetObjectId -InventoryPath $script:InventoryPath -OutputRoot $script:RunRoot
+        $summary = Get-Content -Raw -LiteralPath $result.WrapperRunSummaryPath | ConvertFrom-Json
 
         Assert-MockCalled Invoke-NhiRev439LiveRollback -Times 1 -Exactly -ParameterFilter { $WhatIf }
+        $summary.Mode | Should -Be 'WhatIf'
+        $summary.WhatIf | Should -BeTrue
     }
 
     It 'Execute mode requires ApprovalPhrase' {
         { Start-NhiSingleObjectLifecycle -TenantId $script:TenantId -Action ReversibleDisable -Mode Execute -TargetObjectId $script:TargetObjectId -InventoryPath $script:InventoryPath -OutputRoot $script:RunRoot } | Should -Throw
+    }
+
+    It 'Execute mode rejects an incorrect approval phrase before child invocation' {
+        Mock Invoke-NhiRev438LiveDisable { throw 'Rev4.38 live disable helper must not be called with an invalid approval phrase.' }
+
+        { Start-NhiSingleObjectLifecycle -TenantId $script:TenantId -Action ReversibleDisable -Mode Execute -TargetObjectId $script:TargetObjectId -InventoryPath $script:InventoryPath -OutputRoot $script:RunRoot -ApprovalPhrase 'APPROVE REV4.39 LIVE ROLLBACK AJEE-LAB-NHI-DISABLE-ROLLBACK ONLY' } | Should -Throw
+    }
+
+    It 'Rollback execute mode rejects an incorrect approval phrase before child invocation' {
+        Mock Invoke-NhiRev439LiveRollback { throw 'Rev4.39 live rollback helper must not be called with an invalid approval phrase.' }
+
+        { Start-NhiSingleObjectLifecycle -TenantId $script:TenantId -Action RollbackDisable -Mode Execute -TargetObjectId $script:TargetObjectId -InventoryPath $script:InventoryPath -OutputRoot $script:RunRoot -ApprovalPhrase 'APPROVE REV4.38 LIVE DISABLE AJEE-LAB-NHI-DISABLE-ROLLBACK ONLY' } | Should -Throw
     }
 
     It 'does not contain Update-MgServicePrincipal or Remove-Mg*' {
@@ -266,6 +288,7 @@ Describe 'Rev4.40 single object lifecycle wrapper' {
         $summary.TargetObjectId | Should -Be $script:TargetObjectId
         $summary.ChildRunSummaryPath | Should -Match 'rev438-live-run-readiness\.json$'
         $summary.LiveMutationRequested | Should -BeFalse
+        $summary.WhatIf | Should -BeFalse
     }
 
     It 'Verify mode is read-only and does not call child live mutation helpers' {
@@ -302,6 +325,7 @@ Describe 'Rev4.40 single object lifecycle wrapper' {
     }
 
     It 'Closeout mode is local-artifact-only' {
+        $null = New-Item -ItemType Directory -Path (Join-Path $script:RunRoot 'closeout') -Force
         $null = Write-TestJson -Path (Join-Path $script:RunRoot 'rev438-run-summary.json') -InputObject ([pscustomobject]@{ OutputArtifactPath = 'C:\temp\IAM\fake\rev438-run-summary.json' })
         $null = Write-TestJson -Path (Join-Path $script:RunRoot 'rev439-run-summary.json') -InputObject ([pscustomobject]@{ OutputArtifactPath = 'C:\temp\IAM\fake\rev439-run-summary.json' })
 
