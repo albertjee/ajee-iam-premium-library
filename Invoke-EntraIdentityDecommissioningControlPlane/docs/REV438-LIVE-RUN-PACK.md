@@ -50,3 +50,4 @@ The readiness script fails closed unless all of the following are true:
 - This pack does not execute the live disable.
 - This pack does not add final-delete support.
 - This pack does not add `Remove-Mg*` calls.
+- The first Rev4.38 live-disable attempt produced a process deviation and was evidence-captured in `C:\temp\IAM\Rev438LiveRun-20260620-220538\rev438-live-disable-process-deviation.json`.

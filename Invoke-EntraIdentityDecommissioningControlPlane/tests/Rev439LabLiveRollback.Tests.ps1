@@ -19,6 +19,48 @@ function script:Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 20) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
+function script:Get-FileCommandCounts {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $errors = $null
+    $tokens = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$tokens, [ref]$errors)
+    if ($errors.Count -gt 0) {
+        throw "Parse errors in $Path : $($errors.Count)"
+    }
+
+    $commands = $ast.FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.CommandAst]
+    }, $true)
+
+    [pscustomobject]@{
+        UpdateCount = @($commands | Where-Object { $_.GetCommandName() -ieq 'Update-MgServicePrincipal' }).Count
+        RemoveCount = @($commands | Where-Object { $_.GetCommandName() -like 'Remove-Mg*' }).Count
+    }
+}
+
+function script:New-FakeShouldProcessContext {
+    param(
+        [Parameter(Mandatory)]
+        [bool]$ReturnValue
+    )
+
+    $context = [pscustomobject]@{
+        ReturnValue = $ReturnValue
+    }
+
+    $null = $context | Add-Member -MemberType ScriptMethod -Name ShouldProcess -Value {
+        param($target, $action)
+        return $this.ReturnValue
+    } -PassThru
+
+    return $context
+}
+
 function script:New-Rev439InventoryRecord {
     param(
         [Parameter(Mandatory)]
@@ -115,6 +157,8 @@ function script:New-Rev439ApprovalManifest {
 Describe 'Rev4.39 lab live rollback gate' {
     BeforeAll {
         $script:RollbackScriptPath = Join-Path $PSScriptRoot '..\tools\Invoke-Rev439LabLiveRollback.ps1'
+        . $script:RollbackScriptPath -TenantId '00000000-0000-0000-0000-000000000000' -InventoryPath 'C:\temp\dummy-inventory.json' -ApprovalManifestPath 'C:\temp\dummy-approval.json' -OutputPath 'C:\temp\dummy-output' -ConfirmLiveRollbackPhrase 'DUMMY'
+        $script:ScriptCommandCounts = Get-FileCommandCounts -Path $script:RollbackScriptPath
 
         $script:TenantId = '3177c971-05c9-4b7b-93a1-0edf6fd7237d'
         $script:TargetDisplayName = 'AJEE-LAB-NHI-DISABLE-ROLLBACK'
@@ -278,12 +322,32 @@ Describe 'Rev4.39 lab live rollback gate' {
         Assert-MockCalled Update-MgServicePrincipal -Times 0 -Exactly
     }
 
-    It 'live path is gated by ShouldProcess' {
-        $result = & $script:RollbackScriptPath -TenantId $script:TenantId -InventoryPath $script:InventoryPath -ApprovalManifestPath $script:ApprovalPath -OutputPath $script:OutputPath -ConfirmLiveRollbackPhrase $script:RollbackPhrase -Confirm:$false
-        $result.LiveMutationPerformed | Should -BeTrue
+    It 'Throws a clear fail-closed error when live path has no ShouldProcess context' {
+        { Test-Rev439LiveMutationShouldProceed -WhatIfActive:$false -CmdletContext $null -TargetObjectId $script:TargetServicePrincipalObjectId -ActionDescription 'Set service principal AccountEnabled to true' } | Should -Throw
+
+        try {
+            Test-Rev439LiveMutationShouldProceed -WhatIfActive:$false -CmdletContext $null -TargetObjectId $script:TargetServicePrincipalObjectId -ActionDescription 'Set service principal AccountEnabled to true'
+            throw 'Expected fail-closed error was not thrown.'
+        } catch {
+            $_.Exception.Message | Should -Match 'FAIL-CLOSED'
+        }
+    }
+
+    It 'live path executes when ShouldProcess allows and calls Update-MgServicePrincipal exactly once' {
+        { $script:LiveResult = & $script:RollbackScriptPath -TenantId $script:TenantId -InventoryPath $script:InventoryPath -ApprovalManifestPath $script:ApprovalPath -OutputPath $script:OutputPath -ConfirmLiveRollbackPhrase $script:RollbackPhrase -Confirm:$false } | Should -Not -Throw
+        $script:LiveResult.LiveMutationPerformed | Should -BeTrue
         Assert-MockCalled Update-MgServicePrincipal -Times 1 -Exactly -ParameterFilter {
             $ServicePrincipalId -eq $script:TargetServicePrincipalObjectId -and $AccountEnabled -eq $true
         }
+    }
+
+    It 'Returns false when ShouldProcess declines the live rollback' {
+        Test-Rev439LiveMutationShouldProceed -WhatIfActive:$false -CmdletContext (New-FakeShouldProcessContext -ReturnValue:$false) -TargetObjectId $script:TargetServicePrincipalObjectId -ActionDescription 'Set service principal AccountEnabled to true' | Should -BeFalse
+    }
+
+    It 'contains exactly one Update-MgServicePrincipal command and no Remove-Mg* commands' {
+        $script:ScriptCommandCounts.UpdateCount | Should -Be 1
+        $script:ScriptCommandCounts.RemoveCount | Should -Be 0
     }
 
     It 'allowed mutation surface is exactly Update-MgServicePrincipal AccountEnabled:true' {
