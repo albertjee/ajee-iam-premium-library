@@ -50,4 +50,4 @@ The readiness script fails closed unless all of the following are true:
 - This pack does not execute the live disable.
 - This pack does not add final-delete support.
 - This pack does not add `Remove-Mg*` calls.
-- The first Rev4.38 live-disable attempt produced a process deviation and was evidence-captured in `C:\temp\IAM\Rev438LiveRun-20260620-220538\rev438-live-disable-process-deviation.json`.
+- Operational note: the first Rev4.38 live-disable attempt produced a documented process deviation when the wrapper hit a missing ShouldProcess context before mutation. The operator then performed the approved direct Graph disable for the single lab target and captured local evidence showing one target changed and zero non-target lab service principals changed. The timestamped `C:\temp\IAM\Rev438LiveRun-20260620-220538\` run-root artifacts are local runtime evidence, not durable Git-tracked records; this note preserves the durable summary. This hotfix updates the live wrappers to fail closed when ShouldProcess context is unavailable, and future rollback should use the fixed wrapper path rather than direct Graph.
