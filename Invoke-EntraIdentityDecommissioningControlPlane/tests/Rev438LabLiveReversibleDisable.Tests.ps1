@@ -70,6 +70,9 @@ function script:New-Rev438ApprovalManifest {
         [string]$AppId,
 
         [Parameter()]
+        [string]$RunId = 'REV438-TEST-RUN',
+
+        [Parameter()]
         [string[]]$TargetObjectIds = @($TargetObjectId),
 
         [Parameter()]
@@ -79,18 +82,18 @@ function script:New-Rev438ApprovalManifest {
         [string]$ApprovalPhrase = 'APPROVE REV4.38 LIVE DISABLE AJEE-LAB-NHI-DISABLE-ROLLBACK ONLY',
 
         [Parameter()]
-        [bool]$RollbackReady = $true,
+        [object]$RollbackReady = $true,
 
         [Parameter()]
-        [bool]$LiveMutationApproved = $true,
+        [object]$LiveMutationApproved = $true,
 
         [Parameter()]
-        [bool]$FinalDeleteApproved = $false
+        [object]$FinalDeleteApproved = $false
     )
 
     [pscustomobject]@{
         SchemaVersion = '4.38'
-        RunId = 'REV438-TEST-RUN'
+        RunId = $RunId
         Status = 'Approved'
         ApprovedBy = 'lab-approver@example.com'
         ApprovedUtc = [DateTime]::UtcNow.ToString('o')
@@ -122,8 +125,11 @@ Describe 'Rev4.38 lab live reversible disable gate' {
         $script:ControlDisplayName = 'AJEE-LAB-NHI-KEEP-CONTROL'
         $script:ControlServicePrincipalObjectId = 'b574ecc2-443f-4963-9cd4-cb5da517a717'
         $script:ApprovalPhrase = 'APPROVE REV4.38 LIVE DISABLE AJEE-LAB-NHI-DISABLE-ROLLBACK ONLY'
-        $script:RunOutput = Join-Path $TestDrive 'rev438'
+        $script:RunId = 'REV438-BASELINE'
+        $script:RunOutput = Join-Path $TestDrive 'rev438-baseline'
         $null = New-Item -ItemType Directory -Path $script:RunOutput -Force
+        $script:ApprovalPath = Join-Path $TestDrive 'rev438-approval.json'
+        Write-TestJson -Path $script:ApprovalPath -InputObject (New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId -RunId $script:RunId)
 
         $script:InventoryDocument = [pscustomobject]@{
             SchemaVersion = '4.37'
@@ -141,9 +147,15 @@ Describe 'Rev4.38 lab live reversible disable gate' {
 
         $script:InventoryPath = Join-Path $TestDrive 'rev438-inventory.json'
         Write-TestJson -Path $script:InventoryPath -InputObject $script:InventoryDocument
+    }
 
-        $script:ApprovalPath = Join-Path $TestDrive 'rev438-approval.json'
-        Write-TestJson -Path $script:ApprovalPath -InputObject (New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId)
+    BeforeEach {
+        $script:RunId = 'REV438-{0}' -f ([guid]::NewGuid().ToString('N'))
+        $script:RunOutput = Join-Path $TestDrive $script:RunId
+        $null = New-Item -ItemType Directory -Path $script:RunOutput -Force
+
+        $script:ApprovalPath = Join-Path $TestDrive "$($script:RunId)-approval.json"
+        Write-TestJson -Path $script:ApprovalPath -InputObject (New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId -RunId $script:RunId)
     }
 
     BeforeEach {
@@ -242,6 +254,50 @@ Describe 'Rev4.38 lab live reversible disable gate' {
         Write-TestJson -Path $approvalPath -InputObject $approval
 
         { Invoke-Rev438LabLiveReversibleDisable -TenantId $script:TenantId -InventoryPath $script:InventoryPath -ApprovalManifestPath $approvalPath -OutputPath $script:RunOutput -ConfirmLiveDisablePhrase $script:ApprovalPhrase -WhatIf } | Should -Throw
+        $gate = Assert-Rev438LabGate -TenantId $script:TenantId -InventoryRecords $script:InventoryDocument.Inventory -ApprovalManifest $approval -ConfirmLiveDisablePhrase $script:ApprovalPhrase
+        $gate.Passed | Should -BeFalse
+        ($gate.Reasons | Where-Object { $_ -match 'Approval must authorize only ReversibleDisable or DisableOnly' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It 'Treats string false as false in rollback readiness validation' {
+        $approval = New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId -RollbackReady 'false'
+        $gate = Assert-Rev438LabGate -TenantId $script:TenantId -InventoryRecords $script:InventoryDocument.Inventory -ApprovalManifest $approval -ConfirmLiveDisablePhrase $script:ApprovalPhrase
+
+        $gate.Passed | Should -BeFalse
+        ($gate.Reasons | Where-Object { $_ -match 'Approval manifest must mark rollback readiness true' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It 'Fails closed on invalid rollback boolean strings' {
+        $approval = New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId -RollbackReady 'maybe'
+        $gate = Assert-Rev438LabGate -TenantId $script:TenantId -InventoryRecords $script:InventoryDocument.Inventory -ApprovalManifest $approval -ConfirmLiveDisablePhrase $script:ApprovalPhrase
+
+        $gate.Passed | Should -BeFalse
+        ($gate.Reasons | Where-Object { $_ -match 'RollbackReady must be a boolean value' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It 'Rejects LiveMutationApproved=false' {
+        $approval = New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId -LiveMutationApproved $false
+        $gate = Assert-Rev438LabGate -TenantId $script:TenantId -InventoryRecords $script:InventoryDocument.Inventory -ApprovalManifest $approval -ConfirmLiveDisablePhrase $script:ApprovalPhrase
+
+        $gate.Passed | Should -BeFalse
+        ($gate.Reasons | Where-Object { $_ -match 'explicitly approve live mutation' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It 'Rejects FinalDeleteApproved=true' {
+        $approval = New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId -FinalDeleteApproved $true
+        $gate = Assert-Rev438LabGate -TenantId $script:TenantId -InventoryRecords $script:InventoryDocument.Inventory -ApprovalManifest $approval -ConfirmLiveDisablePhrase $script:ApprovalPhrase
+
+        $gate.Passed | Should -BeFalse
+        ($gate.Reasons | Where-Object { $_ -match 'FinalDelete must not be approved' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It 'Rejects disallowed ApprovedActions values' {
+        $approval = New-Rev438ApprovalManifest -TenantId $script:TenantId -TargetObjectId $script:TargetServicePrincipalObjectId -DisplayName $script:TargetDisplayName -AppId $script:TargetAppId
+        $approval.ApprovedActions = @('FinalDelete')
+        $gate = Assert-Rev438LabGate -TenantId $script:TenantId -InventoryRecords $script:InventoryDocument.Inventory -ApprovalManifest $approval -ConfirmLiveDisablePhrase $script:ApprovalPhrase
+
+        $gate.Passed | Should -BeFalse
+        ($gate.Reasons | Where-Object { $_ -match 'ApprovedActions contains a disallowed value' }) | Should -Not -BeNullOrEmpty
     }
 
     It 'Rejects any changed-object manifest containing more than one object ID' {

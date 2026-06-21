@@ -108,6 +108,29 @@ function Get-Rev438PropertyValue {
     return $Default
 }
 
+function ConvertTo-Rev438StrictBoolean {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Value,
+
+        [Parameter(Mandatory)]
+        [string]$PropertyName
+    )
+
+    if ($Value -is [bool]) {
+        return [bool]$Value
+    }
+
+    if ($Value -is [string]) {
+        switch ($Value.Trim().ToLowerInvariant()) {
+            'true' { return $true }
+            'false' { return $false }
+        }
+    }
+
+    throw "$PropertyName must be a boolean value."
+}
+
 function Assert-Rev438LabGate {
     param(
         [Parameter(Mandatory)]
@@ -192,9 +215,59 @@ function Assert-Rev438LabGate {
     $targetTenantId = [string](Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('TenantId'))
     $approvedAction = [string](Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovedAction', 'ActionType'))
     $approvalPhrase = [string](Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovalPhrase', 'ConfirmLiveDisablePhrase'))
-    $rollbackReady = [bool](Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('RollbackReady') -Default $false)
-    $liveMutationApproved = [bool](Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('LiveMutationApproved') -Default $false)
-    $finalDeleteApproved = [bool](Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('FinalDeleteApproved') -Default $false)
+    $approvedActionsValue = Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('ApprovedActions')
+    $rollbackReadyValue = Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('RollbackReady')
+    $liveMutationApprovedValue = Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('LiveMutationApproved')
+    $finalDeleteApprovedValue = Get-Rev438PropertyValue -InputObject $ApprovalManifest -PropertyNames @('FinalDeleteApproved')
+
+    $rollbackReady = $false
+    try {
+        $rollbackReady = ConvertTo-Rev438StrictBoolean -Value $rollbackReadyValue -PropertyName 'RollbackReady'
+    } catch {
+        $reasons.Add($_.Exception.Message)
+    }
+
+    $liveMutationApproved = $false
+    try {
+        $liveMutationApproved = ConvertTo-Rev438StrictBoolean -Value $liveMutationApprovedValue -PropertyName 'LiveMutationApproved'
+    } catch {
+        $reasons.Add($_.Exception.Message)
+    }
+
+    $finalDeleteApproved = $false
+    try {
+        $finalDeleteApproved = ConvertTo-Rev438StrictBoolean -Value $finalDeleteApprovedValue -PropertyName 'FinalDeleteApproved'
+    } catch {
+        $reasons.Add($_.Exception.Message)
+    }
+
+    if ($null -ne $approvedActionsValue) {
+        $approvedActions = @()
+        if ($approvedActionsValue -is [string]) {
+            $approvedActions = @([string]$approvedActionsValue)
+        } elseif ($approvedActionsValue -is [System.Collections.IEnumerable]) {
+            $approvedActions = @($approvedActionsValue | ForEach-Object { [string]$_ })
+        } else {
+            $approvedActions = @([string]$approvedActionsValue)
+        }
+
+        if ($approvedActions.Count -eq 0) {
+            $reasons.Add('ApprovedActions must not be empty when present.')
+        } elseif ($approvedActions.Count -gt 1) {
+            $reasons.Add('ApprovedActions must contain exactly one value.')
+        } else {
+            $approvedActionFromArray = $approvedActions[0]
+            if ($approvedActionFromArray -notin $script:AllowedApprovedActions) {
+                $reasons.Add('ApprovedActions contains a disallowed value.')
+            }
+            if ($approvedAction -and $approvedAction -ne $approvedActionFromArray) {
+                $reasons.Add('ApprovedAction and ApprovedActions must match.')
+            }
+            if (-not $approvedAction) {
+                $approvedAction = $approvedActionFromArray
+            }
+        }
+    }
 
     if ($targetObjectIds.Count -ne 1) {
         $reasons.Add('Approval manifest must contain exactly one TargetObjectId.')
