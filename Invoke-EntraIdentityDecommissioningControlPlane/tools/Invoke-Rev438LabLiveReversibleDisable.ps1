@@ -592,6 +592,32 @@ function New-Rev438PostDisableValidationPackage {
     return $package
 }
 
+function Test-Rev438LiveMutationShouldProceed {
+    param(
+        [Parameter(Mandatory)]
+        [bool]$WhatIfActive,
+
+        [AllowNull()]
+        [object]$CmdletContext,
+
+        [Parameter(Mandatory)]
+        [string]$TargetObjectId,
+
+        [Parameter(Mandatory)]
+        [string]$ActionDescription
+    )
+
+    if ($WhatIfActive) {
+        return $false
+    }
+
+    if ($null -eq $CmdletContext) {
+        throw 'FAIL-CLOSED: non-WhatIf Rev4.38 live disable requires an active ShouldProcess context. $PSCmdlet was null, so no mutation will be performed.'
+    }
+
+    return [bool]$CmdletContext.ShouldProcess($TargetObjectId, $ActionDescription)
+}
+
 function Invoke-Rev438LabLiveReversibleDisable {
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
@@ -644,7 +670,9 @@ function Invoke-Rev438LabLiveReversibleDisable {
 
     $mutationResult = $null
     $liveMutationPerformed = $false
-    if ($PSCmdlet.ShouldProcess($gate.TargetRecord.ServicePrincipalObjectId, 'Set service principal AccountEnabled to false')) {
+    $shouldMutate = Test-Rev438LiveMutationShouldProceed -WhatIfActive ([bool]$WhatIfPreference) -CmdletContext $PSCmdlet -TargetObjectId ([string]$gate.TargetRecord.ServicePrincipalObjectId) -ActionDescription 'Set service principal AccountEnabled to false'
+
+    if ($shouldMutate) {
         $mutationResult = Update-MgServicePrincipal -ServicePrincipalId ([string]$gate.TargetRecord.ServicePrincipalObjectId) -AccountEnabled:$false
         $liveMutationPerformed = $true
     }

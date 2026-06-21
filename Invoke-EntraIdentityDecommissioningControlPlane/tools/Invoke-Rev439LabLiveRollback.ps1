@@ -540,6 +540,32 @@ function New-Rev439PostRollbackValidationPackage {
     return $package
 }
 
+function Test-Rev439LiveMutationShouldProceed {
+    param(
+        [Parameter(Mandatory)]
+        [bool]$WhatIfActive,
+
+        [AllowNull()]
+        [object]$CmdletContext,
+
+        [Parameter(Mandatory)]
+        [string]$TargetObjectId,
+
+        [Parameter(Mandatory)]
+        [string]$ActionDescription
+    )
+
+    if ($WhatIfActive) {
+        return $false
+    }
+
+    if ($null -eq $CmdletContext) {
+        throw 'FAIL-CLOSED: non-WhatIf Rev4.39 live rollback requires an active ShouldProcess context. $PSCmdlet was null, so no mutation will be performed.'
+    }
+
+    return [bool]$CmdletContext.ShouldProcess($TargetObjectId, $ActionDescription)
+}
+
 function Invoke-Rev439LabLiveRollback {
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
@@ -590,7 +616,9 @@ function Invoke-Rev439LabLiveRollback {
 
     $mutationResult = $null
     $liveMutationPerformed = $false
-    if ($PSCmdlet.ShouldProcess($gate.TargetRecord.ServicePrincipalObjectId, 'Set service principal AccountEnabled to true')) {
+    $shouldMutate = Test-Rev439LiveMutationShouldProceed -WhatIfActive ([bool]$WhatIfPreference) -CmdletContext $PSCmdlet -TargetObjectId ([string]$gate.TargetRecord.ServicePrincipalObjectId) -ActionDescription 'Set service principal AccountEnabled to true'
+
+    if ($shouldMutate) {
         $mutationResult = Update-MgServicePrincipal -ServicePrincipalId ([string]$gate.TargetRecord.ServicePrincipalObjectId) -AccountEnabled:$true
         $liveMutationPerformed = $true
     }

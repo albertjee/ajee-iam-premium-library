@@ -19,6 +19,48 @@ function script:Write-TestJson {
     ($InputObject | ConvertTo-Json -Depth 20) | Set-Content -LiteralPath $Path -Encoding utf8
 }
 
+function script:Get-FileCommandCounts {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $errors = $null
+    $tokens = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$tokens, [ref]$errors)
+    if ($errors.Count -gt 0) {
+        throw "Parse errors in $Path : $($errors.Count)"
+    }
+
+    $commands = $ast.FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.CommandAst]
+    }, $true)
+
+    [pscustomobject]@{
+        UpdateCount = @($commands | Where-Object { $_.GetCommandName() -ieq 'Update-MgServicePrincipal' }).Count
+        RemoveCount = @($commands | Where-Object { $_.GetCommandName() -like 'Remove-Mg*' }).Count
+    }
+}
+
+function script:New-FakeShouldProcessContext {
+    param(
+        [Parameter(Mandatory)]
+        [bool]$ReturnValue
+    )
+
+    $context = [pscustomobject]@{
+        ReturnValue = $ReturnValue
+    }
+
+    $null = $context | Add-Member -MemberType ScriptMethod -Name ShouldProcess -Value {
+        param($target, $action)
+        return $this.ReturnValue
+    } -PassThru
+
+    return $context
+}
+
 function script:New-Rev438InventoryRecord {
     param(
         [Parameter(Mandatory)]
@@ -115,7 +157,9 @@ function script:New-Rev438ApprovalManifest {
 Describe 'Rev4.38 lab live reversible disable gate' {
     BeforeAll {
         $script:ToolsPath = Join-Path $PSScriptRoot '..\tools'
-        . (Join-Path $script:ToolsPath 'Invoke-Rev438LabLiveReversibleDisable.ps1')
+        $script:ScriptPath = Join-Path $script:ToolsPath 'Invoke-Rev438LabLiveReversibleDisable.ps1'
+        . $script:ScriptPath
+        $script:ScriptCommandCounts = Get-FileCommandCounts -Path $script:ScriptPath
 
         $script:TenantId = '3177c971-05c9-4b7b-93a1-0edf6fd7237d'
         $script:TargetDisplayName = 'AJEE-LAB-NHI-DISABLE-ROLLBACK'
@@ -345,14 +389,34 @@ Describe 'Rev4.38 lab live reversible disable gate' {
         Assert-MockCalled Remove-MgApplication -Times 0 -Exactly
     }
 
-    It 'Verifies live path calls only Update-MgServicePrincipal for the exact target ID' {
-        $result = Invoke-Rev438LabLiveReversibleDisable -TenantId $script:TenantId -InventoryPath $script:InventoryPath -ApprovalManifestPath $script:ApprovalPath -OutputPath $script:RunOutput -ConfirmLiveDisablePhrase $script:ApprovalPhrase -Confirm:$false
+    It 'Throws a clear fail-closed error when live path has no ShouldProcess context' {
+        { Test-Rev438LiveMutationShouldProceed -WhatIfActive:$false -CmdletContext $null -TargetObjectId $script:TargetServicePrincipalObjectId -ActionDescription 'Set service principal AccountEnabled to false' } | Should -Throw
 
-        $result.LiveMutationPerformed | Should -BeTrue
-        $result.WhatIf | Should -BeFalse
+        try {
+            Test-Rev438LiveMutationShouldProceed -WhatIfActive:$false -CmdletContext $null -TargetObjectId $script:TargetServicePrincipalObjectId -ActionDescription 'Set service principal AccountEnabled to false'
+            throw 'Expected fail-closed error was not thrown.'
+        } catch {
+            $_.Exception.Message | Should -Match 'FAIL-CLOSED'
+        }
+    }
+
+    It 'Verifies live path executes when ShouldProcess allows and calls only Update-MgServicePrincipal for the exact target ID' {
+        { $script:LiveResult = Invoke-Rev438LabLiveReversibleDisable -TenantId $script:TenantId -InventoryPath $script:InventoryPath -ApprovalManifestPath $script:ApprovalPath -OutputPath $script:RunOutput -ConfirmLiveDisablePhrase $script:ApprovalPhrase -Confirm:$false } | Should -Not -Throw
+
+        $script:LiveResult.LiveMutationPerformed | Should -BeTrue
+        $script:LiveResult.WhatIf | Should -BeFalse
         Assert-MockCalled Update-MgServicePrincipal -Times 1 -Exactly -ParameterFilter {
             $ServicePrincipalId -eq $script:TargetServicePrincipalObjectId -and $AccountEnabled -eq $false
         }
+    }
+
+    It 'Returns false when ShouldProcess declines the live disable' {
+        Test-Rev438LiveMutationShouldProceed -WhatIfActive:$false -CmdletContext (New-FakeShouldProcessContext -ReturnValue:$false) -TargetObjectId $script:TargetServicePrincipalObjectId -ActionDescription 'Set service principal AccountEnabled to false' | Should -BeFalse
+    }
+
+    It 'Contains exactly one Update-MgServicePrincipal command and no Remove-Mg* commands' {
+        $script:ScriptCommandCounts.UpdateCount | Should -Be 1
+        $script:ScriptCommandCounts.RemoveCount | Should -Be 0
     }
 
     It 'Verifies live path never calls Remove-MgServicePrincipal' {
