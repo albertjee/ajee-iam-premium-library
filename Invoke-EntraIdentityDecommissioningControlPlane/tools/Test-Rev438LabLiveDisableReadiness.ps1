@@ -318,10 +318,6 @@ function Assert-Rev438LiveRunReadiness {
         $reasons.Add('Approval manifest phrase does not match the required approval phrase.')
     }
 
-    if ($approvalPhrase -ne $script:ExpectedApprovalPhrase) {
-        $reasons.Add('Approval manifest phrase does not match the required phrase.')
-    }
-
     if ($approvedActions.Count -eq 0) {
         $reasons.Add('Approval must specify an approved action.')
     } elseif ($approvedActions.Count -gt 1) {

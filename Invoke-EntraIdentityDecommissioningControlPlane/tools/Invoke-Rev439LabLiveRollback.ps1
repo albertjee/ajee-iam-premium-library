@@ -404,6 +404,7 @@ function Assert-Rev439LabRollbackGate {
 }
 
 function New-Rev439PreRollbackSnapshot {
+    [Diagnostics.CodeAnalysis.SuppressMessage('PSUseShouldProcessForStateChangingFunctions', '', Scope='Function', Justification='Artifact builder invoked by the parent ShouldProcess-controlled rollback flow.')]
     param(
         [Parameter(Mandatory)]
         [object]$TargetRecord,
@@ -449,6 +450,7 @@ function New-Rev439PreRollbackSnapshot {
 }
 
 function New-Rev439ChangedObjectManifest {
+    [Diagnostics.CodeAnalysis.SuppressMessage('PSUseShouldProcessForStateChangingFunctions', '', Scope='Function', Justification='Artifact builder invoked by the parent ShouldProcess-controlled rollback flow.')]
     param(
         [Parameter(Mandatory)]
         [object]$TargetRecord,
@@ -483,6 +485,7 @@ function New-Rev439ChangedObjectManifest {
 }
 
 function New-Rev439PostRollbackValidationPackage {
+    [Diagnostics.CodeAnalysis.SuppressMessage('PSUseShouldProcessForStateChangingFunctions', '', Scope='Function', Justification='Artifact builder invoked by the parent ShouldProcess-controlled rollback flow.')]
     param(
         [Parameter(Mandatory)]
         [object]$TargetRecord,
