@@ -188,8 +188,10 @@ Describe 'OutputManifest' {
     }
 
     It 'Output manifest includes redacted files' {
-        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot '.\out'
-        $tempFile = Join-Path '.\out' 'redacted-report.json'
+        $outRoot = Join-Path $TestDrive 'out'
+        $null = New-Item -ItemType Directory -Path $outRoot -Force
+        $manifest = New-DecomOutputManifest -Context @{ ToolVersion='Rev4.1'; EngagementId='eng-123'; ClientName='Client A' } -RunId 'run-123' -OutputRoot $outRoot
+        $tempFile = Join-Path $outRoot 'redacted-report.json'
         Set-Content -Path $tempFile -Value '{"redacted": "data"}'
         try {
             $result = Add-DecomOutputManifestItem -Manifest $manifest -FilePath $tempFile -Category 'Report' -Sensitivity 'ClientSafe'
