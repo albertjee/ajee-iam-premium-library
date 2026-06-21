@@ -134,6 +134,7 @@ Describe 'Rev4.40 single object lifecycle wrapper' {
 
     AfterAll {
         Remove-Item -LiteralPath Function:\Get-MgServicePrincipal -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath Function:\global:Get-MgServicePrincipal -ErrorAction SilentlyContinue
     }
 
     It 'exists' {
