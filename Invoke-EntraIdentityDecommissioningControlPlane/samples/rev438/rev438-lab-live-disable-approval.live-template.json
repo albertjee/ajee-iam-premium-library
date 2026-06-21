@@ -1,0 +1,23 @@
+{
+  "SchemaVersion": "4.38",
+  "RunId": "REV438-REPLACE-WITH-UNIQUE-RUN-ID",
+  "Status": "Approved",
+  "ApprovedBy": "lab-approver@example.com",
+  "ApprovedUtc": "2026-06-20T00:00:00Z",
+  "ExpiresUtc": "2026-06-21T00:00:00Z",
+  "TenantId": "3177c971-05c9-4b7b-93a1-0edf6fd7237d",
+  "TargetObjectId": "7b972582-4b35-4fd4-b4c9-1ef2dd3a0c8b",
+  "TargetObjectIds": [
+    "7b972582-4b35-4fd4-b4c9-1ef2dd3a0c8b"
+  ],
+  "TargetDisplayName": "AJEE-LAB-NHI-DISABLE-ROLLBACK",
+  "AppId": "48deb98d-78c4-49b0-8c56-eed1bb5732c0",
+  "ApprovedAction": "ReversibleDisable",
+  "ApprovedActions": [
+    "ReversibleDisable"
+  ],
+  "ApprovalPhrase": "APPROVE REV4.38 LIVE DISABLE AJEE-LAB-NHI-DISABLE-ROLLBACK ONLY",
+  "RollbackReady": true,
+  "LiveMutationApproved": true,
+  "FinalDeleteApproved": false
+}
