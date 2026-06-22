@@ -106,7 +106,6 @@ Describe 'Rev4.41 batch lifecycle planning' {
     BeforeAll {
         $script:WrapperPath = Join-Path $PSScriptRoot '..\tools\Start-NhiBatchLifecyclePlanning.ps1'
         . $script:WrapperPath -TenantId 'contoso-test' -Mode Readiness -TargetObjectIds @('sp-dot-source') -OutputRoot (Join-Path $TestDrive 'dot-source')
-        $script:CommandCounts = Get-FileCommandCounts -Path $script:WrapperPath
         $script:WrapperCommand = Get-Command Start-NhiBatchLifecyclePlanning
         $script:TargetIds = @(
             'sp-eligible-1',
@@ -289,11 +288,13 @@ Describe 'Rev4.41 batch lifecycle planning' {
     }
 
     It 'does not contain Update-MgServicePrincipal, Remove-Mg*, cleanup, or final-delete commands' {
-        $script:CommandCounts.UpdateCount | Should -Be 0
-        $script:CommandCounts.RemoveCount | Should -Be 0
-        $script:CommandCounts.CleanupCount | Should -Be 0
-        $script:CommandCounts.FinalDeleteCount | Should -Be 0
-        $script:CommandCounts.LiveInvokeCount | Should -Be 0
+        $commandCounts = Get-FileCommandCounts -Path $script:WrapperPath
+
+        [int]$commandCounts.UpdateCount | Should -Be 0
+        [int]$commandCounts.RemoveCount | Should -Be 0
+        [int]$commandCounts.CleanupCount | Should -Be 0
+        [int]$commandCounts.FinalDeleteCount | Should -Be 0
+        [int]$commandCounts.LiveInvokeCount | Should -Be 0
         $source = Get-Content -LiteralPath $script:WrapperPath -Raw
         $source | Should -Not -Match 'Update-MgServicePrincipal'
         $source | Should -Not -Match 'Remove-Mg'
