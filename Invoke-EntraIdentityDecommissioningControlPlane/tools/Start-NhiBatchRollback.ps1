@@ -105,6 +105,30 @@ function Test-BatchBooleanValue {
     throw "STOP: $PropertyName must be a strict boolean value."
 }
 
+function Test-BatchIdValue {
+    param(
+        [Parameter(Mandatory)]
+        [string]$BatchId,
+
+        [Parameter()]
+        [string]$Label = 'BatchId'
+    )
+
+    if ([string]::IsNullOrWhiteSpace($BatchId)) {
+        throw "STOP: $Label is required."
+    }
+
+    if ($BatchId -match '[\\/]' -or $BatchId -match '\.\.') {
+        throw "STOP: $Label contains unsafe path content."
+    }
+
+    if ($BatchId -notmatch '^[A-Za-z0-9._-]+$') {
+        throw "STOP: $Label contains unsupported characters."
+    }
+
+    return $BatchId
+}
+
 function Invoke-NhiBatchChildLifecycle {
     param(
         [Parameter(Mandatory)]
@@ -148,6 +172,13 @@ function New-BatchRollbackContracts {
     $runId = "REV443-{0}" -f ([guid]::NewGuid().Guid)
     $rollbackValidationPath = Join-Path $ArtifactFolder 'rev443-rollback-validation.json'
     $approvalManifestPath = Join-Path $ArtifactFolder 'rev443-single-object-approval.json'
+    $priorAccountEnabled = Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('PriorAccountEnabled', 'AccountEnabledBefore')
+    if ($null -eq $priorAccountEnabled) {
+        $priorAccountEnabled = Get-BatchPropertyValue -InputObject $RollbackPackage -PropertyNames @('PriorAccountEnabled', 'AccountEnabledBefore')
+    }
+    if ($null -ne $priorAccountEnabled -and -not [string]::IsNullOrWhiteSpace([string]$priorAccountEnabled)) {
+        $priorAccountEnabled = Test-BatchBooleanValue -Value $priorAccountEnabled -PropertyName 'PriorAccountEnabled'
+    }
 
     $validation = [pscustomobject]@{
         WrapperVersion = $script:WrapperVersion
@@ -159,6 +190,7 @@ function New-BatchRollbackContracts {
         ObjectType = [string](Get-BatchPropertyValue -InputObject $Target -PropertyNames @('ObjectType'))
         ChangedObjectManifestPath = [string](Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('OutputArtifactPath', 'ChangedObjectManifestPath'))
         RollbackPackagePath = [string](Get-BatchPropertyValue -InputObject $RollbackPackage -PropertyNames @('OutputArtifactPath', 'RollbackPackagePath'))
+        PriorAccountEnabled = $priorAccountEnabled
         ValidationStatus = 'Pending'
         MutationObserved = $false
         NonTargetObjectProtection = $true
@@ -180,6 +212,7 @@ function New-BatchRollbackContracts {
         FinalDeleteApproved = $false
         CleanupApproved = $false
         SourceBatchRunRoot = [string](Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('SourceBatchRunRoot', 'BatchRunRoot'))
+        PriorAccountEnabled = $priorAccountEnabled
     }
 
     Write-BatchJsonArtifact -Path $rollbackValidationPath -InputObject $validation | Out-Null
@@ -189,6 +222,7 @@ function New-BatchRollbackContracts {
         RunId = $runId
         RollbackValidationPath = $rollbackValidationPath
         ApprovalManifestPath = $approvalManifestPath
+        PriorAccountEnabled = $priorAccountEnabled
     }
 }
 
@@ -202,6 +236,9 @@ function Test-BatchRollbackTargetEligibility {
 
         [Parameter(Mandatory)]
         [object]$RollbackPackage,
+
+        [Parameter(Mandatory)]
+        [object]$InventoryRecord,
 
         [Parameter(Mandatory)]
         [string]$TenantId,
@@ -218,8 +255,13 @@ function Test-BatchRollbackTargetEligibility {
     $changedManifestTenantId = [string](Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('TenantId'))
     $changedManifestObjectId = [string](Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('ServicePrincipalObjectId', 'TargetObjectId'))
     $changedManifestAppId = [string](Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('AppId'))
+    $changedManifestPriorAccountEnabled = Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('PriorAccountEnabled', 'AccountEnabledBefore')
     $rollbackPackageObjectId = [string](Get-BatchPropertyValue -InputObject $RollbackPackage -PropertyNames @('ServicePrincipalObjectId', 'TargetObjectId'))
     $rollbackPackageAppId = [string](Get-BatchPropertyValue -InputObject $RollbackPackage -PropertyNames @('AppId'))
+    $rollbackPackageTenantId = [string](Get-BatchPropertyValue -InputObject $RollbackPackage -PropertyNames @('TenantId'))
+    $inventoryTenantId = [string](Get-BatchPropertyValue -InputObject $InventoryRecord -PropertyNames @('TenantId'))
+    $inventoryObjectId = [string](Get-BatchPropertyValue -InputObject $InventoryRecord -PropertyNames @('ServicePrincipalObjectId', 'Id', 'ObjectId'))
+    $inventoryAppId = [string](Get-BatchPropertyValue -InputObject $InventoryRecord -PropertyNames @('AppId'))
     $changedByBatch = Test-BatchBooleanValue -Value (Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('ChangedByPriorBatchRun', 'ChangedByApprovedBatchRun') -Default $false) -PropertyName 'ChangedByPriorBatchRun'
     $sourceRoot = [string](Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('SourceBatchRunRoot', 'BatchRunRoot'))
     $changedManifestAction = [string](Get-BatchPropertyValue -InputObject $ChangedObjectManifest -PropertyNames @('ApprovedAction'))
@@ -228,14 +270,19 @@ function Test-BatchRollbackTargetEligibility {
     if ([string]::IsNullOrWhiteSpace($objectType) -or $objectType -ne 'ServicePrincipal') { $reasons.Add('ObjectType must be ServicePrincipal.') }
     if ([string]::IsNullOrWhiteSpace($appId)) { $reasons.Add('AppId is required.') }
     if ($targetTenantId -ne $TenantId) { $reasons.Add('TenantId mismatch.') }
+    if ($inventoryTenantId -ne $TenantId) { $reasons.Add('Inventory TenantId mismatch.') }
+    if ($inventoryObjectId -ne $servicePrincipalObjectId) { $reasons.Add('Inventory identity mismatch.') }
+    if ($inventoryAppId -ne $appId) { $reasons.Add('Inventory AppId mismatch.') }
     if ($changedManifestTenantId -ne $TenantId) { $reasons.Add('Changed-object manifest TenantId mismatch.') }
     if ($changedManifestObjectId -ne $servicePrincipalObjectId) { $reasons.Add('Target identity mismatch.') }
     if ($changedManifestAppId -ne $appId) { $reasons.Add('AppId mismatch.') }
     if ($rollbackPackageObjectId -ne $servicePrincipalObjectId) { $reasons.Add('Rollback package identity mismatch.') }
     if ($rollbackPackageAppId -ne $appId) { $reasons.Add('Rollback package AppId mismatch.') }
+    if ($rollbackPackageTenantId -ne $TenantId) { $reasons.Add('Rollback package TenantId mismatch.') }
     if (-not $changedByBatch) { $reasons.Add('Object was not marked as changed by the prior approved batch run.') }
     if ($changedManifestAction -ne 'ReversibleDisable') { $reasons.Add('Changed-object manifest must be from a reversible-disable batch run.') }
     if ([string]::IsNullOrWhiteSpace($sourceRoot) -or $sourceRoot -ne $SourceBatchRunRoot) { $reasons.Add('Source batch run root is missing or does not match.') }
+    if ($null -eq $changedManifestPriorAccountEnabled) { $reasons.Add('Changed-object manifest must include prior AccountEnabled state.') }
 
     return [pscustomobject]@{
         ServicePrincipalObjectId = $servicePrincipalObjectId
@@ -243,6 +290,7 @@ function Test-BatchRollbackTargetEligibility {
         ObjectType = $objectType
         TenantId = $targetTenantId
         ChangedByPriorBatchRun = $changedByBatch
+        PriorAccountEnabled = $changedManifestPriorAccountEnabled
         SourceBatchRunRoot = $sourceRoot
         MutationEligible = ($reasons.Count -eq 0)
         BlockingReasons = @($reasons)
@@ -283,7 +331,7 @@ function Start-NhiBatchRollback {
     $batchManifest = Read-BatchJsonDocument -Path $BatchManifestPath -Label 'Batch rollback manifest'
     $runRoot = [System.IO.Path]::GetFullPath($OutputRoot)
     $null = New-Item -ItemType Directory -Path $runRoot -Force
-    $batchId = [string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('BatchId'))
+    $batchId = Test-BatchIdValue -BatchId ([string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('BatchId')))
     $manifestTenantId = [string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('TenantId'))
     $manifestAction = [string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('ApprovedAction', 'ActionType'))
     $manifestMode = [string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('Mode'))
@@ -294,22 +342,24 @@ function Start-NhiBatchRollback {
     $sourceBatchRunRoot = [string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('SourceBatchRunRoot', 'PriorBatchRunRoot'))
     $inventoryPath = [string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('InventoryPath'))
     $targetDocuments = @($batchManifest.Targets)
+    $targetDocuments = @($targetDocuments | Where-Object { $null -ne $_ })
 
-    if ([string]::IsNullOrWhiteSpace($batchId)) { throw 'STOP: BatchId is required.' }
     if ($manifestTenantId -ne $TenantId) { throw 'STOP: TenantId does not match the rollback manifest.' }
     if ($manifestAction -ne $script:ApprovedAction) { throw 'STOP: ApprovedAction must be RollbackDisable.' }
     if ($manifestMode -and $manifestMode -ne $Mode) { throw 'STOP: Manifest Mode does not match the requested mode.' }
-    if (-not $manifestStopOnFirstFailure) { throw 'STOP: StopOnFirstFailure must be true.' }
+    if ($manifestMaxObjectsPerWave -lt 1 -or $manifestMaxObjectsPerWave -gt 3) { throw 'STOP: Manifest MaxObjectsPerWave must be within the safe bound.' }
+    $effectiveMaxObjectsPerWave = [Math]::Min($manifestMaxObjectsPerWave, $MaxObjectsPerWave)
     if ($finalDeleteApproved) { throw 'STOP: Final delete is blocked for Rev4.43 batch rollback.' }
     if ($cleanupApproved) { throw 'STOP: Cleanup is blocked for Rev4.43 batch rollback.' }
-    if ($manifestMaxObjectsPerWave -gt 3 -or $MaxObjectsPerWave -gt 3) { throw 'STOP: MaxObjectsPerWave exceeds the safe bound for Rev4.43 batch rollback.' }
-    if ($targetDocuments.Count -gt $MaxObjectsPerWave) { throw 'STOP: Rollback target count exceeds the allowed wave bound.' }
+    if ($null -eq $batchManifest.Targets -or $targetDocuments.Count -eq 0) { throw 'STOP: Targets are required.' }
+    if ($targetDocuments.Count -gt $effectiveMaxObjectsPerWave) { throw 'STOP: Rollback target count exceeds the allowed wave bound.' }
     if ([string]::IsNullOrWhiteSpace($inventoryPath)) { throw 'STOP: InventoryPath is required.' }
     if ([string]::IsNullOrWhiteSpace($sourceBatchRunRoot) -or -not (Test-Path -LiteralPath $sourceBatchRunRoot -PathType Container)) { throw 'STOP: Prior approved batch run root is required.' }
     if (-not (Test-Path -LiteralPath (Join-Path $sourceBatchRunRoot 'rev442-batch-manifest.json') -PathType Leaf)) { throw 'STOP: Prior batch manifest is required.' }
     if (-not (Test-Path -LiteralPath (Join-Path $sourceBatchRunRoot 'rev442-batch-execution-summary.json') -PathType Leaf)) { throw 'STOP: Prior batch execution summary is required.' }
     if ([string]::IsNullOrWhiteSpace($ApprovalPhrase) -or $ApprovalPhrase -ne [string](Get-BatchPropertyValue -InputObject $batchManifest -PropertyNames @('ApprovalPhrase'))) { throw 'STOP: ApprovalPhrase does not match the rollback manifest.' }
     if (-not (Test-Path -LiteralPath $inventoryPath -PathType Leaf)) { throw 'STOP: Inventory file is required.' }
+    $StopOnFirstFailure = $manifestStopOnFirstFailure
 
     $inventoryDocument = Read-BatchJsonDocument -Path $inventoryPath -Label 'Inventory'
     $inventoryRecords = if ($null -ne $inventoryDocument.Inventory) { @($inventoryDocument.Inventory) } elseif ($inventoryDocument -is [System.Array]) { @($inventoryDocument) } else { @($inventoryDocument) }
@@ -328,9 +378,15 @@ function Start-NhiBatchRollback {
         $target = $targetDocuments[$index]
         $targetObjectId = [string](Get-BatchPropertyValue -InputObject $target -PropertyNames @('ServicePrincipalObjectId'))
         $artifactFolder = New-Item -ItemType Directory -Path (Join-Path $waveFolder ('target-{0:00}-{1}' -f ($index + 1), ($targetObjectId -replace '[^A-Za-z0-9-]', '_'))) -Force
+        $inventoryMatches = @($inventoryRecords | Where-Object {
+            ([string](Get-BatchPropertyValue -InputObject $_ -PropertyNames @('ServicePrincipalObjectId', 'Id', 'ObjectId'))) -eq $targetObjectId
+        })
         $changedObjectManifestPath = [string](Get-BatchPropertyValue -InputObject $target -PropertyNames @('ChangedObjectManifestPath'))
         $rollbackPackagePath = [string](Get-BatchPropertyValue -InputObject $target -PropertyNames @('RollbackPackagePath'))
 
+        if ($inventoryMatches.Count -ne 1) {
+            throw "STOP: Inventory must contain exactly one record for service principal '$targetObjectId'."
+        }
         if ([string]::IsNullOrWhiteSpace($changedObjectManifestPath) -or -not (Test-Path -LiteralPath $changedObjectManifestPath -PathType Leaf)) {
             throw 'STOP: Changed-object manifest is required.'
         }
@@ -340,7 +396,7 @@ function Start-NhiBatchRollback {
 
         $changedObjectManifest = Read-BatchJsonDocument -Path $changedObjectManifestPath -Label 'Changed-object manifest'
         $rollbackPackage = Read-BatchJsonDocument -Path $rollbackPackagePath -Label 'Rollback package'
-        $eligibility = Test-BatchRollbackTargetEligibility -Target $target -ChangedObjectManifest $changedObjectManifest -RollbackPackage $rollbackPackage -TenantId $TenantId -SourceBatchRunRoot $sourceBatchRunRoot
+        $eligibility = Test-BatchRollbackTargetEligibility -Target $target -ChangedObjectManifest $changedObjectManifest -RollbackPackage $rollbackPackage -InventoryRecord $inventoryMatches[0] -TenantId $TenantId -SourceBatchRunRoot $sourceBatchRunRoot
 
         $validationSummary = [pscustomobject]@{
             WrapperVersion = $script:WrapperVersion
@@ -358,10 +414,13 @@ function Start-NhiBatchRollback {
             ChangedObjectManifestPath = $changedObjectManifestPath
             RollbackPackagePath = $rollbackPackagePath
             ArtifactFolder = $artifactFolder.FullName
+            ApprovalManifestPath = $null
             ValidationStatus = if ($eligibility.MutationEligible) { 'Eligible' } else { 'Blocked' }
             ChildRunSummaryPath = $null
             LiveMutationPerformed = $false
+            ExecutionNotPerformed = $true
             SafetyGatePassed = $eligibility.MutationEligible
+            ExecutionStatus = if ($eligibility.MutationEligible) { 'GateOnly' } else { 'Blocked' }
         }
 
         if (-not $eligibility.MutationEligible) {
@@ -374,26 +433,15 @@ function Start-NhiBatchRollback {
             continue
         }
 
+        $contracts = New-BatchRollbackContracts -Target $target -ArtifactFolder $artifactFolder.FullName -BatchId $batchId -TenantId $TenantId -ApprovalPhrase $ApprovalPhrase -ChangedObjectManifest $changedObjectManifest -RollbackPackage $rollbackPackage
+        $validationSummary.ApprovalManifestPath = $contracts.ApprovalManifestPath
+
         $processedTargets.Add($validationSummary)
         $eligibleTargets.Add($validationSummary)
 
         if ($Mode -eq 'Execute') {
-            $childArguments = @{
-                TenantId = $TenantId
-                Action = 'RollbackDisable'
-                Mode = 'Execute'
-                TargetObjectId = $targetObjectId
-                InventoryPath = $inventoryPath
-                OutputRoot = (Join-Path $artifactFolder.FullName 'child')
-                ApprovalPhrase = $ApprovalPhrase
-                Confirm = $false
-            }
-
-            $childSummary = Invoke-NhiBatchChildLifecycle -LifecycleScriptPath $script:SingleObjectLifecycleScriptPath -BoundParameters $childArguments
-            $validationSummary.ChildRunSummaryPath = [string](Get-BatchPropertyValue -InputObject $childSummary -PropertyNames @('WrapperRunSummaryPath', 'OutputArtifactPath', 'ChildRunSummaryPath'))
-            $validationSummary.LiveMutationPerformed = [bool](Get-BatchPropertyValue -InputObject $childSummary -PropertyNames @('LiveMutationPerformed', 'LiveMutationAllowed') -Default $false)
-            $validationSummary.SafetyGatePassed = [bool](Get-BatchPropertyValue -InputObject $childSummary -PropertyNames @('SafetyGatePassed') -Default $false)
-            $childCalls++
+            $validationSummary.ExecutionStatus = 'GateOnly'
+            $validationSummary.ExecutionNotPerformed = $true
         }
 
         Write-BatchJsonArtifact -Path (Join-Path $artifactFolder.FullName 'rev443-rollback-validation.json') -InputObject $validationSummary | Out-Null
@@ -411,6 +459,11 @@ function Start-NhiBatchRollback {
         throw ('STOP: ' + $blockedReason)
     }
 
+    if ($StopOnFirstFailure -and $blockedTargets.Count -gt 0) {
+        $blockedReason = [string]($blockedTargets[0].BlockingReasons -join ' ')
+        throw ('STOP: ' + $blockedReason)
+    }
+
     $batchManifestOutPath = Join-Path $batchRoot 'rev443-batch-manifest.json'
     $batchSummaryPath = Join-Path $batchRoot 'rev443-batch-rollback-summary.json'
 
@@ -421,14 +474,15 @@ function Start-NhiBatchRollback {
         TenantId = $TenantId
         ApprovedAction = $script:ApprovedAction
         Mode = $Mode
-        MaxObjectsPerWave = $MaxObjectsPerWave
-        StopOnFirstFailure = $true
+        MaxObjectsPerWave = $effectiveMaxObjectsPerWave
+        StopOnFirstFailure = $StopOnFirstFailure
         FinalDeleteApproved = $false
         CleanupApproved = $false
         ApprovalPhrase = $ApprovalPhrase
         SourceBatchRunRoot = $sourceBatchRunRoot
         InventoryPath = $inventoryPath
         Targets = @($processedTargets)
+        ApprovalManifestPaths = @($processedTargets | ForEach-Object { $_.ApprovalManifestPath })
         GeneratedUtc = [DateTime]::UtcNow.ToString('o')
     }
 
@@ -438,8 +492,8 @@ function Start-NhiBatchRollback {
         TenantId = $TenantId
         ApprovedAction = $script:ApprovedAction
         Mode = $Mode
-        MaxObjectsPerWave = $MaxObjectsPerWave
-        StopOnFirstFailure = $true
+        MaxObjectsPerWave = $effectiveMaxObjectsPerWave
+        StopOnFirstFailure = $StopOnFirstFailure
         FinalDeleteApproved = $false
         CleanupApproved = $false
         ApprovalPhrase = $ApprovalPhrase
@@ -455,6 +509,8 @@ function Start-NhiBatchRollback {
         StoppedEarly = $stoppedEarly
         SafetyGatePassed = ($blockedTargets.Count -eq 0)
         PerObjectRollbackValidationPaths = @($processedTargets | ForEach-Object { Join-Path $_.ArtifactFolder 'rev443-rollback-validation.json' })
+        ApprovalManifestPaths = @($processedTargets | ForEach-Object { $_.ApprovalManifestPath })
+        ArtifactCount = @($processedTargets).Count * 3
         Targets = @($processedTargets)
         NonTargetObjectProtection = $true
     }
@@ -473,12 +529,15 @@ function Start-NhiBatchRollback {
         BatchManifestPath = $batchManifestOutPath
         BatchSummaryPath = $batchSummaryPath
         SafetyGatePassed = ($blockedTargets.Count -eq 0)
-        StopOnFirstFailure = $true
-        MaxObjectsPerWave = $MaxObjectsPerWave
+        ExecutionStatus = 'GateOnly'
+        ExecutionNotPerformed = $true
+        StopOnFirstFailure = $StopOnFirstFailure
+        MaxObjectsPerWave = $effectiveMaxObjectsPerWave
         TotalTargetCount = $targetDocuments.Count
         EligibleTargetCount = $eligibleTargets.Count
         BlockedTargetCount = $blockedTargets.Count
         ChildCallCount = $childCalls
+        ApprovalManifestPaths = @($processedTargets | ForEach-Object { $_.ApprovalManifestPath })
         Targets = @($processedTargets)
         NonTargetObjectProtection = $true
     }

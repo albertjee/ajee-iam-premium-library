@@ -1,27 +1,3 @@
-function Write-TestJson {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Path,
-
-        [Parameter(Mandatory)]
-        [object]$InputObject
-    )
-
-    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force
-    $json = $InputObject | ConvertTo-Json -Depth 20
-    [System.IO.File]::WriteAllText($Path, $json, [System.Text.UTF8Encoding]::new($false))
-    return $Path
-}
-
-function Copy-TestObject {
-    param(
-        [Parameter(Mandatory)]
-        [object]$InputObject
-    )
-
-    return ($InputObject | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
-}
-
 Describe 'Rev4.42 batch reversible disable gate' {
     BeforeAll {
         function Write-TestJson {
@@ -48,7 +24,7 @@ Describe 'Rev4.42 batch reversible disable gate' {
             return ($InputObject | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
         }
 
-    $script:WrapperPath = Join-Path $PSScriptRoot '..\tools\Start-NhiBatchReversibleDisable.ps1'
+        $script:WrapperPath = Join-Path $PSScriptRoot '..\tools\Start-NhiBatchReversibleDisable.ps1'
         . $script:WrapperPath -TenantId '00000000-0000-0000-0000-000000000000' -BatchManifestPath 'C:\temp\dummy-batch.json' -OutputRoot 'C:\temp\dummy-output' -ApprovalPhrase 'DUMMY' -WhatIf
 
         $script:TenantId = '3177c971-05c9-4b7b-93a1-0edf6fd7237d'
@@ -56,6 +32,8 @@ Describe 'Rev4.42 batch reversible disable gate' {
         $script:OutputRoot = Join-Path $TestDrive 'rev442-output'
         $script:InventoryPath = Join-Path $TestDrive 'rev442-inventory.json'
         $script:PriorRunRoot = Join-Path $TestDrive 'rev441-prior'
+        $script:TargetOneEvidencePath = Join-Path $TestDrive 'rev442-target-1-whatif.json'
+        $script:TargetTwoEvidencePath = Join-Path $TestDrive 'rev442-target-2-whatif.json'
         $script:PriorEvidencePath = Join-Path $script:PriorRunRoot 'rev441-whatif-evidence.json'
         $script:ApprovalPhrase = 'APPROVE REV4.42 BATCH REVERSIBLE DISABLE ONLY'
 
@@ -68,6 +46,7 @@ Describe 'Rev4.42 batch reversible disable gate' {
                     DisplayName = 'Target One'
                     ObjectType = 'ServicePrincipal'
                     TenantId = $script:TenantId
+                    PriorAccountEnabled = $true
                 },
                 [pscustomobject]@{
                     ServicePrincipalObjectId = '9f7d8246-0b83-4d94-91b9-66e0cbfe8c2a'
@@ -75,22 +54,62 @@ Describe 'Rev4.42 batch reversible disable gate' {
                     DisplayName = 'Target Two'
                     ObjectType = 'ServicePrincipal'
                     TenantId = $script:TenantId
+                    PriorAccountEnabled = $false
                 }
             )
         }
 
         $null = New-Item -ItemType Directory -Path $script:PriorRunRoot -Force
         Write-TestJson -Path $script:InventoryPath -InputObject $inventory
-        Write-TestJson -Path $script:PriorEvidencePath -InputObject ([pscustomobject]@{ Evidence = 'Prior WhatIf' })
-        Write-TestJson -Path (Join-Path $script:PriorRunRoot 'rev441-batch-manifest.json') -InputObject ([pscustomobject]@{ BatchId = 'REV441-PRIOR'; TenantId = $script:TenantId; WhatIf = $true })
-        Write-TestJson -Path (Join-Path $script:PriorRunRoot 'rev441-batch-summary.json') -InputObject ([pscustomobject]@{ BatchId = 'REV441-PRIOR'; TenantId = $script:TenantId; WhatIf = $true })
+        Write-TestJson -Path $script:PriorEvidencePath -InputObject ([pscustomobject]@{
+            BatchId = 'REV441-PRIOR'
+            TenantId = $script:TenantId
+            ApprovedAction = 'ReversibleDisable'
+            WhatIf = $true
+            LiveMutationPerformed = $false
+            SourceBatchRunRoot = $script:PriorRunRoot
+        })
+        Write-TestJson -Path $script:TargetOneEvidencePath -InputObject ([pscustomobject]@{
+            BatchId = 'REV441-PRIOR'
+            TenantId = $script:TenantId
+            ServicePrincipalObjectId = '7b972582-4b35-4fd4-b4c9-1ef2dd3a0c8b'
+            AppId = '48deb98d-78c4-49b0-8c56-eed1bb5732c0'
+            ApprovedAction = 'ReversibleDisable'
+            WhatIf = $true
+            LiveMutationPerformed = $false
+            SourceBatchRunRoot = $script:PriorRunRoot
+            PriorAccountEnabled = $true
+        })
+        Write-TestJson -Path $script:TargetTwoEvidencePath -InputObject ([pscustomobject]@{
+            BatchId = 'REV441-PRIOR'
+            TenantId = $script:TenantId
+            ServicePrincipalObjectId = '9f7d8246-0b83-4d94-91b9-66e0cbfe8c2a'
+            AppId = 'f2f9c1a3-7f7a-4ef8-8f9a-17d9abf2f311'
+            ApprovedAction = 'ReversibleDisable'
+            WhatIf = $true
+            LiveMutationPerformed = $false
+            SourceBatchRunRoot = $script:PriorRunRoot
+            PriorAccountEnabled = $false
+        })
+        Write-TestJson -Path (Join-Path $script:PriorRunRoot 'rev441-batch-manifest.json') -InputObject ([pscustomobject]@{
+            BatchId = 'REV441-PRIOR'
+            TenantId = $script:TenantId
+            WhatIf = $true
+            SourceBatchRunRoot = $script:PriorRunRoot
+        })
+        Write-TestJson -Path (Join-Path $script:PriorRunRoot 'rev441-batch-summary.json') -InputObject ([pscustomobject]@{
+            BatchId = 'REV441-PRIOR'
+            TenantId = $script:TenantId
+            WhatIf = $true
+            SourceBatchRunRoot = $script:PriorRunRoot
+        })
 
         $script:BaseManifest = [pscustomobject]@{
             BatchId = $script:BatchId
             TenantId = $script:TenantId
             ApprovedAction = 'ReversibleDisable'
-                Mode = 'Execute'
-                Confirm = $false
+            Mode = 'Execute'
+            Confirm = $false
             MaxObjectsPerWave = 3
             StopOnFirstFailure = $true
             FinalDeleteApproved = $false
@@ -113,7 +132,7 @@ Describe 'Rev4.42 batch reversible disable gate' {
                     MicrosoftFirstParty = $false
                     PlatformIdentity = $false
                     EvidenceOnly = $false
-                    WhatIfEvidencePath = $script:PriorEvidencePath
+                    WhatIfEvidencePath = $script:TargetOneEvidencePath
                     DisplayName = 'Target One'
                 },
                 [pscustomobject]@{
@@ -129,7 +148,7 @@ Describe 'Rev4.42 batch reversible disable gate' {
                     MicrosoftFirstParty = $false
                     PlatformIdentity = $false
                     EvidenceOnly = $false
-                    WhatIfEvidencePath = $script:PriorEvidencePath
+                    WhatIfEvidencePath = $script:TargetTwoEvidencePath
                     DisplayName = 'Target Two'
                 }
             )
@@ -304,6 +323,10 @@ Describe 'Rev4.42 batch reversible disable gate' {
         $result = & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $manifestPath -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute
         Test-Path -LiteralPath $result.BatchManifestPath | Should -BeTrue
         Test-Path -LiteralPath $result.BatchSummaryPath | Should -BeTrue
+        $result.ChildCallCount | Should -Be 0
+        $result.Targets[0].ExecutionStatus | Should -Be 'GateOnly'
+        $result.Targets[0].ExecutionNotPerformed | Should -BeTrue
+        Test-Path -LiteralPath $result.Targets[0].ApprovalManifestPath | Should -BeTrue
         ($result.Targets | ForEach-Object { Test-Path -LiteralPath $_.ArtifactFolder }) | ForEach-Object { $_ | Should -BeTrue }
     }
 
@@ -311,7 +334,7 @@ Describe 'Rev4.42 batch reversible disable gate' {
         $manifestPath = Write-TestJson -Path (Join-Path $TestDrive 'rev442-good-manifest.json') -InputObject $script:BaseManifest
         $result = & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $manifestPath -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute
         Test-Path -LiteralPath $result.Targets[0].ChangedObjectManifestPath | Should -BeTrue
-        (Get-Content -LiteralPath $result.Targets[0].ChangedObjectManifestPath -Raw | ConvertFrom-Json).ChangedByPriorBatchRun | Should -BeTrue
+        (Get-Content -LiteralPath $result.Targets[0].ChangedObjectManifestPath -Raw | ConvertFrom-Json).ChangedByPriorBatchRun | Should -BeFalse
     }
 
     It 'produces rollback package contract' {
@@ -325,7 +348,10 @@ Describe 'Rev4.42 batch reversible disable gate' {
         $manifestPath = Write-TestJson -Path (Join-Path $TestDrive 'rev442-good-summary.json') -InputObject $script:BaseManifest
         $result = & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $manifestPath -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute
         Test-Path -LiteralPath $result.BatchSummaryPath | Should -BeTrue
-        (Get-Content -LiteralPath $result.BatchSummaryPath -Raw | ConvertFrom-Json).ApprovedAction | Should -Be 'ReversibleDisable'
+        $summary = Get-Content -LiteralPath $result.BatchSummaryPath -Raw | ConvertFrom-Json
+        $summary.ApprovedAction | Should -Be 'ReversibleDisable'
+        $summary.ChildCallCount | Should -Be 0
+        @($summary.ApprovalManifestPaths).Count | Should -BeGreaterThan 0
     }
 
     It 'does not call Update-MgServicePrincipal directly in the new batch wrapper' {

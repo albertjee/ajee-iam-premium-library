@@ -1,27 +1,3 @@
-function Write-TestJson {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Path,
-
-        [Parameter(Mandatory)]
-        [object]$InputObject
-    )
-
-    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force
-    $json = $InputObject | ConvertTo-Json -Depth 20
-    [System.IO.File]::WriteAllText($Path, $json, [System.Text.UTF8Encoding]::new($false))
-    return $Path
-}
-
-function Copy-TestObject {
-    param(
-        [Parameter(Mandatory)]
-        [object]$InputObject
-    )
-
-    return ($InputObject | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
-}
-
 Describe 'Rev4.43 batch rollback gate' {
     BeforeAll {
         function Write-TestJson {
@@ -48,7 +24,7 @@ Describe 'Rev4.43 batch rollback gate' {
             return ($InputObject | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
         }
 
-    $script:WrapperPath = Join-Path $PSScriptRoot '..\tools\Start-NhiBatchRollback.ps1'
+        $script:WrapperPath = Join-Path $PSScriptRoot '..\tools\Start-NhiBatchRollback.ps1'
         . $script:WrapperPath -TenantId '00000000-0000-0000-0000-000000000000' -BatchManifestPath 'C:\temp\dummy-batch.json' -OutputRoot 'C:\temp\dummy-output' -ApprovalPhrase 'DUMMY' -WhatIf
 
         $script:TenantId = '3177c971-05c9-4b7b-93a1-0edf6fd7237d'
@@ -101,6 +77,7 @@ Describe 'Rev4.43 batch rollback gate' {
             ApprovedAction = 'ReversibleDisable'
             ChangedByPriorBatchRun = $true
             SourceBatchRunRoot = $script:SourceBatchRoot
+            PriorAccountEnabled = $true
             OutputArtifactPath = $script:ChangedManifestOne
         })
         Write-TestJson -Path $script:RollbackPackageOne -InputObject ([pscustomobject]@{
@@ -108,6 +85,7 @@ Describe 'Rev4.43 batch rollback gate' {
             TenantId = $script:TenantId
             ServicePrincipalObjectId = '7b972582-4b35-4fd4-b4c9-1ef2dd3a0c8b'
             AppId = '48deb98d-78c4-49b0-8c56-eed1bb5732c0'
+            PriorAccountEnabled = $true
             RollbackAction = 'ReEnableServicePrincipal'
             OutputArtifactPath = $script:RollbackPackageOne
         })
@@ -119,6 +97,7 @@ Describe 'Rev4.43 batch rollback gate' {
             ApprovedAction = 'ReversibleDisable'
             ChangedByPriorBatchRun = $true
             SourceBatchRunRoot = $script:SourceBatchRoot
+            PriorAccountEnabled = $false
             OutputArtifactPath = $script:ChangedManifestTwo
         })
         Write-TestJson -Path $script:RollbackPackageTwo -InputObject ([pscustomobject]@{
@@ -126,7 +105,8 @@ Describe 'Rev4.43 batch rollback gate' {
             TenantId = $script:TenantId
             ServicePrincipalObjectId = '9f7d8246-0b83-4d94-91b9-66e0cbfe8c2a'
             AppId = 'f2f9c1a3-7f7a-4ef8-8f9a-17d9abf2f311'
-            RollbackAction = 'ReEnableServicePrincipal'
+            PriorAccountEnabled = $false
+            RollbackAction = 'DisableServicePrincipal'
             OutputArtifactPath = $script:RollbackPackageTwo
         })
 
@@ -134,8 +114,8 @@ Describe 'Rev4.43 batch rollback gate' {
             BatchId = $script:BatchId
             TenantId = $script:TenantId
             ApprovedAction = 'RollbackDisable'
-                Mode = 'Execute'
-                Confirm = $false
+            Mode = 'Execute'
+            Confirm = $false
             MaxObjectsPerWave = 3
             StopOnFirstFailure = $true
             FinalDeleteApproved = $false
@@ -270,13 +250,20 @@ Describe 'Rev4.43 batch rollback gate' {
         $manifestPath = Write-TestJson -Path (Join-Path $TestDrive 'rev443-good-validation.json') -InputObject $script:BaseManifest
         $result = & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $manifestPath -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute
         Test-Path -LiteralPath (Join-Path $result.Targets[0].ArtifactFolder 'rev443-rollback-validation.json') | Should -BeTrue
+        $result.ChildCallCount | Should -Be 0
+        $result.Targets[0].ExecutionStatus | Should -Be 'GateOnly'
+        $result.Targets[0].ExecutionNotPerformed | Should -BeTrue
+        Test-Path -LiteralPath $result.Targets[0].ApprovalManifestPath | Should -BeTrue
     }
 
     It 'Produces batch rollback summary' {
         $manifestPath = Write-TestJson -Path (Join-Path $TestDrive 'rev443-good-summary.json') -InputObject $script:BaseManifest
         $result = & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $manifestPath -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute
         Test-Path -LiteralPath $result.BatchSummaryPath | Should -BeTrue
-        (Get-Content -LiteralPath $result.BatchSummaryPath -Raw | ConvertFrom-Json).ApprovedAction | Should -Be 'RollbackDisable'
+        $summary = Get-Content -LiteralPath $result.BatchSummaryPath -Raw | ConvertFrom-Json
+        $summary.ApprovedAction | Should -Be 'RollbackDisable'
+        $summary.ChildCallCount | Should -Be 0
+        @($summary.ApprovalManifestPaths).Count | Should -BeGreaterThan 0
     }
 
     It 'Confirms non-target object protection contract' {
