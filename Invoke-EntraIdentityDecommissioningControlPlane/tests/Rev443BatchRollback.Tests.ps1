@@ -266,6 +266,24 @@ Describe 'Rev4.43 batch rollback gate' {
         @($summary.ApprovalManifestPaths).Count | Should -BeGreaterThan 0
     }
 
+    It 'writes a blocked gate-only batch summary when rollback evidence is incomplete' {
+        $manifest = Copy-TestObject -InputObject $script:BaseManifest
+        $changed = Get-Content -LiteralPath $script:ChangedManifestOne -Raw | ConvertFrom-Json
+        $changed.ChangedByPriorBatchRun = $false
+        $badChangedManifestPath = Write-TestJson -Path (Join-Path $TestDrive 'rev443-changed-incomplete.json') -InputObject $changed
+        $manifest.Targets[0].ChangedObjectManifestPath = $badChangedManifestPath
+        $manifestPath = Write-TestJson -Path (Join-Path $TestDrive 'rev443-blocked-summary.json') -InputObject $manifest
+
+        { & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $manifestPath -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute } | Should -Throw
+
+        $summaryPath = Get-ChildItem -LiteralPath $script:OutputRoot -Recurse -File -Filter 'rev443-batch-rollback-summary.json' | Select-Object -First 1
+        $summary = Get-Content -LiteralPath $summaryPath.FullName -Raw | ConvertFrom-Json
+        $summary.ExecutionNotPerformed | Should -BeTrue
+        $summary.LiveMutationPerformed | Should -BeFalse
+        $summary.SafetyGatePassed | Should -BeFalse
+        @($summary.BlockingReasons).Count | Should -BeGreaterThan 0
+    }
+
     It 'Confirms non-target object protection contract' {
         $manifestPath = Write-TestJson -Path (Join-Path $TestDrive 'rev443-good-protection.json') -InputObject $script:BaseManifest
         $result = & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $manifestPath -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute

@@ -807,7 +807,6 @@ $batchMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'BatchMism
 $identityMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'IdentityMismatch' }).Count
 $incompleteEvidenceCount = @($allFindings | Where-Object { $_.Category -eq 'IncompleteEvidence' }).Count
 $blockedCount = @($targetRows | Where-Object { $_.CloseoutDisposition -in @('Blocked', 'MissingArtifact', 'IdentityMismatch', 'IncompleteEvidence') }).Count
-$liveMutationDetectedCount = @($targetRows | Where-Object { $_.CloseoutDisposition -eq 'Blocked' -and ($_.Notes -notmatch 'warning-only') }).Count
 $sourceBlockingFindingCount = @($allFindings | Where-Object { $_.Severity -in @('Error', 'Critical') }).Count
 
 $expectedTenantIds = @()

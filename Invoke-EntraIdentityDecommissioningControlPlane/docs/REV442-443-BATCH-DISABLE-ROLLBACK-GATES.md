@@ -38,6 +38,8 @@ Required inputs:
 - per-object approval state
 - conservative `MaxObjectsPerWave` value
 - `StopOnFirstFailure = true`
+- prior planning evidence must still show `SafetyGatePassed = true`
+- prior planning evidence must mark the target as `MutationEligible = true`
 
 Blocked conditions:
 
@@ -53,6 +55,9 @@ Blocked conditions:
 - missing per-object evidence
 - missing approval state
 - missing identity or AppId
+- stale or mismatched prior planning evidence
+- prior planning evidence that failed the safety gate
+- prior planning evidence that did not mark the target as mutation eligible
 
 Artifacts:
 
@@ -62,6 +67,8 @@ Artifacts:
 - per-object post-disable validation contract
 - batch execution summary
 - batch closeout-ready summary
+
+The batch execution summary and closeout-ready summary are written even when the gate blocks a target, and they record `ExecutionNotPerformed = true`, `LiveMutationPerformed = false`, `SafetyGatePassed = false` when rollback evidence is incomplete, and populated blocking reasons.
 
 ## Rev4.43
 
@@ -78,6 +85,7 @@ Rollback requires:
 
 Rollback is not allowed for arbitrary object lists.
 Rollback is not allowed when the prior run root or artifact references are missing.
+Rollback emits a batch summary even when evidence is blocked or incomplete so downstream closeout can consume a stable gate-only artifact chain.
 
 Artifacts:
 

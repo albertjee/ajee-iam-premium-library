@@ -449,23 +449,19 @@ function Start-NhiBatchRollback {
     }
 
     $changedByBatchBlockedTargets = @($blockedTargets | Where-Object { @($_.BlockingReasons) -contains 'Object was not marked as changed by the prior approved batch run.' })
-    if ($changedByBatchBlockedTargets.Count -gt 0) {
-        $blockedReason = [string]($changedByBatchBlockedTargets[0].BlockingReasons -join ' ')
-        throw ('STOP: ' + $blockedReason)
-    }
-
-    if ($blockedTargets.Count -gt 0 -and $eligibleTargets.Count -eq 0) {
-        $blockedReason = [string]($blockedTargets[0].BlockingReasons -join ' ')
-        throw ('STOP: ' + $blockedReason)
-    }
-
-    if ($StopOnFirstFailure -and $blockedTargets.Count -gt 0) {
-        $blockedReason = [string]($blockedTargets[0].BlockingReasons -join ' ')
-        throw ('STOP: ' + $blockedReason)
-    }
-
     $batchManifestOutPath = Join-Path $batchRoot 'rev443-batch-manifest.json'
     $batchSummaryPath = Join-Path $batchRoot 'rev443-batch-rollback-summary.json'
+    $batchBlockingReasons = [System.Collections.Generic.List[string]]::new()
+    foreach ($targetSummary in @($processedTargets)) {
+        foreach ($reason in @($targetSummary.BlockingReasons)) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$reason) -and -not $batchBlockingReasons.Contains([string]$reason)) {
+                $batchBlockingReasons.Add([string]$reason)
+            }
+        }
+    }
+    if ($stoppedEarly -and -not $batchBlockingReasons.Contains('Rollback validation stopped early due to a blocking target.')) {
+        $batchBlockingReasons.Add('Rollback validation stopped early due to a blocking target.')
+    }
 
     $batchManifestOut = [pscustomobject]@{
         SchemaVersion = $script:BatchSchemaVersion
@@ -483,6 +479,7 @@ function Start-NhiBatchRollback {
         InventoryPath = $inventoryPath
         Targets = @($processedTargets)
         ApprovalManifestPaths = @($processedTargets | ForEach-Object { $_.ApprovalManifestPath })
+        BlockingReasons = @($batchBlockingReasons)
         GeneratedUtc = [DateTime]::UtcNow.ToString('o')
     }
 
@@ -507,7 +504,10 @@ function Start-NhiBatchRollback {
         BlockedTargetCount = $blockedTargets.Count
         ChildCallCount = $childCalls
         StoppedEarly = $stoppedEarly
-        SafetyGatePassed = ($blockedTargets.Count -eq 0)
+        SafetyGatePassed = ($batchBlockingReasons.Count -eq 0)
+        BlockingReasons = @($batchBlockingReasons)
+        LiveMutationPerformed = $false
+        ExecutionNotPerformed = $true
         PerObjectRollbackValidationPaths = @($processedTargets | ForEach-Object { Join-Path $_.ArtifactFolder 'rev443-rollback-validation.json' })
         ApprovalManifestPaths = @($processedTargets | ForEach-Object { $_.ApprovalManifestPath })
         ArtifactCount = @($processedTargets).Count * 3
@@ -517,6 +517,21 @@ function Start-NhiBatchRollback {
 
     Write-BatchJsonArtifact -Path $batchManifestOutPath -InputObject $batchManifestOut | Out-Null
     Write-BatchJsonArtifact -Path $batchSummaryPath -InputObject $batchSummary | Out-Null
+
+    if ($changedByBatchBlockedTargets.Count -gt 0) {
+        $blockedReason = [string]($changedByBatchBlockedTargets[0].BlockingReasons -join ' ')
+        throw ('STOP: ' + $blockedReason)
+    }
+
+    if ($blockedTargets.Count -gt 0 -and $eligibleTargets.Count -eq 0) {
+        $blockedReason = [string]($blockedTargets[0].BlockingReasons -join ' ')
+        throw ('STOP: ' + $blockedReason)
+    }
+
+    if ($StopOnFirstFailure -and $blockedTargets.Count -gt 0) {
+        $blockedReason = [string]($blockedTargets[0].BlockingReasons -join ' ')
+        throw ('STOP: ' + $blockedReason)
+    }
 
     return [pscustomobject]@{
         WrapperVersion = $script:WrapperVersion
@@ -528,7 +543,7 @@ function Start-NhiBatchRollback {
         BatchRoot = $batchRoot
         BatchManifestPath = $batchManifestOutPath
         BatchSummaryPath = $batchSummaryPath
-        SafetyGatePassed = ($blockedTargets.Count -eq 0)
+        SafetyGatePassed = ($batchBlockingReasons.Count -eq 0)
         ExecutionStatus = 'GateOnly'
         ExecutionNotPerformed = $true
         StopOnFirstFailure = $StopOnFirstFailure

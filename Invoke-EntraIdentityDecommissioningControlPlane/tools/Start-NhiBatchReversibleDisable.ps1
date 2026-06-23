@@ -172,22 +172,39 @@ function Test-BatchWhatIfEvidence {
 
     $reasons = [System.Collections.Generic.List[string]]::new()
     $evidence = Read-BatchJsonDocument -Path $EvidencePath -Label 'WhatIf evidence'
+    $priorBatchManifestPath = Join-Path $PriorWhatIfRunRoot 'rev441-batch-manifest.json'
+    $priorBatchManifest = Read-BatchJsonDocument -Path $priorBatchManifestPath -Label 'Prior Rev4.41 batch manifest'
+    $priorBatchId = [string](Get-BatchPropertyValue -InputObject $priorBatchManifest -PropertyNames @('BatchId'))
     $evidenceTenantId = [string](Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('TenantId'))
-    $evidenceObjectId = [string](Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('ServicePrincipalObjectId', 'TargetObjectId', 'ObjectId'))
+    $evidenceBatchId = [string](Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('BatchId'))
+    $evidenceTargetObjectId = [string](Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('TargetObjectId', 'ServicePrincipalObjectId', 'ObjectId'))
     $evidenceAppId = [string](Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('AppId'))
     $evidenceApprovedAction = [string](Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('ApprovedAction', 'ActionType'))
     $evidenceWhatIf = Test-BatchBooleanValue -Value (Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('WhatIf', 'WhatIfMode') -Default $false) -PropertyName 'WhatIf'
     $evidenceLiveMutationPerformed = Test-BatchBooleanValue -Value (Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('LiveMutationPerformed', 'LiveMutationAllowed') -Default $false) -PropertyName 'LiveMutationPerformed'
     $evidenceSourceRunRoot = [string](Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('SourceBatchRunRoot', 'PriorWhatIfRunRoot', 'BatchRunRoot'))
+    $evidenceSafetyGatePassedRaw = Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('SafetyGatePassed')
+    $evidenceMutationEligibleRaw = Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('MutationEligible')
     $priorAccountEnabledRaw = Get-BatchPropertyValue -InputObject $evidence -PropertyNames @('PriorAccountEnabled', 'AccountEnabledBefore')
     $priorAccountEnabled = $null
+    $evidenceSafetyGatePassed = $null
+    $evidenceMutationEligible = $null
 
     if ($null -ne $priorAccountEnabledRaw -and -not [string]::IsNullOrWhiteSpace([string]$priorAccountEnabledRaw)) {
         $priorAccountEnabled = Test-BatchBooleanValue -Value $priorAccountEnabledRaw -PropertyName 'PriorAccountEnabled'
     }
+    if ($null -ne $evidenceSafetyGatePassedRaw -and -not [string]::IsNullOrWhiteSpace([string]$evidenceSafetyGatePassedRaw)) {
+        $evidenceSafetyGatePassed = Test-BatchBooleanValue -Value $evidenceSafetyGatePassedRaw -PropertyName 'SafetyGatePassed'
+    }
+    if ($null -ne $evidenceMutationEligibleRaw -and -not [string]::IsNullOrWhiteSpace([string]$evidenceMutationEligibleRaw)) {
+        $evidenceMutationEligible = Test-BatchBooleanValue -Value $evidenceMutationEligibleRaw -PropertyName 'MutationEligible'
+    }
 
+    if ([string]::IsNullOrWhiteSpace($priorBatchId)) { $reasons.Add('Prior Rev4.41 batch manifest must include BatchId.') }
+    elseif ($evidenceBatchId -ne $priorBatchId) { $reasons.Add('Prior planning evidence BatchId does not match the referenced Rev4.41 batch.') }
     if ($evidenceTenantId -ne $TenantId) { $reasons.Add('WhatIf evidence TenantId does not match the batch tenant.') }
-    if ($evidenceObjectId -ne $ServicePrincipalObjectId) { $reasons.Add('WhatIf evidence service principal does not match the target.') }
+    if ([string]::IsNullOrWhiteSpace($evidenceTargetObjectId)) { $reasons.Add('Prior planning evidence must include TargetObjectId or ServicePrincipalObjectId.') }
+    elseif ($evidenceTargetObjectId -ne $ServicePrincipalObjectId) { $reasons.Add('Prior planning evidence target object does not match the batch target.') }
     if ($evidenceAppId -ne $AppId) { $reasons.Add('WhatIf evidence AppId does not match the target.') }
     if ($evidenceApprovedAction -ne $ApprovedAction) { $reasons.Add('WhatIf evidence action does not match the batch action.') }
     if (-not $evidenceWhatIf) { $reasons.Add('WhatIf evidence must prove WhatIf or readiness mode.') }
@@ -195,12 +212,20 @@ function Test-BatchWhatIfEvidence {
     if (-not [string]::IsNullOrWhiteSpace($evidenceSourceRunRoot) -and $evidenceSourceRunRoot -ne $PriorWhatIfRunRoot) {
         $reasons.Add('WhatIf evidence does not belong to the referenced prior run root.')
     }
+    if ($null -eq $evidenceSafetyGatePassed) { $reasons.Add('Prior planning evidence must include SafetyGatePassed.') }
+    elseif (-not $evidenceSafetyGatePassed) { $reasons.Add('Prior planning evidence safety gate did not pass.') }
+    if ($null -eq $evidenceMutationEligible) { $reasons.Add('Prior planning evidence must include MutationEligible.') }
+    elseif (-not $evidenceMutationEligible) { $reasons.Add('Prior planning evidence did not mark target as mutation eligible.') }
     if ($null -eq $priorAccountEnabled) { $reasons.Add('WhatIf evidence must include prior AccountEnabled state.') }
 
     return [pscustomobject]@{
+        PriorBatchId = $priorBatchId
         PriorAccountEnabled = $priorAccountEnabled
         SourceRunRoot = $evidenceSourceRunRoot
         WhatIfEvidence = $evidence
+        SafetyGatePassed = $evidenceSafetyGatePassed
+        MutationEligible = $evidenceMutationEligible
+        TargetObjectId = $evidenceTargetObjectId
         BlockingReasons = @($reasons)
     }
 }
@@ -307,7 +332,11 @@ function Test-BatchTargetEligibility {
     if ($inventoryObjectId -ne $servicePrincipalObjectId) { $reasons.Add('Inventory object identity does not match the batch target.') }
     if ($inventoryAppId -ne $appId) { $reasons.Add('Inventory AppId does not match the batch target.') }
     if ([string]::IsNullOrWhiteSpace($PriorWhatIfEvidencePath) -or -not (Test-Path -LiteralPath $PriorWhatIfEvidencePath -PathType Leaf)) { $reasons.Add('Prior Rev4.41 WhatIf evidence is required.') }
-    if ($whatIfEvidence.BlockingReasons.Count -gt 0) { $reasons.AddRange($whatIfEvidence.BlockingReasons) }
+    foreach ($blockingReason in @($whatIfEvidence.BlockingReasons)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$blockingReason)) {
+            $reasons.Add([string]$blockingReason)
+        }
+    }
     if ($evidenceOnly) { $reasons.Add('EvidenceOnly disposition blocks mutation.') }
     if ($null -eq $priorAccountEnabled) { $reasons.Add('Prior AccountEnabled state is required.') }
 

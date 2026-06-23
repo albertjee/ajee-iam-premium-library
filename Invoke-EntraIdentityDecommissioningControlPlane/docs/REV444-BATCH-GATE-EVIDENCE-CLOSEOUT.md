@@ -67,6 +67,7 @@ Rev4.44 checks:
 - gate-only rollback evidence
 - rollback package prior-state evidence when it is available
 - the count of generated closeout output artifacts
+- `LiveMutationDetectedCount` only counts explicit live-mutation indicators, not blocked closeout rows by disposition alone
 
 ## Why This Does Not Authorize Live Execution
 Rev4.42 and Rev4.43 remain gate-only by design. Rev4.44 only validates that the evidence trail is intact. It does not convert those gate artifacts into a live mutation approval and it does not introduce a production execution path.
@@ -79,6 +80,7 @@ Rev4.42 and Rev4.43 remain gate-only by design. Rev4.44 only validates that the 
 - Treat missing prior account state as warning-only evidence in non-strict mode, which does not increase the blocked target count by itself.
 - Treat `SafetyGatePassed = false` anywhere in the evidence chain as a stop condition.
 - `BlockedCount` is target-centric, so one target with multiple findings still counts once.
+- `LiveMutationDetectedCount` must remain tied to actual live execution indicators such as live child calls or live mutation flags.
 
 ## Known Non-Goals
 - No live batch disable.

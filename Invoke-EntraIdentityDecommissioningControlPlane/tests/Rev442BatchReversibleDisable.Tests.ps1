@@ -79,6 +79,8 @@ Describe 'Rev4.42 batch reversible disable gate' {
             LiveMutationPerformed = $false
             SourceBatchRunRoot = $script:PriorRunRoot
             PriorAccountEnabled = $true
+            SafetyGatePassed = $true
+            MutationEligible = $true
         })
         Write-TestJson -Path $script:TargetTwoEvidencePath -InputObject ([pscustomobject]@{
             BatchId = 'REV441-PRIOR'
@@ -90,6 +92,8 @@ Describe 'Rev4.42 batch reversible disable gate' {
             LiveMutationPerformed = $false
             SourceBatchRunRoot = $script:PriorRunRoot
             PriorAccountEnabled = $false
+            SafetyGatePassed = $true
+            MutationEligible = $true
         })
         Write-TestJson -Path (Join-Path $script:PriorRunRoot 'rev441-batch-manifest.json') -InputObject ([pscustomobject]@{
             BatchId = 'REV441-PRIOR'
@@ -174,6 +178,64 @@ Describe 'Rev4.42 batch reversible disable gate' {
         $path = Join-Path $TestDrive 'rev442-missing-evidence.json'
         Write-TestJson -Path $path -InputObject $manifest
         { & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $path -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute } | Should -Throw
+    }
+
+    It 'blocks when prior planning evidence did not mark the target as mutation eligible' {
+        $manifest = Copy-TestObject -InputObject $script:BaseManifest
+        $blockedTargetEvidencePath = Join-Path $TestDrive 'rev442-target-blocked-whatif.json'
+        Write-TestJson -Path $blockedTargetEvidencePath -InputObject ([pscustomobject]@{
+            BatchId = 'REV441-PRIOR'
+            TenantId = $script:TenantId
+            ServicePrincipalObjectId = '7b972582-4b35-4fd4-b4c9-1ef2dd3a0c8b'
+            AppId = '48deb98d-78c4-49b0-8c56-eed1bb5732c0'
+            ApprovedAction = 'ReversibleDisable'
+            WhatIf = $true
+            LiveMutationPerformed = $false
+            SourceBatchRunRoot = $script:PriorRunRoot
+            PriorAccountEnabled = $true
+            SafetyGatePassed = $false
+            MutationEligible = $false
+        })
+        $manifest.Targets[0].WhatIfEvidencePath = $blockedTargetEvidencePath
+        $path = Join-Path $TestDrive 'rev442-prior-blocked.json'
+        Write-TestJson -Path $path -InputObject $manifest
+
+        { & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $path -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute } | Should -Throw
+
+        $targetSummaryPath = Get-ChildItem -LiteralPath $script:OutputRoot -Recurse -File -Filter 'rev442-target-summary.json' | Select-Object -First 1
+        $targetSummary = Get-Content -LiteralPath $targetSummaryPath.FullName -Raw | ConvertFrom-Json
+        $targetSummary.MutationEligible | Should -BeFalse
+        $targetSummary.SafetyGatePassed | Should -BeFalse
+        @($targetSummary.BlockingReasons | Where-Object { $_ -eq 'Prior planning evidence did not mark target as mutation eligible.' }).Count | Should -Be 1
+    }
+
+    It 'rejects stale prior planning evidence that does not match the referenced batch or target' {
+        $manifest = Copy-TestObject -InputObject $script:BaseManifest
+        $staleTargetEvidencePath = Join-Path $TestDrive 'rev442-target-stale-whatif.json'
+        Write-TestJson -Path $staleTargetEvidencePath -InputObject ([pscustomobject]@{
+            BatchId = 'REV441-STALE'
+            TenantId = $script:TenantId
+            ServicePrincipalObjectId = '11111111-1111-1111-1111-111111111111'
+            AppId = '22222222-2222-2222-2222-222222222222'
+            ApprovedAction = 'ReversibleDisable'
+            WhatIf = $true
+            LiveMutationPerformed = $false
+            SourceBatchRunRoot = $script:PriorRunRoot
+            PriorAccountEnabled = $true
+            SafetyGatePassed = $true
+            MutationEligible = $true
+        })
+        $manifest.Targets[0].WhatIfEvidencePath = $staleTargetEvidencePath
+        $path = Join-Path $TestDrive 'rev442-prior-stale.json'
+        Write-TestJson -Path $path -InputObject $manifest
+
+        { & $script:WrapperPath -TenantId $script:TenantId -BatchManifestPath $path -OutputRoot $script:OutputRoot -ApprovalPhrase $script:ApprovalPhrase -Mode Execute } | Should -Throw
+
+        $targetSummaryPath = Get-ChildItem -LiteralPath $script:OutputRoot -Recurse -File -Filter 'rev442-target-summary.json' | Select-Object -First 1
+        $targetSummary = Get-Content -LiteralPath $targetSummaryPath.FullName -Raw | ConvertFrom-Json
+        $targetSummary.MutationEligible | Should -BeFalse
+        @($targetSummary.BlockingReasons | Where-Object { $_ -eq 'Prior planning evidence BatchId does not match the referenced Rev4.41 batch.' }).Count | Should -Be 1
+        @($targetSummary.BlockingReasons | Where-Object { $_ -eq 'Prior planning evidence target object does not match the batch target.' }).Count | Should -Be 1
     }
 
     It 'rejects missing BatchId' {
