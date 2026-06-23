@@ -469,6 +469,7 @@ Describe 'Rev4.44 Batch Gate Evidence Closeout' {
         $summaryPath = Get-ChildItem -LiteralPath $fixture.OutputRoot -Recurse -File -Filter 'rev444-batch-gate-closeout-summary.json' | Select-Object -First 1
         $summary = Get-Content -LiteralPath $summaryPath.FullName -Raw | ConvertFrom-Json
         $summary.BlockedCount | Should -Be 1
+        $summary.LiveMutationDetectedCount | Should -Be 0
     }
 
     It 'fails closed when any source safety gate is false' {
