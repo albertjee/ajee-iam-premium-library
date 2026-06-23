@@ -49,6 +49,7 @@ If evidence is incomplete or inconsistent, Rev4.44 fails closed.
 - `BatchMismatch`: batch identity does not match across artifacts.
 - `UnsafeBatchId`: the batch id is not safe for path use.
 - `MissingArtifact`: a required artifact bundle is missing.
+- `WarningOnly`: a non-strict prior-state gap was observed and recorded as a warning only.
 
 ## Artifact Continuity Model
 Rev4.44 checks:
@@ -74,8 +75,10 @@ Rev4.42 and Rev4.43 remain gate-only by design. Rev4.44 only validates that the 
 - Use `CloseoutReady` only as confirmation that the evidence chain is consistent.
 - Treat `CloseoutBlocked` as a stop condition.
 - Treat `EvidenceOnly` as non-mutating evidence retention, not as approval to mutate.
-- Treat missing prior account state as incomplete evidence unless policy explicitly requires strict blocking, in which case Rev4.44 blocks.
+- Treat missing prior account state as blocking evidence in `-Strict` mode.
+- Treat missing prior account state as warning-only evidence in non-strict mode, which does not increase the blocked target count by itself.
 - Treat `SafetyGatePassed = false` anywhere in the evidence chain as a stop condition.
+- `BlockedCount` is target-centric, so one target with multiple findings still counts once.
 
 ## Known Non-Goals
 - No live batch disable.

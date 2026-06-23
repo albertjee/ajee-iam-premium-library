@@ -225,6 +225,31 @@ function Get-IntegerValue {
     }
 }
 
+function Test-ModeValue {
+    param(
+        [Parameter(Mandatory = $true)][object]$Object,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string[]]$AllowedValues
+    )
+
+    if (-not (Test-HasProperty -Object $Object -Name $Name)) {
+        return $false
+    }
+
+    $value = [string](Get-PropertyValue -Object $Object -Name $Name)
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return $false
+    }
+
+    foreach ($allowedValue in $AllowedValues) {
+        if ($value -ieq $allowedValue) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Test-ValuePresence {
     param(
         [Parameter(Mandatory = $true)][object]$Object,
@@ -366,6 +391,10 @@ if ($null -ne $planningSummaryDoc) {
     if ((Get-BooleanValue -Object $planningSummaryData -Name 'SafetyGatePassed') -ne $true) {
         Add-Finding -Findings $allFindings -Severity 'Error' -Category 'Blocked' -Message 'Planning summary safety gate did not pass.' -ArtifactPath $planningSummaryDoc.Path
     }
+
+    if (-not (Test-ModeValue -Object $planningSummaryData -Name 'Mode' -AllowedValues @('WhatIf', 'Readiness'))) {
+        Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IncompleteEvidence' -Message 'Planning summary Mode must be WhatIf or Readiness.' -ArtifactPath $planningSummaryDoc.Path
+    }
 }
 
 if ($null -ne $planningReadinessDoc) {
@@ -464,6 +493,10 @@ if ($null -ne $disableSummaryDoc) {
         Add-Finding -Findings $allFindings -Severity 'Error' -Category 'Blocked' -Message 'Disable-gate summary safety gate did not pass.' -ArtifactPath $disableSummaryDoc.Path
     }
 
+    if (-not (Test-ModeValue -Object $disableData -Name 'Mode' -AllowedValues @('Execute'))) {
+        Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IncompleteEvidence' -Message 'Disable-gate summary Mode must be Execute.' -ArtifactPath $disableSummaryDoc.Path
+    }
+
     foreach ($name in @('ApprovalManifestPath', 'PreSnapshotPath', 'RollbackPackagePath', 'ChangedObjectManifestPath')) {
         if (-not (Test-HasProperty -Object $disableData -Name $name)) {
             Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IncompleteEvidence' -Message "Disable-gate summary is missing $name." -ArtifactPath $disableSummaryDoc.Path
@@ -539,6 +572,10 @@ if ($null -ne $rollbackSummaryDoc) {
 
     if ((Get-BooleanValue -Object $rollbackData -Name 'SafetyGatePassed') -ne $true) {
         Add-Finding -Findings $allFindings -Severity 'Error' -Category 'Blocked' -Message 'Rollback-gate summary safety gate did not pass.' -ArtifactPath $rollbackSummaryDoc.Path
+    }
+
+    if (-not (Test-ModeValue -Object $rollbackData -Name 'Mode' -AllowedValues @('Execute'))) {
+        Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IncompleteEvidence' -Message 'Rollback-gate summary Mode must be Execute.' -ArtifactPath $rollbackSummaryDoc.Path
     }
 
     $rollbackTargetCount = Get-IntegerValue -Object $rollbackData -Name 'TargetCount'
@@ -628,22 +665,24 @@ for ($i = 0; $i -lt $planningTargetMap.Count; $i++) {
     $planningEvidenceOnly = (Get-BooleanValue -Object $planningTarget -Name 'EvidenceOnly') -eq $true -or $planningDisposition -match 'EvidenceOnly'
     $planningMutationEligible = (Get-BooleanValue -Object $planningTarget -Name 'MutationEligible') -eq $true -or $planningDisposition -match 'Eligible'
 
-    $targetFindings = New-Object System.Collections.Generic.List[object]
     $closeoutDisposition = 'CloseoutReady'
     $gateOnlyConfirmed = $false
+    $targetFindingCountBefore = $allFindings.Count
+    $targetBlocked = $false
+    $targetWarning = $false
 
     if ($planningEvidenceOnly) {
         $closeoutDisposition = 'EvidenceOnly'
         $evidenceOnlyCount++
     } elseif (-not $planningMutationEligible) {
         $closeoutDisposition = 'Blocked'
-        $blockedCount++
+        $targetBlocked = $true
         Add-Finding -Findings $allFindings -Severity 'Error' -Category 'Blocked' -Message 'Planning target is not mutation eligible.' -TargetId $targetId -TargetDisplayName $displayName
     }
 
     if ($null -eq $disableTarget -or $null -eq $rollbackTarget) {
         $closeoutDisposition = 'MissingArtifact'
-        $blockedCount++
+        $targetBlocked = $true
         Add-Finding -Findings $allFindings -Severity 'Error' -Category 'MissingArtifact' -Message 'Target is missing from one or more gate evidence bundles.' -TargetId $targetId -TargetDisplayName $displayName
     } else {
         $disableId = Get-IdentityString -Target $disableTarget
@@ -654,28 +693,28 @@ for ($i = 0; $i -lt $planningTargetMap.Count; $i++) {
         if ($null -ne $targetId -and $null -ne $disableId -and $targetId -ne $disableId) {
             $closeoutDisposition = 'IdentityMismatch'
             $identityMismatchCount++
-            $blockedCount++
+            $targetBlocked = $true
             Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IdentityMismatch' -Message 'Disable-gate target ServicePrincipalObjectId does not match planning evidence.' -TargetId $targetId -TargetDisplayName $displayName
         }
 
         if ($null -ne $targetId -and $null -ne $rollbackId -and $targetId -ne $rollbackId) {
             $closeoutDisposition = 'IdentityMismatch'
             $identityMismatchCount++
-            $blockedCount++
+            $targetBlocked = $true
             Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IdentityMismatch' -Message 'Rollback-gate target ServicePrincipalObjectId does not match planning evidence.' -TargetId $targetId -TargetDisplayName $displayName
         }
 
         if ($null -ne $planningAppId -and $null -ne $disableAppId -and $planningAppId -ne $disableAppId) {
             $closeoutDisposition = 'IdentityMismatch'
             $identityMismatchCount++
-            $blockedCount++
+            $targetBlocked = $true
             Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IdentityMismatch' -Message 'Disable-gate target AppId does not match planning evidence.' -TargetId $targetId -TargetDisplayName $displayName
         }
 
         if ($null -ne $planningAppId -and $null -ne $rollbackAppId -and $planningAppId -ne $rollbackAppId) {
             $closeoutDisposition = 'IdentityMismatch'
             $identityMismatchCount++
-            $blockedCount++
+            $targetBlocked = $true
             Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IdentityMismatch' -Message 'Rollback-gate target AppId does not match planning evidence.' -TargetId $targetId -TargetDisplayName $displayName
         }
 
@@ -693,7 +732,7 @@ for ($i = 0; $i -lt $planningTargetMap.Count; $i++) {
             $rollbackSafetyGatePassed = (Get-BooleanValue -Object $rollbackTarget -Name 'SafetyGatePassed') -eq $true
             if (-not $disableSafetyGatePassed -or -not $rollbackSafetyGatePassed) {
                 $closeoutDisposition = 'Blocked'
-                $blockedCount++
+                $targetBlocked = $true
                 Add-Finding -Findings $allFindings -Severity 'Error' -Category 'Blocked' -Message 'Target evidence reports a failed safety gate.' -TargetId $targetId -TargetDisplayName $displayName
             } else {
                 $gateOnlyConfirmed = $true
@@ -701,13 +740,13 @@ for ($i = 0; $i -lt $planningTargetMap.Count; $i++) {
             }
         } else {
             $closeoutDisposition = 'Blocked'
-            $blockedCount++
+            $targetBlocked = $true
         }
 
         if ($disableLive -or $rollbackLive -or (($disableChildCalls -gt 0) -or ($rollbackChildCalls -gt 0))) {
             $liveMutationDetectedCount++
             $closeoutDisposition = 'Blocked'
-            $blockedCount++
+            $targetBlocked = $true
             Add-Finding -Findings $allFindings -Severity 'Error' -Category 'LiveMutationDetected' -Message 'Target evidence contains live mutation indicators.' -TargetId $targetId -TargetDisplayName $displayName
         }
     }
@@ -719,13 +758,17 @@ for ($i = 0; $i -lt $planningTargetMap.Count; $i++) {
         if (-not $rollbackPriorStateKnown) {
             $incompleteEvidenceCount++
             if ($Strict.IsPresent) {
-                $closeoutDisposition = 'IncompleteEvidence'
-                $blockedCount++
+                if ($closeoutDisposition -in @('CloseoutReady', 'EvidenceOnly', 'WarningOnly')) {
+                    $closeoutDisposition = 'IncompleteEvidence'
+                }
+                $targetBlocked = $true
                 Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IncompleteEvidence' -Message 'Rollback evidence does not capture prior account state for this target.' -TargetId $targetId -TargetDisplayName $displayName
             } else {
-                $closeoutDisposition = 'IncompleteEvidence'
-                $blockedCount++
-                Add-Finding -Findings $allFindings -Severity 'Error' -Category 'IncompleteEvidence' -Message 'Rollback evidence does not capture prior account state for this target.' -TargetId $targetId -TargetDisplayName $displayName
+                if ($closeoutDisposition -in @('CloseoutReady', 'EvidenceOnly')) {
+                    $closeoutDisposition = 'WarningOnly'
+                    $targetWarning = $true
+                }
+                Add-Finding -Findings $allFindings -Severity 'Warning' -Category 'IncompleteEvidence' -Message 'Rollback evidence does not capture prior account state for this target.' -TargetId $targetId -TargetDisplayName $displayName
             }
         } else {
             $rollbackPackageStateKnown = $true
@@ -736,8 +779,8 @@ for ($i = 0; $i -lt $planningTargetMap.Count; $i++) {
         $closeoutReadyCount++
     }
 
-    if ($closeoutDisposition -eq 'Blocked') {
-        $blockedCount++
+    if ($targetBlocked -and $allFindings.Count -eq $targetFindingCountBefore) {
+        Add-Finding -Findings $allFindings -Severity 'Error' -Category $closeoutDisposition -Message 'Target closeout disposition is blocked.' -TargetId $targetId -TargetDisplayName $displayName
     }
 
     $targetRows.Add([pscustomobject]@{
@@ -755,7 +798,7 @@ for ($i = 0; $i -lt $planningTargetMap.Count; $i++) {
         GateOnlyConfirmed         = $gateOnlyConfirmed
         PriorStateCaptured        = $rollbackPriorStateKnown
         CloseoutDisposition       = $closeoutDisposition
-        Notes                     = if ($planningEvidenceOnly) { 'Evidence-only target retained for continuity validation only.' } elseif ($gateOnlyConfirmed) { 'Gate-only evidence confirmed without tenant mutation.' } else { 'Closeout blocked by evidence or continuity issue.' }
+        Notes                     = if ($planningEvidenceOnly) { 'Evidence-only target retained for continuity validation only.' } elseif ($gateOnlyConfirmed) { 'Gate-only evidence confirmed without tenant mutation.' } elseif ($targetWarning) { 'Closeout continues with warning-only incomplete evidence.' } else { 'Closeout blocked by evidence or continuity issue.' }
     })
 }
 
@@ -763,8 +806,9 @@ $tenantMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'TenantMi
 $batchMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'BatchMismatch' }).Count
 $identityMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'IdentityMismatch' }).Count
 $incompleteEvidenceCount = @($allFindings | Where-Object { $_.Category -eq 'IncompleteEvidence' }).Count
-$blockedCount = @($allFindings | Where-Object { $_.Category -in @('Blocked', 'LiveMutationDetected', 'MissingArtifact', 'IdentityMismatch', 'TenantMismatch', 'BatchMismatch') }).Count
-$liveMutationDetectedCount = @($allFindings | Where-Object { $_.Category -eq 'LiveMutationDetected' }).Count
+$blockedCount = @($targetRows | Where-Object { $_.CloseoutDisposition -in @('Blocked', 'MissingArtifact', 'IdentityMismatch', 'IncompleteEvidence') }).Count
+$liveMutationDetectedCount = @($targetRows | Where-Object { $_.CloseoutDisposition -eq 'Blocked' -and ($_.Notes -notmatch 'warning-only') }).Count
+$sourceBlockingFindingCount = @($allFindings | Where-Object { $_.Severity -in @('Error', 'Critical') }).Count
 
 $expectedTenantIds = @()
 foreach ($document in @($planningSummaryDoc, $disableSummaryDoc, $rollbackSummaryDoc, $rollbackPackageDoc)) {
@@ -789,14 +833,7 @@ if ($null -ne $rollbackSummaryDoc -and [string](Get-PropertyValue -Object $rollb
     Add-Finding -Findings $allFindings -Severity 'Error' -Category 'BatchMismatch' -Message 'Rollback-gate summary BatchId does not match the requested BatchId.' -ArtifactPath $rollbackSummaryDoc.Path
 }
 
-$tenantMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'TenantMismatch' }).Count
-$batchMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'BatchMismatch' }).Count
-$identityMismatchCount = @($allFindings | Where-Object { $_.Category -eq 'IdentityMismatch' }).Count
-$incompleteEvidenceCount = @($allFindings | Where-Object { $_.Category -eq 'IncompleteEvidence' }).Count
-$blockedCount = @($allFindings | Where-Object { $_.Severity -in @('Error', 'Critical') }).Count
-$liveMutationDetectedCount = @($allFindings | Where-Object { $_.Category -eq 'LiveMutationDetected' }).Count
-
-$safetyGatePassed = ($allFindings.Count -eq 0)
+$safetyGatePassed = ($blockedCount -eq 0 -and $sourceBlockingFindingCount -eq 0)
 $closeoutStatus = if ($safetyGatePassed) { 'CloseoutReady' } else { 'CloseoutBlocked' }
 
 $completedUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -843,7 +880,7 @@ $summary = [pscustomobject]@{
     NoTenantMutationPerformed   = $true
     LiveExecutionSupported      = $false
     ExecutionModel              = 'GateOnlyEvidenceCloseout'
-    ArtifactCount               = 4
+    ArtifactCount               = @(@($summaryPath, $findingsPath, $targetsPath, $runbookPath) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count
 }
 
 $runbook = @"

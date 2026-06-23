@@ -352,6 +352,33 @@ Describe 'Rev4.44 Batch Gate Evidence Closeout' {
         }
     }
 
+    It 'rejects malformed Mode values in source evidence' {
+        $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'bad-mode') -TenantId 'tenant-1' -BatchId 'batch-1'
+        $summaryPath = Join-Path $fixture.DisableRoot 'rev442-batch-reversible-disable-summary.json'
+        $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+        $summary.Mode = 'InvalidMode'
+        $summary | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $summaryPath
+        { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot } | Should -Throw
+    }
+
+    It 'rejects malformed planning Mode values' {
+        $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'bad-planning-mode') -TenantId 'tenant-1' -BatchId 'batch-1'
+        $summaryPath = Join-Path $fixture.PlanningRoot 'rev441-batch-lifecycle-planning-summary.json'
+        $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+        $summary.Mode = 'BadMode'
+        $summary | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $summaryPath
+        { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot } | Should -Throw
+    }
+
+    It 'rejects malformed rollback Mode values' {
+        $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'bad-rollback-mode') -TenantId 'tenant-1' -BatchId 'batch-1'
+        $summaryPath = Join-Path $fixture.RollbackRoot 'rev443-batch-rollback-summary.json'
+        $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+        $summary.Mode = 'BadMode'
+        $summary | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $summaryPath
+        { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot } | Should -Throw
+    }
+
     It 'fails closed when Rev4.41 planning artifacts are missing' {
         $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'missing-planning') -TenantId 'tenant-1' -BatchId 'batch-1'
         Remove-Item -LiteralPath $fixture.PlanningRoot -Recurse -Force
@@ -417,6 +444,33 @@ Describe 'Rev4.44 Batch Gate Evidence Closeout' {
         { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot } | Should -Throw
     }
 
+    It 'emits a finding for each blocked target' {
+        $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'blocked-target') -TenantId 'tenant-1' -BatchId 'batch-1' -FailSafetyGate
+        { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot } | Should -Throw
+        $summaryPath = Get-ChildItem -LiteralPath $fixture.OutputRoot -Recurse -File -Filter 'rev444-batch-gate-closeout-summary.json' | Select-Object -First 1
+        $summary = Get-Content -LiteralPath $summaryPath.FullName -Raw | ConvertFrom-Json
+        $summary.CloseoutStatus | Should -Be 'CloseoutBlocked'
+        $summary.SafetyGatePassed | Should -BeFalse
+        $findingsPath = Get-ChildItem -LiteralPath $fixture.OutputRoot -Recurse -File -Filter 'rev444-batch-gate-closeout-findings.json' | Select-Object -First 1
+        $findings = Get-Content -LiteralPath $findingsPath.FullName -Raw | ConvertFrom-Json
+        @($findings | Where-Object { $_.TargetId -eq 'sp-001' }).Count | Should -BeGreaterThan 0
+    }
+
+    It 'counts blocked targets rather than findings' {
+        $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'blocked-target-count') -TenantId 'tenant-1' -BatchId 'batch-1'
+        $disableTargetsPath = Join-Path $fixture.DisableRoot 'rev442-batch-reversible-disable-targets.json'
+        $disableTargets = Get-Content -LiteralPath $disableTargetsPath -Raw | ConvertFrom-Json
+        $disableTargets[0].ServicePrincipalObjectId = 'sp-999'
+        $disableTargets[0].AppId = 'app-999'
+        $disableTargets | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $disableTargetsPath
+
+        { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot } | Should -Throw
+
+        $summaryPath = Get-ChildItem -LiteralPath $fixture.OutputRoot -Recurse -File -Filter 'rev444-batch-gate-closeout-summary.json' | Select-Object -First 1
+        $summary = Get-Content -LiteralPath $summaryPath.FullName -Raw | ConvertFrom-Json
+        $summary.BlockedCount | Should -Be 1
+    }
+
     It 'fails closed when any source safety gate is false' {
         $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'failed-safety') -TenantId 'tenant-1' -BatchId 'batch-1' -FailSafetyGate
         { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot } | Should -Throw
@@ -425,6 +479,16 @@ Describe 'Rev4.44 Batch Gate Evidence Closeout' {
     It 'detects missing prior account state in rollback package and blocks in Strict mode' {
         $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'missing-prior') -TenantId 'tenant-1' -BatchId 'batch-1' -MissingPriorState
         { & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot -Strict } | Should -Throw
+    }
+
+    It 'warns on missing prior account state without inflating blocked count when not strict' {
+        $fixture = New-Rev444Fixture -BasePath (Join-Path $TestDrive 'missing-prior-nonstrict') -TenantId 'tenant-1' -BatchId 'batch-1' -MissingPriorState
+        $summary = & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot
+        $summary.CloseoutStatus | Should -Be 'CloseoutReady'
+        $summary.BlockedCount | Should -Be 0
+        $findingsPath = Get-ChildItem -LiteralPath $fixture.OutputRoot -Recurse -File -Filter 'rev444-batch-gate-closeout-findings.json' | Select-Object -First 1
+        $findings = Get-Content -LiteralPath $findingsPath.FullName -Raw | ConvertFrom-Json
+        @($findings | Where-Object { $_.Severity -eq 'Warning' -and $_.Category -eq 'IncompleteEvidence' }).Count | Should -BeGreaterThan 0
     }
 
     It 'allows EvidenceOnly targets but does not count them as mutation-ready' {
@@ -439,6 +503,7 @@ Describe 'Rev4.44 Batch Gate Evidence Closeout' {
         $summary = & $script:ToolPath -TenantId 'tenant-1' -BatchId 'batch-1' -OutputRoot $fixture.OutputRoot -PlanningRunRoot $fixture.PlanningRoot -DisableGateRunRoot $fixture.DisableRoot -RollbackGateRunRoot $fixture.RollbackRoot
         $runDir = Get-ChildItem -LiteralPath $fixture.OutputRoot -Directory -Recurse | Where-Object { $_.Name -like 'batch-*' } | Select-Object -First 1
         $summary.ArtifactCount | Should -Be 4
+        $summary.CloseoutStatus | Should -Be 'CloseoutReady'
         Test-Path -LiteralPath (Join-Path $runDir.FullName 'rev444-batch-gate-closeout-summary.json') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $runDir.FullName 'rev444-batch-gate-closeout-findings.json') | Should -BeTrue
         Test-Path -LiteralPath (Join-Path $runDir.FullName 'rev444-batch-gate-closeout-targets.json') | Should -BeTrue
@@ -457,13 +522,21 @@ Describe 'Rev4.44 Batch Gate Evidence Closeout' {
 
     It 'static safety test confirms the wrapper does not contain forbidden live mutation calls' {
         $content = Get-Content -LiteralPath $script:ToolPath -Raw
-        $content | Should -Not -Match 'Update-MgServicePrincipal'
-        $content | Should -Not -Match 'Remove-Mg\*'
-        $content | Should -Not -Match 'Remove-MgServicePrincipal'
-        $content | Should -Not -Match 'Remove-MgApplication'
+        $content | Should -Not -Match '\b(?:Remove|Update|Set|New|Invoke)-Mg[A-Za-z0-9]+\b'
         $content | Should -Not -Match 'Invoke-NhiBatchChildLifecycle'
         $content | Should -Not -Match 'Start-NhiSingleObjectLifecycle'
         $content | Should -Not -Match 'Invoke-NhiRev438LiveDisable'
         $content | Should -Not -Match 'Invoke-NhiRev439LiveRollback'
+    }
+
+    It 'broad Mg regex catches forbidden command patterns in sample content' {
+        $sample = @'
+        Remove-MgServicePrincipal
+        Set-MgApplication
+        New-MgServicePrincipal
+        Invoke-MgGraphRequest
+        Update-MgServicePrincipal
+'@
+        $sample | Should -Match '\b(?:Remove|Update|Set|New|Invoke)-Mg[A-Za-z0-9]+\b'
     }
 }
