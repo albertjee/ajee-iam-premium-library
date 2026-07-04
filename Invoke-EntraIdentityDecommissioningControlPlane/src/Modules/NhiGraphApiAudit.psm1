@@ -1,8 +1,9 @@
-# NhiGraphApiAudit.psm1 - Rev4.1
+# NhiGraphApiAudit.psm1 - Rev4.46
 # Pre-decom Graph API operation audit.
 # Read-only. No write cmdlets.
 
 Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot 'NhiPatterns.psm1') -Force -DisableNameChecking
 
 #---------------------------------------------------------------------------
 # Function: Get-NhiAgentGraphApiAudit
@@ -150,6 +151,11 @@ function Invoke-NhiGraphApiOperationAnalysis {
     $complianceSensitive = 0
     $privilegeEscalation = 0
 
+    # Load shared patterns
+    $patterns = Get-NhiSharedPatterns
+    $complianceRegex = '(' + ($patterns.ComplianceSensitivePatterns -join '|') + ')'
+    $privilegeRegex = '(' + ($patterns.PrivilegeEscalationPatterns -join '|') + ')'
+
     foreach ($log in $AuditLogs) {
         # Check result status
         $result = $log.Result
@@ -192,12 +198,12 @@ function Invoke-NhiGraphApiOperationAnalysis {
         }
 
         # Compliance-sensitive operations
-        if ($displayName -match '(Delete|Purge|Hard.delete|Retention|Hold)') {
+        if ($displayName -match $complianceRegex) {
             $complianceSensitive++
         }
 
         # Privilege escalation operations
-        if ($displayName -match '(Add.role|Add.admin|Grant.permission|Create.service.principal|Create.application)') {
+        if ($displayName -match $privilegeRegex) {
             $privilegeEscalation++
         }
     }

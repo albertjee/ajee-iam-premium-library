@@ -1,7 +1,8 @@
-# NhiActivityLog.psm1 - Rev4.1
+# NhiActivityLog.psm1 - Rev4.46
 # Pre-decom agentic identity activity audit.
 # Read-only. No write cmdlets.
 Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot 'NhiPatterns.psm1') -Force -DisableNameChecking
 
 # ---------------------------------------------------------------------------
 # Helper: Get-ODataTimeFilter
@@ -338,7 +339,8 @@ function Invoke-NhiAgentDirectoryAuditAnalysis {
         }
     }
 
-    $complianceKeywords = @('Delete', 'Purge', 'Hard.delete', 'Retention', 'Hold', 'eDiscovery')
+    $patterns = Get-NhiSharedPatterns
+    $complianceKeywords = $patterns.ComplianceKeywords
     $complianceRegex = '(' + ($complianceKeywords -join '|') + ')'
 
     $successCount = 0
