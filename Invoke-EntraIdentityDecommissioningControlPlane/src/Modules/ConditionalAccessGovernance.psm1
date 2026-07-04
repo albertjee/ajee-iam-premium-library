@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 $script:CaFindingIds = [System.Collections.Generic.HashSet[string]] @(
     'DEC-CA-001','DEC-CA-002','DEC-CA-003','DEC-CA-004'
 )

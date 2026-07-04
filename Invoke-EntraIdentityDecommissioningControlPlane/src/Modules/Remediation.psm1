@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 function Confirm-DecomActionTargetValid {
     # Validates that approved target still exists and belongs to the approved object.
     # Returns: Valid, InvalidTargets (stale/safe), ValidationErrors (Graph failures), ErrorDetail

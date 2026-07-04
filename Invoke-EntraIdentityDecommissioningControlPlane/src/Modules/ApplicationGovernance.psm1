@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 $script:OwnerFindingIds = [System.Collections.Generic.HashSet[string]] @(
     'DEC-APP-001','DEC-APP-002','DEC-APP-003','DEC-SPN-001'
 )

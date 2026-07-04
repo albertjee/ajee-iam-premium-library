@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 function Get-DecomSha256 {
     param([string]$InputString)
 
