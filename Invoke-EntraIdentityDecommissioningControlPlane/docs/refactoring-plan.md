@@ -258,6 +258,7 @@ The following Phase 1 items from the original plan were confirmed to target `src
 | Phase 4 | Extract HTML template constants in Reporting.psm1 + NhiReporting.psm1 | **COMPLETE (commit 096f2cd)** | N/A |
 | Phase 5 | Split NhiControlledDecommission.psm1 into companions (Core/Gates/CleanupPlanning/PlanEvidence/LabRehearsal/Run4C) | **COMPLETE (commit fe4c7c0, 2430/2430)** | N/A |
 | Phase 6 | Verification (mandatory after each phase) | Pending | Per phase |
+| Phase 7 | Test consolidation — merge 28 per-Rev test files (Safety.Rev4x/NhiRun4C/NhiControlledDecommission.Rev4x) into 3 consolidated files | **COMPLETE (pending commit, 2418/2418)** | N/A |
 
 **Phase 2 COMPLETED (2026-07-04, commits e761f8a + 7204f3c):** Decomposed
 `Discovery.psm1` into 7 dot-sourced `.ps1` companion files. All helpers verified
@@ -303,17 +304,21 @@ src/Modules/Discovery.ReviewCorrelation.ps1    (594 lines)
 | (internal) | Decompose Discovery.psm1 into 7 dot-source helpers | P2 | **Complete** | 2584->109 lines, commits e761f8a + 7204f3c, 2430/2430 |
 | (internal) | NhiActivityLog + NhiGraphApiAudit private-helper decomposition | P3 | **Complete** | Commit 58dca9e, 2430/2430, tasks 7-11 done |
 | (internal) | Split NhiControlledDecommission.psm1 into 6 dot-source companions | P5 | **Complete** | Commit fe4c7c0, 2430/2430, 5915->66 lines |
+| a4ade05af1eed3e1c | Consolidate NhiControlledDecommission.Rev4x (8 files -> 1) | P7 | **Complete** | 315/315, 2 of 14 flagged rows were true dupes, 12 false positives kept separate |
+| a280e4ea2f50ea8d4 | Consolidate NhiRun4C (12 files -> 1) | P7 | **Complete** | 230/230, 0 of 27 flagged rows were true dupes (all false positives, different function per rev) |
+| (internal) | Fix + consolidate Safety.Rev4x (8 files -> 1) | P7 | **Complete** | 54/54 (was 66), 1 real bug found+fixed (-LiteralPath+wildcard silently matched 0 files) |
 
 ---
 
 ### 5.8 RESUMABILITY CHECKPOINT
 
-> **Last updated:** 2026-07-04
+> **Last updated:** 2026-07-05
 > **Branch:** `refactor/phase1-cleanup`
-> **HEAD:** `fe4c7c0`
+> **HEAD:** `599d2af` (Phase 7 complete in working tree, pending commit)
 > **Phase 2 status:** **COMPLETE** - commits e761f8a + 7204f3c, 2430/2430 passing
 > **Phase 3 status:** **COMPLETE** - commit 58dca9e, 2430/2430 passing
 > **Phase 5 status:** **COMPLETE** - commit fe4c7c0, 2430/2430 passing
+> **Phase 7 status:** **COMPLETE (pending commit)** - 2418/2418 passing (net -12 from 2430 baseline)
 
 Phase 2 is complete (Discovery.psm1: 109 lines, 7 dot-sourced helpers).
 Phase 3 is complete (NhiActivityLog + NhiGraphApiAudit: 9 private helpers extracted + data-driven findings refactored).
@@ -331,6 +336,77 @@ Phase 3 is complete (NhiActivityLog + NhiGraphApiAudit: 9 private helpers extrac
 - `NhiControlledDecommission.Run4C.ps1` — 2382 lines, 14 functions
 
 **Final `NhiControlledDecommission.psm1`: 66 lines** — dot-source loader + Export-ModuleMember.
+
+---
+
+### 5.9 Phase 7 - Test Consolidation (M7.1 + M7.2)
+
+**M7.1 (read-only inventory, 2026-07-04):** `docs/test-consolidation-inventory.md` inventoried 28
+per-revision test files (Safety.Rev4x x8, NhiRun4C x12, NhiControlledDecommission.Rev4x x8)
+totaling 511 static `It` names, mechanically flagging 48 as "SubSumed" (same name appearing in 2+
+files). Per the v2 plan, this required a STOP for Albert's approval of the kill-list before any
+file was written.
+
+**M7.2 (consolidation, 2026-07-05):** Each of the 48 flagged names was verified by reading the
+actual assertion body in every file it appeared in — not just matched by name. Two parallel
+subagents were dispatched (independent problem domains, no shared state) to handle the NhiRun4C
+and NhiControlledDecommission.Rev4x groups; the Safety.Rev4x group was consolidated first as a
+smaller pilot and used to establish the pattern.
+
+**Key finding:** the mechanical name-matching in M7.1 could not distinguish "same assertion text,
+genuinely duplicated" from "same `It` name reused across revisions, testing a different underlying
+function/fixture." Of 48 flagged SubSumed names, only **9 were real duplicates** safe to merge; the
+other **39 were false positives** and were correctly kept as separate tests to avoid silent
+coverage loss:
+
+- **Safety.Rev4x (8 -> 1 file):** all 7 flagged names were genuine duplicates or semantically
+  identical merges (one pair — "additive module...cmdlets" vs "controlled module...patterns" —
+  tested the exact same `$script:ModuleSource` regex-list check under different phrasing across
+  revs). Consolidated to `tests/Safety.NhiControlled.Consolidated.Tests.ps1`: **54 tests (was 66,
+  -12)**. One real bug found and fixed during consolidation: a `Get-ChildItem -LiteralPath
+  <wildcard>` assertion silently matched zero files because `-LiteralPath` never expands
+  wildcards; restored to the original exact literal-path + count assertion. Two of the 7 names
+  were also found still physically duplicated (copy-pasted into two `Describe` blocks instead of
+  actually merged) and were collapsed to one occurrence each.
+- **NhiRun4C (12 -> 1 file):** all 27 flagged names were false positives — every occurrence invoked
+  a different underlying `New-NhiRun4C*`/`Invoke-NhiControlledLab*` function per revision (e.g.
+  "Package writes JSON artifact locally" checks 9 different artifact-id properties across its 9
+  files). Zero merges were safe; consolidated to `tests/NhiRun4C.Consolidated.Tests.ps1` for
+  file-count reduction only: **230 tests (unchanged)**. A same-named-helper-function collision
+  hazard was found and fixed: several source files declared identically-named local helpers
+  (`New-TestTarget`, `Write-TestJson`, etc.) with different signatures, which would have silently
+  collided once concatenated into one Pester script scope (later same-named `function` wins for
+  every block, not just its own); colliding helpers were renamed with a `Rev<NNN>` prefix
+  (body/signature unchanged, call sites updated). Pre-existing test debt in Rev4.16 (four
+  `$script:` variables referenced but never assigned, falling through to default via a
+  null-check) was reproduced verbatim, not fixed, per the zero-behavior-change mandate.
+- **NhiControlledDecommission.Rev4x (8 -> 1 file):** of 14 flagged names, only 2 were genuine
+  duplicates (byte-identical assertions against different sample fixtures, collapsed into
+  `-ForEach`); the other 12 were false positives (same name, different private gate function —
+  e.g. Metadata-cleanup vs Grant-cleanup vs Managed-Identity readiness gates). Consolidated to
+  `tests/NhiControlledDecommission.Rev4x.Consolidated.Tests.ps1`: **315 tests (unchanged)** — the
+  M7.1 inventory's static count of 215 undercounted because several `It`s use `-ForEach` and
+  running each of the 8 original files individually and summing confirms 315 was always the real
+  discovered/executed count.
+
+**Net result:** 28 files -> 3 files. **2430 -> 2418 tests (-12 net)**, entirely from the
+Safety.Rev4x group; the other two groups' flagged "duplicates" were mechanical-inventory false
+positives, correctly kept separate to avoid coverage loss.
+
+**Verification sequence (all Gate 1/3, `pwsh`):**
+1. Each new file Gate-1/Gate-3 verified standalone (54/54, 230/230, 315/315), independently
+   re-run and spot-checked (not just trusting the building agent's own report).
+2. Full suite run with all 28 old files + 3 new files coexisting: **3029/3029, 0 failures**
+   (= 2430 baseline + 599 new-file total, confirming zero interaction effects between old and new).
+3. The 28 superseded files removed via `git rm` (confirmed tracked in git first).
+4. Full suite re-run: **2418/2418, 0 failures** — exact match to the pre-computed expectation.
+
+**Docs updated:** `docs/test-consolidation-inventory.md` (all 48 verdict cells resolved from
+`[TODO]` to MERGED / KEPT SEPARATE with reasoning), this section, section 5.5 table, section 5.7
+agent dispatch log, section 5.8 resumability checkpoint.
+
+**Not yet done:** commit. Per CLAUDE.md, Albert commits/pushes manually — this is proposed but
+not yet executed.
 
 ---
 
