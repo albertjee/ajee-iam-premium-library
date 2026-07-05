@@ -252,54 +252,45 @@ The following Phase 1 items from the original plan were confirmed to target `src
 
 | Phase | Task | Status | Blocker |
 |---|---|---|---|
-| Phase 2 | Discovery.psm1 decomposition — 7 dot-sourced helpers extracted; 2584 → 140 lines | **COMPLETE (commit e761f8a, 2430/2430)** | N/A |
-| Phase 3 | Create `src/Modules/NhiPatterns.psm1` (shared pattern arrays) | **COMPLETE** | N/A |
-| Phase 3 | NhiActivityLog + NhiGraphApiAudit decomposition into private helpers | **COMPLETE** | N/A |
-| Phase 4 | Extract HTML template constants in Reporting.psm1 + NhiReporting.psm1 | **COMPLETE** | N/A |
-| Phase 5 | Split NhiControlledDecommission.psm1 into 7 sub-modules | **Pending** | Phases 1-4 must pass |
-| Phase 6 | Split NhiControlledDecommission into 7 sub-modules | Pending | Phase 2 (Discovery) + Phase 3 (NHI audit) |
+| Phase 2 | Discovery.psm1 decomposition — 7 dot-sourced helpers; 2584 -> 109 lines | **COMPLETE (commits e761f8a + 7204f3c, 2430/2430)** | N/A |
+| Phase 3 | Create `NhiPatterns.psm1` (shared pattern arrays) | **COMPLETE (commit 096f2cd)** | N/A |
+| Phase 3 | NhiActivityLog + NhiGraphApiAudit decomposition into private helpers (tasks 7-11) | **Pending** | N/A |
+| Phase 4 | Extract HTML template constants in Reporting.psm1 + NhiReporting.psm1 | **COMPLETE (commit 096f2cd)** | N/A |
+| Phase 5 | Split NhiControlledDecommission.psm1 into 7 sub-modules | **Pending** | Phases 2+3 must pass |
+| Phase 6 | Verification (mandatory after each phase) | Pending | Per phase |
 
-**Phase 2 COMPLETED (2026-07-04, commit e761f8a):** Decomposed `Discovery.psm1`
-into 7 dot-sourced `.ps1` companion files preserving `InModuleScope Discovery` mocking
-compatibility. Gate 3 verified 2430/2430, 0 failures.
+**Phase 2 COMPLETED (2026-07-04, commits e761f8a + 7204f3c):** Decomposed
+`Discovery.psm1` into 7 dot-sourced `.ps1` companion files. All helpers verified
+at 2430/2430, 0 failures. Line counts below are actual disk measurements.
 
-**Phase 2 extracted helpers (all Gate-3 verified at 2430/2430):**
-- ✅ `Discovery.Coverage.ps1` — `Get-DecomAvailableCommand`, `New-DecomCoverage` (38 lines)
-- ✅ `Discovery.SyntheticFindings.ps1` — `Get-DecomSyntheticFindings` (690 lines)
-- ✅ `Discovery.UserGuestFindings.ps1` — `_Get-DecomUserFindings`, `_Get-DecomGuestFindings`, `_Get-DecomGuestSponsorMetadata`, `_Get-DecomOwnedObjectFindings` (385 lines)
-- ✅ `Discovery.PimCaExclusion.ps1` — `_Get-DecomPimCaFindings` (Rev2.3 PIM + CA exclusion, 364 lines)
-- ✅ `Discovery.AccessReview.ps1` — `_Get-DecomAccessReviewData` (M2 data collection, returns `$arData`, 204 lines)
-- ✅ `Discovery.AccessPackages.ps1` — `_Get-DecomAccessPackageFindings` (Rev2.2 AP assignments, 197 lines)
-- ✅ `Discovery.ReviewCorrelation.ps1` — `_Get-DecomReviewCorrelationFindings` (M2B/M3/M4/M5/M6 correlation, 628 lines)
+**Phase 2 extracted helpers (Gate-3 verified at 2430/2430, actual line counts):**
+- `Discovery.Coverage.ps1` — Get-DecomAvailableCommand, New-DecomCoverage (35 lines)
+- `Discovery.SyntheticFindings.ps1` — Get-DecomSyntheticFindings (652 lines)
+- `Discovery.UserGuestFindings.ps1` — _Get-DecomUserFindings, _Get-DecomGuestFindings, _Get-DecomGuestSponsorMetadata, _Get-DecomOwnedObjectFindings (357 lines)
+- `Discovery.PimCaExclusion.ps1` — _Get-DecomPimCaFindings (332 lines)
+- `Discovery.AccessReview.ps1` — _Get-DecomAccessReviewData (194 lines)
+- `Discovery.AccessPackages.ps1` — _Get-DecomAccessPackageFindings (182 lines)
+- `Discovery.ReviewCorrelation.ps1` — _Get-DecomReviewCorrelationFindings (594 lines)
 
-**Final `Discovery.psm1`: 140 lines** — pure dot-source loader + thin orchestrator.
+**Final `Discovery.psm1`: 109 lines** — dot-source loader + thin orchestrator.
 
-**Phase 2 file layout (committed e761f8a):**
+**Phase 2 file layout (e761f8a, actual disk line counts):**
 ```
-src/Modules/Discovery.psm1           (140 lines — orchestrator + loader)
-src/Modules/Discovery.Coverage.ps1    (38  lines)
-src/Modules/Discovery.SyntheticFindings.ps1  (690 lines)
-src/Modules/Discovery.UserGuestFindings.ps1   (385 lines)
-src/Modules/Discovery.PimCaExclusion.ps1      (364 lines)
-src/Modules/Discovery.AccessReview.ps1        (204 lines)
-src/Modules/Discovery.AccessPackages.ps1      (197 lines)
-src/Modules/Discovery.ReviewCorrelation.ps1   (628 lines)
-```
-- ⬜ Final Gate 1/2/3, then commit (Albert pushes)
-
----
+src/Modules/Discovery.psm1                    (109 lines)
+src/Modules/Discovery.Coverage.ps1             (35  lines)
+src/Modules/Discovery.SyntheticFindings.ps1   (652 lines)
+src/Modules/Discovery.UserGuestFindings.ps1  (357 lines)
+src/Modules/Discovery.PimCaExclusion.ps1       (332 lines)
+src/Modules/Discovery.AccessReview.ps1         (194 lines)
+src/Modules/Discovery.AccessPackages.ps1       (182 lines)
+src/Modules/Discovery.ReviewCorrelation.ps1    (594 lines)
+### 5.6 Open Issues
 
 ### 5.6 Open Issues
 
-1. **Phase 4 (Evidence.psm1) target is wrong:** The evidence emission DRY task targets `src/Modules/Evidence.psm1` but that file does not exist. The LiteModules file is in `src/LiteModules/` which is excluded. This was resolved in Phase 4 via `New-DecomActionResultWithEvidence` in a new NhiExecution.psm1 pattern.
+1. **NhiControlledDecommission.psm1 extraction requires freeze check:** Before Phase 5 can start, verify none of the 65 functions are in the frozen files list (CLAUDE.md section 7). Task 5 of the step-by-step plan addresses this.
 
-2. **NhiControlledDecommission.psm1 extraction requires freeze check:** Before Phase 6 can start, must verify that none of the 65 functions to extract are in the frozen files list (CLAUDE.md section 7). Task 5 of Step-by-step plan already addresses this.
-
-3. **Phase 2 discovery test coverage:** `Discovery.Rev23.Tests.ps1` tests use `InModuleScope Discovery` to shadow Graph cmdlets. When helper functions (`_Get-DecomGuestFindings`) call `Get-MgUser -Filter "userType eq 'Guest'"`, the mock `Get-MgUser` intercepts it client-side after the Graph API returns — but the filter string matching must align between helper code and test mock pattern. Key insight: helpers fetch ALL guests with `$all` flag, then filter client-side. Test mocks return all guests matching the `userType eq 'Guest'` filter.
-
-4. **String vs DateTime coercion in SignInActivity:** `SignInActivity.LastSignInDateTime` may be a DateTime (real Graph) or string (test mock). Always wrap in `try { [datetime]$raw } catch { $null }` before comparison — raw string `-lt [datetime]` returns `$false` silently, not a type error.
-
-5. **Get-MgUserManager mock returns `$null` not throws:** Sponsor-missing detection uses `try { Get-MgUserManager ... -ErrorAction Stop } catch { $hasSponsor = $false }`. If the mock returns `$null` (no throw), sponsor helper sees `$hasSponsor = $false` and DEC-GUEST-003 fires. This changes GREV correlation — `$isPrivileged` must NOT include sponsor-missing guests; only PIM-002 principals should set `isPrivileged = $true` for GREV-003.
+2. **String vs DateTime coercion in SignInActivity:** SignInActivity.LastSignInDateTime may be a DateTime (real Graph) or string (test mock). Always wrap in try { [datetime]raw } catch { $null } before comparison - raw string -lt [datetime] returns $false silently, not a type error. Never do `$raw -lt [datetime]` without the cast.
 
 ---
 
@@ -307,19 +298,21 @@ src/Modules/Discovery.ReviewCorrelation.ps1   (628 lines)
 
 | Agent ID | Task | Phase | Status | Notes |
 |---|---|---|---|---|
-| a4bb52a5 | Create NhiPatterns.psm1 | P3 | Complete ✅ | Shared pattern arrays extracted |
-| (internal) | Extract HTML constants — Reporting + NhiReporting | P4 | Complete ✅ | Phase 4 done |
-| (internal) | Decompose Discovery.psm1 | P2 | **Complete ✅** | 7 helpers extracted, 2584→140 lines, commit e761f8a, 2430/2430 |
-| (pending) | NHI audit module decomposition | P3 | Pending | Phase 3 remaining work |
-| (pending) | Split NhiControlledDecommission | P6 | Blocked on P2+P3 | Phase 6 |
+| a4bb52a5 | Create NhiPatterns.psm1 | P3 | Complete | Shared pattern arrays extracted |
+| (internal) | Extract HTML constants - Reporting + NhiReporting | P4 | Complete | Phase 4 done |
+| (internal) | Decompose Discovery.psm1 into 7 dot-source helpers | P2 | **Complete** | 2584->109 lines, commits e761f8a + 7204f3c, 2430/2430 |
+| (pending) | NhiActivityLog + NhiGraphApiAudit private-helper decomposition | P3 | Pending | Tasks 7-11 remaining (task 6 NhiPatterns done) |
+| (pending) | Split NhiControlledDecommission.psm1 into 7 sub-modules | P5/P6 | Blocked on P2+P3 | - |
+
+---
 
 ### 5.8 RESUMABILITY CHECKPOINT
 
-> **Last updated:** 2026-07-04  
-> **Branch:** `refactor/phase1-cleanup`  
-> **HEAD:** `e761f8a`  
-> **Phase 2 status:** **COMPLETE** — commit e761f8a, 2430/2430 passing
+> **Last updated:** 2026-07-04
+> **Branch:** `refactor/phase1-cleanup`
+> **HEAD:** `7204f3c`
+> **Phase 2 status:** **COMPLETE** - commits e761f8a + 7204f3c, 2430/2430 passing
 
-**Phase 2 is complete.** `Discovery.psm1` is 140 lines, 7 dot-sourced helpers extracted, all Gate-3 verified at 2430/2430.
+Phase 2 is complete. Discovery.psm1 is 109 lines, 7 dot-sourced helpers, all Gate-3 verified at 2430/2430.
 
-**Next work:** Phase 3/10 — NHI audit module decomposition. See section 5.3 Plan (tasks 6-11).
+**Next work:** Phase 3 - NhiActivityLog and NhiGraphApiAudit decomposition into private helpers (Section 3 tasks 7-11). Task 6 (NhiPatterns.psm1) done per commit 096f2cd. See docs/refactoring-plan.md Section 5.3 Phase 3 plan for exact mechanics.
