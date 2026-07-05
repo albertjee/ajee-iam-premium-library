@@ -238,34 +238,6 @@ function Test-DecomSafetyInvariant {
     return $result
 }
 
-function Test-DecomNoUnexpectedWriteScope {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [PSObject]$Context
-    )
-
-    $safetyResult = Test-DecomSafetyInvariant -Context $Context
-    return [PSCustomObject]@{
-        Passed = $safetyResult.NoUnexpectedWriteScope
-        Errors = $safetyResult.Errors | Where-Object { $_ -match 'write scope' }
-    }
-}
-
-function Test-DecomNoUnexpectedWriteCmdlet {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [PSObject]$Context
-    )
-
-    $safetyResult = Test-DecomSafetyInvariant -Context $Context
-    return [PSCustomObject]@{
-        Passed = $safetyResult.NoUnexpectedWriteCmdlet
-        Errors = $safetyResult.Errors | Where-Object { $_ -match 'write verb' }
-    }
-}
-
 function Export-DecomReleaseValidationJson {
     [CmdletBinding()]
     param(
