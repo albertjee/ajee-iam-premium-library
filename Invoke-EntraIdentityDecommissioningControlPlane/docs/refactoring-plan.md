@@ -329,7 +329,7 @@ Phase 3 is complete (NhiActivityLog + NhiGraphApiAudit: 9 private helpers extrac
 
 **Phase 5 companion files (fe4c7c0, actual disk line counts):**
 - `NhiControlledDecommission.Core.ps1` — 258 lines, 8 functions
-- `NhiControlledDecommission.Gates.ps1` — 377 lines, 11 functions
+- `NhiControlledDecommission.Gates.ps1` — 431 lines, 11 functions (377 at extraction; the surviving strict `New-NhiControlledGateVerdict` was added during the slim)
 - `NhiControlledDecommission.CleanupPlanning.ps1` — 581 lines, 12 functions
 - `NhiControlledDecommission.PlanEvidence.ps1` — 675 lines, 13 functions
 - `NhiControlledDecommission.LabRehearsal.ps1` — 1529 lines, 6 functions

@@ -41,22 +41,30 @@ function _Write-DecomEvidenceNdjson {
 
     if (-not $Path) { return }
 
-    $lock = $null
-    try {
-        # Open with exclusive write (FileShare.None) and call Lock() for
-        # inter-process synchronization — works under pwsh 7+ cross-process
-        $lock = [System.IO.File]::Open($Path, 'Append', 'Write', 'None')
-        $lock.Lock()
-        Add-Content -Path $Path -Value $Entry -Encoding UTF8
-        $lock.Unlock()
-    } catch {
-        # IOException = file locked by external process (AV scanner, other tool).
-        # Fall through — do not abort the action result for NDJSON write failure.
-        Write-Verbose "NDJSON write failed (locked or unavailable, non-fatal): $_"
-    } finally {
-        if ($null -ne $lock) {
-            $lock.Close()
-            $lock.Dispose()
+    # FileShare.None on the open IS the exclusive lock; write through the same
+    # handle. A second handle (e.g. Add-Content) would be rejected by the share
+    # mode, so the write must not go through a separate open.
+    $attempts = 3
+    for ($i = 1; $i -le $attempts; $i++) {
+        $fs = $null
+        try {
+            $fs = [System.IO.File]::Open($Path, [System.IO.FileMode]::Append, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+            $writer = [System.IO.StreamWriter]::new($fs, [System.Text.UTF8Encoding]::new($false))
+            $writer.WriteLine($Entry)
+            $writer.Dispose()
+            $fs = $null
+            return
+        } catch [System.IO.IOException] {
+            # File held by a concurrent writer or external process (AV scanner).
+            # Retry briefly, then fall through non-fatally - do not abort the
+            # action result for an NDJSON write failure.
+            if ($i -lt $attempts) { Start-Sleep -Milliseconds (50 * $i) }
+            else { Write-Verbose "NDJSON write failed after $attempts attempts (locked or unavailable, non-fatal): $_" }
+        } catch {
+            Write-Verbose "NDJSON write failed (non-fatal): $_"
+            return
+        } finally {
+            if ($null -ne $fs) { $fs.Dispose() }
         }
     }
 }
