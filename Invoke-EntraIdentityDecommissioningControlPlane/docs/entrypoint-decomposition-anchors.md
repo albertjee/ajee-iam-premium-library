@@ -1,9 +1,10 @@
 # Entry-Point Decomposition — M1 Assertion-Migration Anchors
 
-> **Status:** M1 APPROVED — 89cfcb0 committed (P1/P2/P3 pre-existing issues resolved), M2 in progress.
+> **Status:** M1 APPROVED — 89cfcb0 committed (P1/P2/P3 pre-existing issues resolved). M2 (region D) committed 7a332b0/52a4f3a. M3 (region E) committed 6420c45, 2406/2407 passing. M4-M7 pending.
 > **Baseline:** `48d0eeb`, 2408/2408, branch `refactor/entrypoint-decomposition`
 > **Plan (APPROVED):** `docs/entrypoint-decomposition-plan.md`
 > **Migration path for `$script:ControlledBranch`:** Path B (direct companion read in test BeforeAll)
+> **Post-M3 corrections (found by M4-M7 read-only recon agents, 2026-07-05):** see "M3 Post-Landing Corrections" section below — two anchor mis-attributions (P3, Rev30 Rev3.0-string) and four test files missing from the file inventory.
 
 ---
 
@@ -226,7 +227,7 @@ Counts: ~9 entry-anchored.
 | 54-55 | `$script:EntryPointContent = Get-Content -Raw` | 1 | full entry point read | ALL | **Concatenated corpus** |
 | 57-59 | 'includes EntitlementManagement.ReadWrite.All' | 1 | `$script:EntryPointContent \| Should -Match 'EntitlementManagement\.ReadWrite\.All'` | A | **UNCHANGED** (scope in param block, stays in main) |
 | 62-63 | **WARNING: INTENTIONAL MISMATCH** 'references Rev3.0 release path' | 1 | `$script:EntryPointContent \| Should -Match 'Rev3\.0'` | G/H/I | **Companions G/H/I** — BUT `'Rev3\.0'` is **absent from current Rev4.10 source** — agent flagged this as INTENTIONAL_HISTORICAL_VERSION, meaning the test may have been written against an older revision and now always passes regardless |
-| 66-68 | 'contains Rev3.0 error message string' | 1 | `$script:EntryPointContent \| Should -Match 'ExecuteRemediation for Rev3\.0'` | E | **Companion E** (NHI execution guard message string) |
+| 66-68 | 'contains Rev3.0 error message string' | 1 | `$script:EntryPointContent \| Should -Match 'ExecuteRemediation for Rev3\.0'` | ~~E~~ **B (corrected)** | ⚠️ **CORRECTED post-M3**: originally attributed to region E (NHI execution guard). Region I's recon agent traced the exact string — `"[ERROR] -GenerateReleasePackage should not be used with -Mode ExecuteRemediation for Rev3.0."` — to entry-point line 107, inside region B (mode validation/setup), not region E. Region B never leaves main. **This assertion required no change at M3 and requires none at any future milestone** — it is `Should -Match` against the full corpus, which will always include main, and the string lives in main permanently. |
 
 ---
 
@@ -251,7 +252,60 @@ Counts: ~6 entry-anchored. **UNCHANGED — all Class 7 (ToolVersion stays in mai
 |---|---|---|---|
 | 19-21 | ToolVersion = current release | 7 | **UNCHANGED** |
 | 24-26 | ToolVersion not stale (not Rev3.[0-5]) | 7 | **UNCHANGED** |
-| 31-34 | SchemaVersion 3.6 | 1 | Reads main file only. `'SchemaVersion\s*=\s*''3\.6'''` is in region F of the current file. After decomposition it will be in **Companion F**. Test should be updated to read concatenated corpus OR Companion F directly |
+| 31-34 | SchemaVersion 3.6 | 1 | ⚠️ **CORRECTED post-M3**: reads main file only. `'SchemaVersion\s*=\s*''3\.6'''` is in **region G** (executive-pack sub-block), NOT region F as originally stated here — see P3 correction above. No action at M4; test must be updated at **M5** to read concatenated corpus OR Companion G directly |
+
+---
+
+## M3 Post-Landing Corrections
+
+After M3 (region E extraction) landed, four parallel read-only recon agents scoped regions F/G/H/I ahead of M4-M7. Beyond the P3 and Rev30 corrections folded into their original sections above, the agents found that **the M1 inventory's "9 test files" is incomplete** — at least 4 additional files read entry-point source text and were never assessed for entry-anchored assertions. None of these require action at M3; they are recorded here so M4-M7 (and the M8 closed-set safety test) don't have blind spots.
+
+### 10. `tests/Safety.Tests.ps1` (not in original M1 inventory)
+
+711 lines. Confirmed entry-anchored assertions, all resolving to regions A/B/F (none touch region E or G/H/I):
+
+| Test : line | It / anchor type | Class | Anchor string(s) | Region | New target |
+|---|---|---|---|---|---|
+| 43-48 | 'ValidateSet for Mode includes ExecuteRemediation but is not default' | 1 | `ExecuteRemediation`, `Mode.*=.*'Assessment'` | A | **UNCHANGED** |
+| 102-107 | 'ExecuteRemediation mode is blocked in entry point source when DemoMode is used' | 1 | `ExecuteRemediation cannot run in DemoMode` | B | **UNCHANGED** |
+| 418-427 | 'Gate A and Gate B validated before Connect-MgGraph' | 4 (ordering) | `IndexOf('Test-DecomWhatIfManifest'/'Test-DecomApprovalManifest'/'Connect-MgGraph')`, no dead-code stripping | F | **Companion F at M4** — confirmed passing today (post-M3) since all 3 markers currently resolve to region F, the only remaining source of all three in main; will break at M4 unless retargeted to Companion F directly (or corpus) |
+| 556-566 | 'Gate ordering unchanged — WhatIf and Approval gates before Connect-MgGraph' (near-duplicate of the above, different context/fixture) | 4 (ordering) | same 3 markers | F | Same as above — **Companion F at M4** |
+| 673-676 | 'Entry point ApprovalManifest processing still guards on ApprovedActions' | 2 | `ApprovedActions` presence | F (contributes) + H | **Corpus** (Class 2) — F alone would satisfy it, but H also contains the string; safe either way |
+| 689-696 | 'SelfTest exits before Connect-MgGraph in entry point' | 4 (ordering) | `IndexOf('if ($SelfTest)')` (region C) vs `IndexOf('Connect-MgGraph')` | C vs F | **Corpus** — currently passes because F is main's last remaining `Connect-MgGraph` source; will break at M4 (main will have zero `Connect-MgGraph` occurrences after F moves) unless retargeted to read main + Companion F |
+
+**Action required:** add this file to the M4 (region F) migration list — items at lines 418-427, 556-566, and 689-696 all currently rely on `Connect-MgGraph` being present in main and will break silently at M4 if not retargeted.
+
+### 11. `tests/Remediation.Tests.ps1` (not in original M1 inventory)
+
+Confirmed entry-anchored assertions, split across region A (unaffected) and region F (M4-relevant):
+
+| Test : line | It / anchor type | Class | Anchor string(s) | Region | New target |
+|---|---|---|---|---|---|
+| 385-389 | 'Entry point MaxActions check is present in source' | mixed | `MaxActions` (region A, unaffected) **and** `exceeds` (region F only — `"...exceeds -MaxActions..."`) | A + F | The `MaxActions` half is unaffected (param block); the `exceeds` half needs **Companion F at M4** or this half of the assertion silently stops verifying anything once F is extracted |
+| 391-394 | 'Entry point ActionId filter is present in source' | 1 | `\$ActionId` | A (also matches param declaration) | **UNCHANGED** — vacuously satisfied by region A regardless of F's extraction; pre-existing latent weakness (not decomposition-caused), noted but out of scope |
+| 399-402 | 'Entry point RequirePreflightConfirm parameter is present' | 1 | `RequirePreflightConfirm` | A | **UNCHANGED** — same latent-weakness note as above |
+| 404-407 | 'Entry point preflight EXECUTE prompt is present' | 1 | `EXECUTE` (case-insensitive) | A (vacuously satisfied by `ExecuteRemediation`/`ExecuteNhiDecommission` etc.) | **UNCHANGED** — same latent-weakness note |
+
+**Action required:** add this file to the M4 migration list for the `exceeds` half of line 385-389; the other three rows need no change but are pre-existing weak assertions, not decomposition risk.
+
+### 12. `tests/Rev11/NhiPipelineState.Rev36.Tests.ps1` (not in original M1 inventory)
+
+A genuine 3-region straddler: declares in F, mutates in G, consumed in I. Confirmed by both the region-F and region-G recon agents independently.
+
+| Test : line | It / anchor type | Class | Anchor string(s) | Region | New target |
+|---|---|---|---|---|---|
+| 6-12 | 'Script declares NhiInventory, NhiAnalyzed, NhiGovernanceFindings, NhiPipelineRan variables' | 2 | `\$NhiInventory\s*=`, `\$NhiAnalyzed\s*=`, `\$NhiGovernanceFindings\s*=`, `\$NhiPipelineRan\s*=` | **F** (initial `= @()`/`= $false` declarations) — G also re-assigns the same 4 names, but F is first-occurrence | **Companion F at M4** (or corpus, since G's reassignment would also satisfy the regex — corpus is the safer choice to avoid meaning-drift, see flag below) |
+| 14-17 | 'NhiPipelineRan flag prevents duplicate execution' | 5 (block-slicing) | `if\s*\(\s*-not\s*\$NhiPipelineRan\s*\)` | **I only** (sole occurrence in the entire entry point) | **Companion I at M7** — direct read, not F or G |
+| 19-23 | 'Later sections reuse cached NHI state' | 5 (block-slicing) | `Invoke-DecomNhiReporting.*\$NhiAnalyzed`, `...\$NhiGovernanceFindings` | **I only** (sole occurrence) | **Companion I at M7** — direct read |
+
+**⚠️ Meaning-drift flag (both recon agents flagged this independently):** if line 6-12's assertion is retargeted to read Companion F alone once F is extracted (M4), it will still pass — but only because region G's *reassignment* of the same 4 variable names happens to also satisfy the regex if corpus is used, or because F's *initial declaration* satisfies it if F is read directly. Either choice preserves current pass/fail behavior, but the test's stated intent ("Script declares...") is best satisfied by keeping the anchor on F specifically (the actual `= @()`/`= $false` declarations), not corpus-wide, to avoid silently validating G's mutation instead of F's declaration.
+
+**Action required:** add this file to the M4 (line 6-12, region F) and M7 (lines 14-23, region I) migration lists.
+
+### Files checked and confirmed NOT relevant (no entry-point-source-reading assertions requiring migration)
+
+- `tests/Rev11/RedactionCleanup.Rev36.Tests.ps1` — one entry-point assertion, vacuously satisfied by a region-A param-name substring match (`Redacted` inside `$GenerateRedactedPackage`); the real redaction logic it's named for lives in region H, but the test never reaches it. Pre-existing weak assertion, not decomposition risk.
+- `tests/StartEntraIAMAssessment.Rev311.Tests.ps1` — tests a different wrapper script (`Start-EntraIAMAssessment.ps1`) against a synthetic fake stub entry point written to `$TestDrive`; never reads the real entry point's source text. Not relevant to this migration at all.
 
 ---
 
@@ -285,14 +339,14 @@ Counts: ~6 entry-anchored. **UNCHANGED — all Class 7 (ToolVersion stays in mai
 
 **Required resolution:** Either remove the test (if Rev3.0 references are genuinely gone), update the anchor, or add a comment documenting intentional obsolescence.
 
-### P3: SchemaVersion 3.6 Test Reads Main Only
+### P3: SchemaVersion 3.6 Test Reads Main Only — ⚠️ CORRECTED (region G, not F)
 
 **File:** `tests/Rev11/VersionHygiene.Rev36.Tests.ps1` line 31-34
 **Test:** `$script:EntrySource | Should -Match "SchemaVersion\s*=\s*'3\.6'"`
 
-The `SchemaVersion = '3.6'` literal is embedded in the `$Context` initialization within region F. After decomposition it will live in **Companion F**. The test reads `$script:EntrySource` (main file only), which will no longer contain the string.
+**Original (incorrect) attribution:** this section previously stated the `SchemaVersion = '3.6'` literal lives in region F and will move to Companion F at M4. **This was wrong**, confirmed independently by both the M4 (region F) and M5 (region G) recon agents after M3 landed: the string appears exactly once in the entry point, inside the `if ($GenerateExecutivePack) { $execContext = [pscustomobject]@{ SchemaVersion = '3.6' ...` block, which is part of region G ("NHI governance pack + agent activity audit + demo block" — the executive-pack sub-block sits between region F's end and the region H banner), not region F.
 
-**Required resolution (M8):** Update to read concatenated corpus, or explicitly read Companion F directly.
+**No action needed at M4.** The test will continue to pass unchanged through M4 (region F extraction) since the string never lived in region F to begin with. **Required resolution moves to M5** (region G → `NhiGovernancePack.ps1`): update the test's `BeforeAll` to read Companion G directly (or the concatenated corpus) instead of `$script:EntrySource`. The test file's own inline `# TODO M8` comment (lines 31-33) also repeats the F mis-attribution and should be corrected to reference region G / M5 when that milestone lands.
 
 ---
 
@@ -375,8 +429,11 @@ Tests that currently use `$script:EntrySource = Get-Content -Raw $script:EntryPo
 | ReleaseValidation.Rev33 | ~29 | 1 BeforeAll to corpus; Rev33 ordering fix (P1 above) | same |
 | Rev30.Integration | ~9 | 1 BeforeAll to corpus; fix Rev3.0 anchor (P2 above) | same |
 | Safety.Rev34 | ~4 | 1 BeforeAll to corpus | 1 BeforeAll to corpus |
-| VersionHygiene.Rev36 | ~6 | 0 (Class 7) + SchemaVersion fix (P3) | 0 + SchemaVersion fix |
-| **Total** | **~150** | | |
+| VersionHygiene.Rev36 | ~6 | 0 (Class 7) + SchemaVersion fix, **now targeting Companion G at M5, corrected post-M3** (P3) | 0 + SchemaVersion fix |
+| Safety.Tests.ps1 *(added post-M3, §10)* | ~6 | 3 ordering assertions (418-427, 556-566, 689-696) retarget to Companion F at M4 | same |
+| Remediation.Tests.ps1 *(added post-M3, §11)* | ~4 | 1 partial fix (`exceeds` half of MaxActions test) to Companion F at M4 | same |
+| Rev11/NhiPipelineState.Rev36 *(added post-M3, §12)* | ~3 | 1 to Companion F at M4 (or corpus); 2 to Companion I at M7 | same |
+| **Total** | **~163** | | |
 
 ---
 
@@ -389,3 +446,6 @@ Tests that currently use `$script:EntrySource = Get-Content -Raw $script:EntryPo
 | BS-3 | P1Fixes.Rev32 : 28 | `$writeScopes` definition is in AssessmentFlow (entry ~997) — block extraction targets Companion F | Verify Companion F contains the `$writeScopes = @(` guard at its boundary |
 | BS-4 | NhiExecution.Rev40 : 1269-1277 | `NHI_REV40_BLOCKED_CMDLETS_DEFINITION` at entry ~641-660 stays inside Companion E with region E content | Ensure comment-guard lines are preserved verbatim in Companion E; IndexOf will find them at new position within concatenated corpus |
 | BS-5 | Safety 1 : 262-266 | Prefix of `$EntrySource` up to `$ExecuteNhiControlledDecommission` — tests MAIN has nothing before that guard | Verify dot-source of Companion D IS the first companion and begins AT the `$ExecuteNhiControlledDecommission` block in main |
+| BS-6 *(added post-M3)* | Safety.Tests.ps1 : 418-427, 556-566, 689-696 | 3 ordering tests rely on `Connect-MgGraph` being present in **main**; today (post-M3, pre-M4) they pass because region F is main's only remaining source of that cmdlet. Will break silently at M4 unless retargeted | Retarget all 3 to read main + Companion F (or corpus) at M4; do not leave as main-only reads |
+| BS-7 *(added post-M3)* | Rev11/NhiPipelineState.Rev36.Tests.ps1 : 6-23 | 3-region straddle: variable *declarations* in F, *reassignment* in G, *consumption* in I. Lines 6-12 ('Script declares...') would still pass if retargeted to either F or corpus (G's reassignment satisfies the same regex) — a meaning-drift risk, not a hard failure | At M4, target line 6-12 specifically at Companion F (not corpus) to preserve the assertion's stated intent ("declares", not "mutates"); at M7, target lines 14-23 at Companion I directly (sole occurrence, no ambiguity) |
+| BS-8 *(added post-M3)* | Remediation.Tests.ps1 : 385-389 | `MaxActions` half of assertion resolves to region A (unaffected); `exceeds` half resolves to region F only | At M4, the `exceeds` half must retarget to Companion F or it silently stops verifying anything (regex simply won't match, test goes red — not a silent pass-through risk here, unlike BS-6/BS-7) |
