@@ -1,7 +1,7 @@
-# ── Rev4.0 M35: NHI Execution Guard + Flow ────────────────────────────────────
+# -- Rev4.0 M35: NHI Execution Guard + Flow -------------------------------------
 
 if ($ExecuteNhiDecommission) {
-    # Step 1: Destructive cmdlet guard — scan execution module source for blocked names
+    # Step 1: Destructive cmdlet guard - scan execution module source for blocked names
     # [Frozen test guard: blocked cmdlet names commented to prevent Should-Not-Match regex match]
     # <comment>
     #     NHI_REV40_BLOCKED_CMDLETS_DEFINITION
@@ -25,7 +25,7 @@ if ($ExecuteNhiDecommission) {
     foreach ($modPath in $executionModules) {
         if (-not (Test-Path $modPath)) { continue }
         $modContent = Get-Content -Path $modPath -Raw
-        # Destructive cmdlet blocklist — obfuscated names to avoid guard self-trigger
+        # Destructive cmdlet blocklist - obfuscated names to avoid guard self-trigger
     $blockedCmdlets = @(
         'Remove-MgServicePrincipal'
         'Remove-MgApplication'
@@ -52,9 +52,15 @@ if ($ExecuteNhiDecommission) {
         exit 1
     }
 
-    # Step 3: Validate manifest with Confirm-NhiApprovedManifest
+    # Step 3: Load the manifest so EngagementId/TargetObjectIds are available for validation
+    $manifestContent = Get-Content -Path $ApprovedManifestPath -Raw
+    $manifest = $manifestContent | ConvertFrom-Json
+    $engagementId = if ($manifest.EngagementId) { $manifest.EngagementId } else { $EngagementId }
+    $manifestTargetObjectIds = if ($manifest.TargetObjectIds) { $manifest.TargetObjectIds } else { @() }
+
+    # Step 3b: Validate manifest with Confirm-NhiApprovedManifest
     try {
-        $null = Confirm-NhiApprovedManifest -ManifestPath $ApprovedManifestPath -PhaseLimit $PhaseLimit
+        $null = Confirm-NhiApprovedManifest -ManifestPath $ApprovedManifestPath -EngagementId $engagementId -TargetObjectIds $manifestTargetObjectIds -PhaseLimit $PhaseLimit
     } catch {
         Write-Host "[ERROR] Approval manifest validation failed: $_" -ForegroundColor Red
         exit 1
@@ -87,7 +93,7 @@ if ($ExecuteNhiDecommission) {
         New-Item -ItemType Directory -Path $ExecutionOutputPath -Force | Out-Null
     }
 
-    # ── Rev4.0 M35: Rollback flow ──────────────────────────────────────────────
+    # -- Rev4.0 M35: Rollback flow ---------------------------------------------
     if ($Rollback) {
         $rollbackManifestPath = Join-Path $ExecutionOutputPath "SnapshotManifest-$ExecutionRunId.json"
         if (-not (Test-Path $rollbackManifestPath)) {
@@ -125,12 +131,10 @@ if ($ExecuteNhiDecommission) {
         exit 0
     }
 
-    # ── Rev4.0 M35: Execution flow (non-rollback) ─────────────────────────────
+    # -- Rev4.0 M35: Execution flow (non-rollback) -----------------------------
     # [M35 gate reference: Test-DecomApprovalManifest: approval manifest gate before graph]
     # [M35 gate reference: Test-DecomWhatIfManifest: whatif manifest gate before graph]
-    $manifestContent = Get-Content -Path $ApprovedManifestPath -Raw
-    $manifest = $manifestContent | ConvertFrom-Json
-    $engagementId = if ($manifest.EngagementId) { $manifest.EngagementId } else { $EngagementId }
+    # $manifest/$engagementId were already loaded in Step 3 above, ahead of validation.
     $targetObjects = if ($manifest.TargetObjectIds -and $manifest.TargetObjectIds.Count -gt 0) {
         $manifest.TargetObjectIds
     } elseif ($manifest.Records) {
@@ -144,7 +148,7 @@ if ($ExecuteNhiDecommission) {
         exit 0
     }
 
-    # Build ObjectId → DisplayName map from manifest Records (no Graph call needed)
+    # Build ObjectId to DisplayName map from manifest Records (no Graph call needed)
     $displayNameById = @{}
     if ($targetObjects[0].PSObject.Properties.Name -contains 'ObjectId') {
         foreach ($rec in $targetObjects) {
@@ -208,6 +212,7 @@ if ($ExecuteNhiDecommission) {
         } catch {
             Write-Host "    Phase 1 failed: $_" -ForegroundColor Red
             $phase1Skipped += $objectId
+            continue
         }
 
         # Phase 2: Disable (PhaseLimit >= 2)
@@ -288,7 +293,9 @@ if ($ExecuteNhiDecommission) {
                     $snap = Get-Content $manifestPath -Raw | ConvertFrom-Json
                     $snapshotRecord = $snap.Records | Where-Object { $_.ObjectId -eq $targetObjectId } | Select-Object -First 1
                 }
-            } catch { }
+            } catch {
+                Write-DecomWarn "Could not read snapshot manifest for attestation target ${targetObjectId}: $_"
+            }
             if (-not $snapshotRecord -or -not $snapshotRecord.DisabledAt) {
                 $decomTimestamp = [DateTime]::MinValue
             } else {
@@ -302,7 +309,7 @@ if ($ExecuteNhiDecommission) {
                 -WindowMinutes 60
             $attestationFindings += $attFindings
         }
-        # Persist DEC-ATTEST-* findings to dedicated artifact — never merged into $Findings
+        # Persist DEC-ATTEST-* findings to dedicated artifact - never merged into $Findings
         $attestationPath = Join-Path $ExecutionOutputPath "AttestationFindings-$ExecutionRunId.json"
         $attestationPayload = [PSCustomObject]@{
             ExecutionRunId      = $ExecutionRunId

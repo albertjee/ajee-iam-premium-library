@@ -50,6 +50,12 @@ if ($GenerateTraceabilityReport) {
                 $traceApproval = @($ap.ApprovedActions)
             }
         }
+        # Resolve execution evidence path if ExecuteRemediation mode did not already set it
+        # (mirrors the fallback used below in the ReplayValidation block)
+        if (-not $execEvidencePath) {
+            $execEvidencePath = Get-ChildItem -Path $RunFolder -Filter 'execution-evidence-*.json' -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+        }
         if ($execEvidencePath) {
             $ev = Get-Content $execEvidencePath -Raw | ConvertFrom-Json
             if ($ev.Actions) {
@@ -138,15 +144,16 @@ if ($GenerateRedactedPackage) {
             $_.FullName -notmatch '\\redacted\\'
         } |
             ForEach-Object {
+                $sourceFile = $_
                 try {
-                    $raw = Get-Content $_.FullName -Raw -ErrorAction Stop
+                    $raw = Get-Content $sourceFile.FullName -Raw -ErrorAction Stop
                     $redacted = Invoke-DecomRedaction -InputString $raw -Profile $redactionProfileObj
-                    $target = Join-Path $redactedDir $_.Name
+                    $target = Join-Path $redactedDir $sourceFile.Name
                     Set-Content -Path $target -Value $redacted -Encoding UTF8
                     $redactedCount++
                 } catch {
-                    Write-DecomWarn "Redaction failed for $($_.FullName): $($_.Exception.Message)"
-                    $redactionErrors += @{ File = $_.FullName; Error = $_.Exception.Message }
+                    Write-DecomWarn "Redaction failed for $($sourceFile.FullName): $($_.Exception.Message)"
+                    $redactionErrors += @{ File = $sourceFile.FullName; Error = $_.Exception.Message }
                 }
         }
 
@@ -162,7 +169,7 @@ if ($GenerateEvidenceBundle) {
         Import-Module (Join-Path $script:ModulesPath 'EvidenceBundle.psm1') -Force -DisableNameChecking -ErrorAction Stop
         $eb = New-DecomEvidenceBundle -Context $Context -RunId $hardeningRunId -BundleId ([guid]::NewGuid().ToString()) -SourceOutputPath $RunFolder -BundleOutputPath (Join-Path $RunFolder 'evidence-bundle')
         New-Item -ItemType Directory -Path $eb.BundleOutputPath -Force | Out-Null
-        Get-ChildItem -Path $RunFolder -File -Recurse | Where-Object { $_.FullName -notmatch '\\temp\\' } | ForEach-Object {
+        Get-ChildItem -Path $RunFolder -File -Recurse | Where-Object { $_.FullName -notmatch '\\temp\\' -and $_.FullName -notmatch '\\evidence-bundle\\' } | ForEach-Object {
             $eb = Add-DecomEvidenceBundleFile -Bundle $eb -FilePath $_.FullName -Category 'Assessment'
         }
         $ebManifestPath = Join-Path $eb.BundleOutputPath "evidence-bundle-manifest-$hardeningTimestamp.json"
@@ -174,7 +181,7 @@ if ($GenerateEvidenceBundle) {
     } catch { Write-DecomWarn "Evidence bundle skipped: $_" }
 }
 
-if ($GenerateEvidenceBundle -or $GenerateRedactedPackage -or $GenerateTraceabilityReport -or $GenerateClientHandoff -or $GenerateRev35Readiness) {
+if ($GenerateEvidenceBundle -or $GenerateRedactedPackage -or $GenerateTraceabilityReport -or $GenerateClientHandoff -or $GenerateRev35Readiness -or $GenerateReplayValidation -or $GenerateApprovalDiff) {
     try {
         Import-Module (Join-Path $script:ModulesPath 'OutputManifest.psm1') -Force -DisableNameChecking -ErrorAction Stop
         $om = New-DecomOutputManifest -Context $Context -RunId $hardeningRunId -OutputRoot $RunFolder

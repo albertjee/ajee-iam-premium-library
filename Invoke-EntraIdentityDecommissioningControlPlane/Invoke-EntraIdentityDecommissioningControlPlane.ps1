@@ -200,10 +200,10 @@ if ($SelfTest) {
 
 . "$PSScriptRoot\src\EntryPoint\NhiGovernancePack.ps1" -ErrorAction Stop
 
-# ── Rev3.4 Hardening Outputs ──────────────────────────────────────────────────
+# -- Rev3.4 Hardening Outputs ----------------------------------------------------
 
 . "$PSScriptRoot\src\EntryPoint\HardeningOutputs.ps1" -ErrorAction Stop
 
-# ── Rev3.5 NHI Governance Pack ────────────────────────────────────────────────
+# -- Rev3.5 NHI Governance Pack ---------------------------------------------------
 
 . "$PSScriptRoot\src\EntryPoint\Rev35GovernancePack.ps1" -ErrorAction Stop

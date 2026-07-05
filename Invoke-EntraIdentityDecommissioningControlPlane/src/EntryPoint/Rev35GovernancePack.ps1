@@ -2,10 +2,10 @@ if ($GenerateNhiGovernancePack) {
     try {
         Write-DecomInfo "Generating NHI governance pack..."
 
-        # Use cached NHI pipeline state if already ran, otherwise generate warning
+        # Use cached NHI pipeline state if already ran, otherwise skip with a warning
         if (-not $NhiPipelineRan) {
-            Write-DecomWarn "NHI reporting requested but NHI pipeline did not run; generating empty NHI pack with coverage warning."
-            # Do not re-run discovery/analysis/governance; just exit
+            Write-DecomWarn "NHI reporting requested but NHI pipeline did not run; skipping NHI pack generation."
+            # Do not re-run discovery/analysis/governance because no cached state is available.
         } else {
             # Generate NHI reporting outputs using cached state (writes nhi-* files to $Context.OutputPath = $RunFolder)
             Invoke-DecomNhiReporting -NhiInventory $NhiAnalyzed -NhiGovernanceFindings $NhiGovernanceFindings -Context $Context
