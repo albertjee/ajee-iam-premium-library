@@ -3061,33 +3061,6 @@ function Invoke-NhiControlledLabLiveReversibleDisable {
     return $evidence
 }
 
-function New-NhiControlledGateVerdict {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$GateName,
-
-        [Parameter(Mandatory)]
-        [bool]$Passed,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]$Severity = 'High',
-
-        [Parameter(Mandatory)]
-        [AllowEmptyString()]
-        [string]$Reason
-    )
-
-    [PSCustomObject]@{
-        GateName = $GateName
-        Passed = $Passed
-        Severity = $Severity
-        Reason = $Reason
-    }
-}
-
 function New-NhiRun4CFinalGoNoGoReviewPackage {
     [CmdletBinding()]
     [OutputType([PSCustomObject])]

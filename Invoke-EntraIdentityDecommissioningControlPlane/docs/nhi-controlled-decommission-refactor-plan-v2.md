@@ -38,7 +38,7 @@
 - Exported functions: 30 (single `Export-ModuleMember` block, lines 5884-5915).
 - Internal (non-exported) functions: 35.
 - `$script:` variables: 4, all defined lines 14-17, none assigned inside any function.
-- Duplicate: `New-NhiControlledGateVerdict` at lines 3064-3090 (strict: `[OutputType]`, mandatory `Severity`, `ValidateNotNullOrEmpty` on `Reason`) and lines 3881-3908 (loose: `Severity = 'High'` default, `Reason` not validated). PowerShell last-definition-wins means the **loose copy is what runs today**. All 6 call sites (lines 3261, 3869, 4187, 4354, 4935, 5288) pass all four parameters explicitly.
+- Duplicate: `New-NhiControlledGateVerdict` at lines 3064-3089 (LOOSE: `Severity = 'High'` default, `[AllowEmptyString()]` on `Reason`, no `[OutputType]`) and lines 3881-3907 (STRICT: `[OutputType([PSCustomObject])]`, all four params mandatory with `ValidateNotNullOrEmpty`). **CORRECTION at execution time (v1 doc had these swapped):** PowerShell last-definition-wins means the STRICT copy at 3881 is what runs today. M1 therefore deletes the loose copy at 3064-3089 - a zero-behavior-change edit since the strict copy already wins. All 6 call sites (lines 3261, 3869, 4187, 4354, 4935, 5288) pass all four parameters explicitly.
 
 ---
 
