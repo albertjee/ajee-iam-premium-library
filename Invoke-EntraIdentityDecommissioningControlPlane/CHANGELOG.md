@@ -1,5 +1,43 @@
 # Changelog
 
+## Refactor 2026-07 - Module Decomposition and Test Consolidation (Phases 1-7)
+
+### Summary
+Structural refactor merged to main via PR #19 (merge commit `89135d3`). Zero behavior change by
+design; every phase gate-verified (parse / import / full Pester suite). Frozen files untouched.
+
+### Changes
+- **Phase 1** (`f4ff745`): removed stale `#Requires -Version 5.1` from 31 non-frozen modules.
+- **Phase 2** (`e761f8a`): decomposed `Discovery.psm1` (2584 -> 139 lines) into 7 dot-sourced
+  companion files; dot-sourcing (not separate modules) preserves `InModuleScope` test mocking.
+- **Phase 3** (`58dca9e`, `096f2cd`): NHI activity module decomposition (`NhiActivityLog`,
+  `NhiGraphApiAudit`), shared `NhiPatterns.psm1` pattern arrays, data-driven findings.
+- **Phase 4** (`096f2cd`): HTML template constant extraction (`Reporting`, `NhiReporting`);
+  added `src/Modules/Evidence.psm1` (DRY evidence emission + NDJSON file locking; not yet
+  imported by any caller).
+- **Phase 5** (`60ede08`, `fe4c7c0`): split `NhiControlledDecommission.psm1` (5915 lines,
+  64 functions) into 6 dot-sourced companions + 66-line loader; removed one paste-error
+  duplicate function (strict copy already won by last-definition-wins).
+- **Phase 7** (`78dae22`): consolidated 28 per-revision test files into 3
+  (`Safety.NhiControlled.Consolidated`, `NhiRun4C.Consolidated`,
+  `NhiControlledDecommission.Rev4x.Consolidated`). Of 48 mechanically-flagged duplicate `It`
+  names, only 9 were genuine duplicates; 39 were false positives (same name, different gate
+  function/fixture per revision) and were kept separate to avoid coverage loss.
+- **Code review fixes** (`06411bb`): repaired `Evidence.psm1` NDJSON lock write, which was a
+  silent no-op (`FileStream.Lock()` overload error swallowed by catch); corrected a stale line
+  count in `docs/refactoring-plan.md`.
+- **Post-merge cleanup** (`fb378b7`): removed 14 untracked working-tree files (scratch scripts,
+  diagnostics, stale resume docs, and the never-committed Rev4.46 lab-readiness draft);
+  corrected canonical test count 2418 -> 2408 (prior figure included 10 tests from the
+  untracked Rev4.46 test file).
+
+### Test Count
+- 2408 total, 2408 passing, 0 failed on the pristine committed tree (was 2430 pre-refactor as
+  measured with untracked files present; net change from consolidation itself: -12 genuine
+  duplicates, -10 untracked Rev4.46 tests removed from the working tree).
+
+---
+
 ## Rev4.9 - Production Readiness Guardrails and Merge Gate
 
 ### Summary
