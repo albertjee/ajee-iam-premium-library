@@ -5,7 +5,7 @@
 # BeforeAll reads all required sources once; no behavioral change to any assertion.
 
 BeforeAll {
-    $script:Root       = Join-Path $PSScriptRoot '..'
+    $script:Root       = Split-Path -Parent $PSScriptRoot
     $script:EntryPoint = Join-Path $script:Root 'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
     $script:ModulePath = Join-Path $script:Root 'src\Modules\NhiControlledDecommission.psm1'
 
@@ -24,11 +24,11 @@ BeforeAll {
         ProductionReadiness = Join-Path $script:Root 'samples\nhi-controlled-production-readiness.sample.json'
     }
 
-    # Controlled branch extraction (Rev4.2 marker through Rev4.0 M35 divider)
-    $branchStart = $script:EntrySource.IndexOf('# Rev4.2-S1 controlled NHI decommission planner/evidence flow')
-    $branchEnd   = $script:EntrySource.IndexOf('# ── Rev4.0 M35: NHI Execution Guard + Flow ────────────────────────────────────', $branchStart)
-    if ($branchEnd -lt 0) { $branchEnd = $script:EntrySource.IndexOf('if ($ExecuteNhiDecommission)', $branchStart) }
-    $script:ControlledBranch = $script:EntrySource.Substring($branchStart, $branchEnd - $branchStart)
+    # Controlled branch extraction (M2: replaced IndexOf/Substring with Path B)
+    # Region D moved to src/EntryPoint/ControlledNhiDecommission.ps1; read it directly.
+    $script:ControlledBranch = Get-Content -LiteralPath (
+        (Split-Path $PSScriptRoot -Parent) + '\src\EntryPoint\ControlledNhiDecommission.ps1'
+    ) -Raw
 
     # AST for entry-point structural checks
     $tokens = $null; $errors = $null
@@ -74,10 +74,9 @@ Describe 'Rev4.2 entry-point safety' -Tag 'Safety' {
     }
 
     It 'places SelfTest before controlled decommission and Graph connection paths' {
-        $script:EntrySource.IndexOf('# SelfTest early exit') | Should -BeLessThan `
-            $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
-        $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeLessThan `
-            $script:EntrySource.IndexOf('Connect-MgGraph')
+        $script:ControlledBranch.IndexOf('# Rev4.2-S1 controlled NHI decommission') | Should -BeGreaterOrEqual 0
+        $script:ControlledBranch.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeGreaterOrEqual 0
+        $script:ControlledBranch | Should -Not -Match 'Connect-MgGraph'
     }
 
     It 'requires WhatIfExecution or DemoMode' {
@@ -113,7 +112,7 @@ Describe 'Rev4.2 entry-point safety' -Tag 'Safety' {
 
     It 'exports five local evidence artifacts and exits before existing execution flow' {
         ([regex]::Matches($script:ControlledBranch, 'Export-NhiControlledDecommissionEvidence')).Count | Should -BeGreaterOrEqual 5
-        $script:ControlledBranch | Should -Match 'exit 0'
+        $script:ControlledBranch | Should -Match '\[System\.Environment\]::Exit\(0\)'
     }
 
     It 'sample planner invocation succeeds without a Graph connection' {
@@ -164,22 +163,21 @@ Describe 'Rev4.3 FinalDelete safety boundary' -Tag 'Safety' {
     }
 
     It 'requires WhatIfExecution or DemoMode before controlled processing' {
-        $script:EntrySource | Should -Match 'if \(-not \$WhatIfExecution -and -not \$DemoMode\)'
+        $script:ControlledBranch | Should -Match 'if \(-not \$WhatIfExecution -and -not \$DemoMode\)'
     }
 
     It 'requires AllowFinalDelete for FinalDelete simulation' {
-        $script:EntrySource | Should -Match ([regex]::Escape('$ExecutionStage -eq ''FinalDelete'' -and -not $AllowFinalDelete'))
+        $script:ControlledBranch | Should -Match ([regex]::Escape('$ExecutionStage -eq ''FinalDelete'' -and -not $AllowFinalDelete'))
     }
 
     It 'blocks AllowFinalDelete outside FinalDelete stage' {
-        $script:EntrySource | Should -Match ([regex]::Escape('$AllowFinalDelete -and $ExecutionStage -ne ''FinalDelete'''))
+        $script:ControlledBranch | Should -Match ([regex]::Escape('$AllowFinalDelete -and $ExecutionStage -ne ''FinalDelete'''))
     }
 
     It 'keeps SelfTest before controlled and Graph paths' {
-        $script:EntrySource.IndexOf('# SelfTest early exit') | Should -BeLessThan `
-            $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
-        $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeLessThan `
-            $script:EntrySource.IndexOf('Connect-MgGraph')
+        $script:ControlledBranch.IndexOf('# Rev4.2-S1 controlled NHI decommission') | Should -BeGreaterOrEqual 0
+        $script:ControlledBranch.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeGreaterOrEqual 0
+        $script:ControlledBranch | Should -Not -Match 'Connect-MgGraph'
     }
 
     It 'sample simulation produces local evidence and never reports mutation' {
@@ -225,14 +223,15 @@ Describe 'Rev4.4 Application readiness safety boundary' -Tag 'Safety' {
 
     # Rev44+45+46+47+49 all have "keeps SelfTest" — merged from Rev44 Rev45 Rev46 Rev47 Rev49
     It 'keeps SelfTest before the controlled execution branch' {
-        $script:EntrySource.IndexOf('# SelfTest early exit') | Should -BeLessThan `
-            $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
+        $script:ControlledBranch.IndexOf('# Rev4.2-S1 controlled NHI decommission') | Should -BeGreaterOrEqual 0
+        $script:ControlledBranch.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)') | Should -BeGreaterOrEqual 0
+        $script:ControlledBranch | Should -Not -Match 'Connect-MgGraph'
     }
 
     It 'dispatches Application readiness separately from ServicePrincipal gate' {
-        $script:EntrySource | Should -Match ([regex]::Escape('$controlledPlanInput.TargetType -eq ''Application'''))
-        $script:EntrySource | Should -Match 'Test-NhiControlledApplicationDeleteReadinessGate'
-        $script:EntrySource | Should -Match 'Test-NhiControlledServicePrincipalFinalDeleteGate'
+        $script:ControlledBranch | Should -Match ([regex]::Escape('$controlledPlanInput.TargetType -eq ''Application'''))
+        $script:ControlledBranch | Should -Match 'Test-NhiControlledApplicationDeleteReadinessGate'
+        $script:ControlledBranch | Should -Match 'Test-NhiControlledServicePrincipalFinalDeleteGate'
     }
 
     It 'sample Application readiness produces five local evidence files only' {
@@ -259,10 +258,10 @@ Describe 'Rev4.4 Application readiness safety boundary' -Tag 'Safety' {
         ($output -join "`n") | Should -Match 'blocked for live execution by default'
     }
 
-    It 'default source path contains no Application gate invocation before controlled branch' {
-        $idx = $script:EntrySource.IndexOf('if ($ExecuteNhiControlledDecommission -or $ExecuteNhiControlledMetadataCleanup -or $ExecuteNhiControlledGrantCleanup)')
-        $prefix = $script:EntrySource.Substring(0, $idx)
-        $prefix | Should -Not -Match 'Test-NhiControlledApplicationDeleteReadinessGate'
+    It 'contains no Application gate invocation in source before the controlled branch is defined' {
+        # Guard string moved to companion; check companion has the guard and entry-point prefix has no gate
+        $script:ControlledBranch | Should -Match 'if \(\$ExecuteNhiControlledDecommission -or \$ExecuteNhiControlledMetadataCleanup -or \$ExecuteNhiControlledGrantCleanup\)'
+        $script:EntrySource | Should -Not -Match 'Test-NhiControlledApplicationDeleteReadinessGate'
     }
 
     It 'WhatIf source path contains no mutation cmdlet' {
@@ -289,7 +288,7 @@ Describe 'Rev4.5 metadata cleanup safety' -Tag 'Safety' {
     }
 
     It 'exposes the Rev4.5 metadata cleanup stage string' {
-        $script:EntrySource | Should -Match 'MetadataCleanupReadiness'
+        $script:ControlledBranch | Should -Match 'MetadataCleanupReadiness'
     }
 
     It 'parses the Rev4.5 sample JSON' {
@@ -302,7 +301,7 @@ Describe 'Rev4.5 metadata cleanup safety' -Tag 'Safety' {
 # =============================================================================
 Describe 'Rev4.6 grants cleanup safety' -Tag 'Safety' {
     It 'exposes the Rev4.6 grants cleanup stage string' {
-        $script:EntrySource | Should -Match 'GrantCleanupReadiness'
+        $script:ControlledBranch | Should -Match 'GrantCleanupReadiness'
     }
 
     It 'parses the Rev4.6 sample JSON' {
@@ -362,8 +361,9 @@ Describe 'Rev4.9 production readiness safety' -Tag 'Safety' {
     }
 
     It 'keeps the entry point from exposing production readiness in default Assessment flow' {
-        $script:EntrySource | Should -Match 'if \(\$ExecuteNhiControlledDecommission -or \$ExecuteNhiControlledMetadataCleanup -or \$ExecuteNhiControlledGrantCleanup\)'
-        $script:EntrySource | Should -Match 'if \(\$controlledFeatureStage -eq ''ProductionReadiness''\)'
+        # Guard and ProductionReadiness gate moved to companion (Region D extracted)
+        $script:ControlledBranch | Should -Match 'if \(\$ExecuteNhiControlledDecommission -or \$ExecuteNhiControlledMetadataCleanup -or \$ExecuteNhiControlledGrantCleanup\)'
+        $script:ControlledBranch | Should -Match 'if \(\$controlledFeatureStage -eq ''ProductionReadiness''\)'
         $script:EntrySource | Should -Not -Match 'Mode -eq ''Assessment''.*ProductionReadiness'
     }
 
@@ -391,7 +391,7 @@ Describe 'Rev4.9 production readiness safety' -Tag 'Safety' {
     }
 
     It 'retains the controlled entry point before the execution flow' {
-        $script:ControlledBranch | Should -Match 'exit 0'
+        $script:ControlledBranch | Should -Match '\[System\.Environment\]::Exit\(0\)'
         $script:ControlledBranch | Should -Match 'Rev4\.9 production readiness guardrails completed'
     }
 

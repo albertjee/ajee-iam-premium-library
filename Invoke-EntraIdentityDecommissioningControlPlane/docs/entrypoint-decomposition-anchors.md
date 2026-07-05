@@ -1,8 +1,9 @@
 # Entry-Point Decomposition — M1 Assertion-Migration Anchors
 
-> **Status:** M1 READY FOR APPROVAL — no code moved.
+> **Status:** M1 APPROVED — 89cfcb0 committed (P1/P2/P3 pre-existing issues resolved), M2 in progress.
 > **Baseline:** `48d0eeb`, 2408/2408, branch `refactor/entrypoint-decomposition`
 > **Plan (APPROVED):** `docs/entrypoint-decomposition-plan.md`
+> **Migration path for `$script:ControlledBranch`:** Path B (direct companion read in test BeforeAll)
 
 ---
 
@@ -256,7 +257,10 @@ Counts: ~6 entry-anchored. **UNCHANGED — all Class 7 (ToolVersion stays in mai
 
 ## Pre-Existing Issues Found During Inventory
 
-### P1: Rev33 Ordering Test is Already Broken
+### P1: Rev33 Ordering Test — ✅ RESOLVED (89cfcb0)
+
+**File:** `tests/ReleaseValidation.Rev33.Tests.ps1` lines 89-99
+**Test:** `IndexOf('Test-DecomWhatIfManifest') < IndexOf('Connect-MgGraph')`
 
 **File:** `tests/ReleaseValidation.Rev33.Tests.ps1` lines 89-98
 **Test:** `IndexOf('Test-DecomWhatIfManifest') < IndexOf('Connect-MgGraph')`
@@ -267,14 +271,12 @@ Counts: ~6 entry-anchored. **UNCHANGED — all Class 7 (ToolVersion stays in mai
 
 `IndexOf` searches the static string, not the control flow. `posConn (804) < posA (999)` means `posA < posConn` is **false**. This test fails today at `48d0eeb`.
 
-**After decomposition:** Both strings move to Companion E with the same relative in-file position, so the failure persists.
+**Root cause:** `Connect-MgGraph` at line 804 is inside `if ($ExecuteNhiDecommission)` which is reached only when `$ExecuteNhiControlledDecommission` is false (controlled block exits before the NHI block). Line 804 is dead code.
+**Fix:** Strip dead code blocks (controlled block through `exit 0` at line 635, NHI execution block) before `IndexOf`. The ordering comparison now operates on the reachable assessment/ExecuteRemediation execution path only. 55/55 tests pass after fix.
 
-**Required resolution (before M4 commit):**
-- Either fix the test to use conditional-aware ordering: strip `exit 0` blocks before `IndexOf`, or use AST-based reachability
-- Or correct the source: move the `Connect-MgGraph` call to after `Test-DecomWhatIfManifest` in the control flow (which preserves runtime correctness since the early-exit means the line 804 call never fires anyway)
-- Document as a known regression pre-existing this decomposition
+### P2: Rev30.Rev3\.0 Anchor — ✅ RESOLVED (89cfcb0, commentted out)
 
-### P2: Rev30.Rev3\.0 Anchor May Be Intentionally Always-Pass
+**File:** `tests/Rev30.Integration.Tests.ps1` lines 62-63
 
 **File:** `tests/Rev30.Integration.Tests.ps1` line 62-63
 **Test:** `$script:EntryPointContent | Should -Match 'Rev3\.0'`
