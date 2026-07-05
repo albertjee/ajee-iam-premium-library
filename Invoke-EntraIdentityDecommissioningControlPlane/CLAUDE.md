@@ -177,11 +177,19 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 - **Rev4.1 test count:** 1498 total tests, 1498 passing, 0 failed
   - 41 new tests (NhiActivityAudit.Rev41.Tests.ps1, M1-M6 activity audit modules)
   - HtmlEncoding cross-test contamination failure resolved during Rev4.1 fix cycles
+- **Current baseline (2026-07-05, Phase 7 test consolidation complete):** 2418 total tests, 2418
+  passing, 0 failed. Prior baseline was 2430 (post Phase 2/3/5 module-decomposition refactors,
+  see `docs/refactoring-plan.md` sections 5.5-5.8; intervening Rev4.2-4.9 growth not backfilled
+  in this section). Phase 7 merged 28 per-revision test files (Safety.Rev4x x8, NhiRun4C x12,
+  NhiControlledDecommission.Rev4x x8) into 3 consolidated files, net -12 tests (only genuine
+  duplicates removed; 39 mechanically-flagged "duplicates" verified as false positives — same
+  `It` name, different underlying function/fixture — and correctly kept separate). Full writeup:
+  `docs/refactoring-plan.md` section 5.9.
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Minimal
   ```
-- Must show 0 failures, >= 1498 tests passing.
+- Must show 0 failures, >= 2418 tests passing.
 
 ---
 
@@ -191,7 +199,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 1498 tests passing |
+| Tests | 0 failures, ≥ 2418 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 

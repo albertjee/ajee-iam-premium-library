@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
 
 function Get-DecomExecutionScopeRegistry {

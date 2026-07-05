@@ -292,13 +292,13 @@ Describe 'NhiDiscovery.Rev35 — NHI Discovery Module' {
         }
     }
 
-    # ── PS5.1 requirement ─────────────────────────────────────────────────────
+    # ── PS version requirement ────────────────────────────────────────────────
 
     Context 'Module PS version requirement' {
 
-        It 'NhiDiscovery module declares PS5.1 requirement' {
+        It 'NhiDiscovery module does not declare a PS5.1 requirement (pwsh 7+ target)' {
             $content = Get-Content (Join-Path $script:ModulesPath 'NhiDiscovery.psm1') -Raw
-            $content | Should -Match '#Requires -Version 5\.1'
+            $content | Should -Not -Match '#Requires -Version 5\.1'
         }
     }
 

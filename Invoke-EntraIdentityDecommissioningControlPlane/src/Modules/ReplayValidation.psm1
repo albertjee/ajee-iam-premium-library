@@ -1,4 +1,3 @@
-#Requires -Version 5.1
 # ReplayValidation.psm1 — Rev3.4
 # Validates that an execution can be replayed from saved WhatIf, Approval,
 # ExecutionLog, ExecutionEvidence, and manifest files WITHOUT connecting to Graph.

@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 # NHI Classification Constants
 $script:NhiClassificationPatterns = @(
     @{ Pattern = 'serviceprincipaltype'; Value = 'ServiceIdentity'; Score = 50; Confidence = 'High'; Category = 'ServicePrincipalType = ServiceIdentity' },

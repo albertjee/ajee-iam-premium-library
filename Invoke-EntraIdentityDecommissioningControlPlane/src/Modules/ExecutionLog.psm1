@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 function New-DecomExecutionLog {
     param(
         [string]$RunFolder,

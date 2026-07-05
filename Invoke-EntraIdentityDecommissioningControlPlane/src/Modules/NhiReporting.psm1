@@ -1,4 +1,20 @@
-#Requires -Version 5.1
+# HTML constants for NHI report generation
+$_NHI_DASHBOARD_CSS = @"
+body { font-family: Arial, sans-serif; margin: 20px; }
+.header { background-color: #f0f0f0; padding: 20px; text-align: center; }
+.summary { display: flex; justify-content: space-around; margin: 20px 0; }
+.summary-box { border: 1px solid #ccc; padding: 15px; text-align: center; min-width: 150px; }
+.finding-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+.finding-table th, .finding-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+.finding-table th { background-color: #f2f2f2; }
+.trend-up { color: red; }
+.trend-down { color: green; }
+.severity-Critical { background-color: #ffebee; }
+.severity-High { background-color: #fff3e0; }
+.severity-Medium { background-color: #fff8e1; }
+.severity-Low { background-color: #f3e5f5; }
+.severity-Informational { background-color: #f5f5f5; }
+"@
 
 function Invoke-DecomNhiReporting {
     [CmdletBinding()]
@@ -146,27 +162,14 @@ function Invoke-DecomNhiGenerateGovernanceDashboard {
         $path = Join-Path $Context.OutputPath "nhi-governance-dashboard-$timestamp.html"
     }
 
-    # Basic HTML dashboard template
+    # Basic HTML dashboard template - CSS is provided by $_NHI_DASHBOARD_CSS constant
     $html = @"
 <!DOCTYPE html>
 <html>
 <head>
     <title>NHI Governance Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { background-color: #f0f0f0; padding: 20px; text-align: center; }
-        .summary { display: flex; justify-content: space-around; margin: 20px 0; }
-        .summary-box { border: 1px solid #ccc; padding: 15px; text-align: center; min-width: 150px; }
-        .finding-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        .finding-table th, .finding-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .finding-table th { background-color: #f2f2f2; }
-        .trend-up { color: red; }
-        .trend-down { color: green; }
-        .severity-Critical { background-color: #ffebee; }
-        .severity-High { background-color: #fff3e0; }
-        .severity-Medium { background-color: #fff8e1; }
-        .severity-Low { background-color: #f3e5f5; }
-        .severity-Informational { background-color: #f5f5f5; }
+        $($_NHI_DASHBOARD_CSS)
     </style>
 </head>
 <body>

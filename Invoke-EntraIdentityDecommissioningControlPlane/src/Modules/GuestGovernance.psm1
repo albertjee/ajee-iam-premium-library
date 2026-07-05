@@ -1,4 +1,3 @@
-#Requires -Version 5.1
 # STATUS: Experimental — skeleton implementation. Not for client delivery in Rev3.1.
 # Full implementation planned for a future release.
 

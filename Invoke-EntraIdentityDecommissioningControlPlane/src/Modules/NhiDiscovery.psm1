@@ -1,5 +1,3 @@
-#Requires -Version 5.1
-
 $script:HighRiskAppPermissions = @(
     'Directory.ReadWrite.All', 'Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All',
     'RoleManagement.ReadWrite.Directory', 'PrivilegedAccess.ReadWrite.AzureAD',
