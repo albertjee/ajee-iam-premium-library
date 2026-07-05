@@ -53,10 +53,14 @@ Describe 'Rev3.0 Integration — Entry Point Write Scope' {
     BeforeAll {
         $script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
         $script:EntryPointContent = Get-Content $script:EntryPointPath -Raw
+        # M4: region F (write-scope Connect-MgGraph call) moved to
+        # src/EntryPoint/AssessmentFlow.ps1
+        $script:AssessmentFlowPath = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
+        $script:AssessmentFlowContent = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
     }
 
     It 'Entry point write scopes include EntitlementManagement.ReadWrite.All' {
-        $script:EntryPointContent | Should -Match 'EntitlementManagement\.ReadWrite\.All'
+        $script:AssessmentFlowContent | Should -Match 'EntitlementManagement\.ReadWrite\.All'
     }
 
     # REMOVED: 'Entry point references Rev3.0 release path' — anchor 'Rev3\.0' is

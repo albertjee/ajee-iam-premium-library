@@ -1334,9 +1334,10 @@ Describe 'M35 Entry Point — Execution Flow' {
     It 'Existing assessment behavior unchanged when -ExecuteNhiDecommission not passed' {
         # Assessment pipeline should NOT be gated on -ExecuteNhiDecommission
         # Discovery, analysis, export paths should remain intact
-        # M3: Invoke-DecomAssessmentDiscovery lives in region F (main entry point), not the NhiExecutionFlow companion
-        $entryContent = Get-Content -Path $Script:EntryPointPath -Raw
-        $entryContent | Should -Match 'Invoke-DecomAssessmentDiscovery' -Because 'Discovery must run in normal mode'
+        # M4: Invoke-DecomAssessmentDiscovery moved from region F (main) to
+        # src/EntryPoint/AssessmentFlow.ps1
+        $assessmentFlowContent = Get-Content -Path (Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1') -Raw
+        $assessmentFlowContent | Should -Match 'Invoke-DecomAssessmentDiscovery' -Because 'Discovery must run in normal mode'
     }
 
     It 'WhatIf output written to NhiExecutionWhatIf.json in ExecutionOutputPath' {

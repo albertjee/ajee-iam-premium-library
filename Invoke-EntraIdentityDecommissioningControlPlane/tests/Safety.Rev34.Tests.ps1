@@ -8,6 +8,9 @@ Describe 'Rev3.4 Safety Tests' {
         $script:Root        = Join-Path $PSScriptRoot '..'
         $script:ModPath     = Join-Path $script:Root 'src\Modules'
         $script:EntryPoint  = Join-Path $script:Root 'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        # M4: region F (contains the only literal '-DemoMode' Graph-connect call) moved to
+        # src/EntryPoint/AssessmentFlow.ps1
+        $script:AssessmentFlowPath = Join-Path $script:Root 'src\EntryPoint\AssessmentFlow.ps1'
 
         $script:WriteCmdletPattern = 'Remove-Mg[A-Za-z]|Update-Mg[A-Za-z]|New-Mg[A-Za-z]|Set-Mg[A-Za-z]|Invoke-MgGraphRequest'
         $script:WriteScope1        = 'Policy\.ReadWrite'
@@ -118,7 +121,7 @@ Describe 'Rev3.4 Safety Tests' {
         }
 
         It 'DemoMode does not appear in write scope Connect-MgGraph calls' {
-            $c = Get-Content $script:EntryPoint -Raw
+            $c = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
             $c | Should -Match '-DemoMode'
             $c | Should -Not -Match 'DemoMode.*ReadWrite|ReadWrite.*DemoMode'
         }

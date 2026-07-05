@@ -6,6 +6,9 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
     BeforeAll {
         $script:ModulesPath = Join-Path $PSScriptRoot '..\src\Modules'
         $script:EntryPoint  = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        # M4: region F (ExecuteRemediation branch, Assessment/DemoMode write-scope guards)
+        # moved to src/EntryPoint/AssessmentFlow.ps1
+        $script:AssessmentFlowPath = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
 
         foreach ($m in @('Utilities','ReleaseValidation')) {
             Remove-Module $m -Force -ErrorAction SilentlyContinue
@@ -67,19 +70,19 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
     # ── Items 1-3: Assessment/Demo/WhatIf mode write scope checks ──
 
     It 'Assessment mode does not call Application.ReadWrite.All' {
-        $content = Get-Content $script:EntryPoint -Raw
+        $content = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
         $assessBlock = $content -replace '(?s)ExecuteRemediation.*', ''
         $assessBlock | Should -Not -Match 'Application\.ReadWrite\.All'
     }
 
     It 'DemoMode does not request Application.ReadWrite.All' {
-        $content = Get-Content $script:EntryPoint -Raw
+        $content = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
         $demoBlock = $content -replace '(?s)ExecuteRemediation.*', ''
         $demoBlock | Should -Not -Match 'Application\.ReadWrite\.All'
     }
 
     It 'DemoMode does not request GroupMember.ReadWrite.All' {
-        $content = Get-Content $script:EntryPoint -Raw
+        $content = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
         $demoBlock = $content -replace '(?s)ExecuteRemediation.*', ''
         $demoBlock | Should -Not -Match 'GroupMember\.ReadWrite\.All'
     }
@@ -89,11 +92,11 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
     # M3: Region D (controlled NHI decommission) and Region E (NHI execution guard,
     # including the dead/unreachable Connect-MgGraph this test used to strip out)
     # were extracted to dot-sourced companions and no longer appear in main.
-    # The three markers below now live entirely in the ExecuteRemediation branch
-    # (region F), so no dead-code stripping is needed - compare directly.
+    # M4: Region F (ExecuteRemediation branch, containing all three markers below)
+    # also moved out to src/EntryPoint/AssessmentFlow.ps1 - read that directly.
     #
     It 'Gate ordering unchanged — WhatIf and Approval gates before Connect-MgGraph' {
-        $content = Get-Content $script:EntryPoint -Raw
+        $content = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
 
         $posA    = $content.IndexOf('Test-DecomWhatIfManifest')
         $posB    = $content.IndexOf('Test-DecomApprovalManifest')

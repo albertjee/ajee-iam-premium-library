@@ -413,12 +413,16 @@ Describe 'Rev2.0 Safety Tests' {
         BeforeAll {
             $script:epPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
             $script:epText = Get-Content $script:epPath -Raw
+            # M4: region F (ExecuteRemediation branch: Gate A/B validation, Connect-MgGraph,
+            # exit 0, Invoke-DecomAssessmentDiscovery) moved to src/EntryPoint/AssessmentFlow.ps1
+            $script:AssessmentFlowPath = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
+            $script:AssessmentFlowText = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
         }
 
         It 'Gate A and Gate B validated before Connect-MgGraph' {
-            $posA    = $script:epText.IndexOf('Test-DecomWhatIfManifest')
-            $posB    = $script:epText.IndexOf('Test-DecomApprovalManifest')
-            $posConn = $script:epText.IndexOf('Connect-MgGraph')
+            $posA    = $script:AssessmentFlowText.IndexOf('Test-DecomWhatIfManifest')
+            $posB    = $script:AssessmentFlowText.IndexOf('Test-DecomApprovalManifest')
+            $posConn = $script:AssessmentFlowText.IndexOf('Connect-MgGraph')
             $posA    | Should -BeGreaterThan 0
             $posB    | Should -BeGreaterThan 0
             $posConn | Should -BeGreaterThan 0
@@ -427,8 +431,8 @@ Describe 'Rev2.0 Safety Tests' {
         }
 
         It 'ExecuteRemediation branch exits before discovery' {
-            $posExit = $script:epText.IndexOf('exit 0')
-            $posDisc = $script:epText.IndexOf('Invoke-DecomAssessmentDiscovery')
+            $posExit = $script:AssessmentFlowText.IndexOf('exit 0')
+            $posDisc = $script:AssessmentFlowText.IndexOf('Invoke-DecomAssessmentDiscovery')
             $posExit | Should -BeGreaterThan 0
             $posDisc | Should -BeGreaterThan 0
             $posExit | Should -BeLessThan $posDisc
@@ -490,6 +494,9 @@ Describe 'Rev2.4 Safety Tests' {
         $script:baselinePath24 = Join-Path $PSScriptRoot '..\src\Modules\Baseline.psm1'
         $script:execPackPath24 = Join-Path $PSScriptRoot '..\src\Modules\ExecutivePack.psm1'
         $script:remPath24      = Join-Path $PSScriptRoot '..\src\Modules\Remediation.psm1'
+        # M4: region F (ExecuteRemediation branch: Gate A/B ordering, Connect-MgGraph)
+        # moved to src/EntryPoint/AssessmentFlow.ps1
+        $script:assessmentFlowPath24 = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
     }
 
     Context 'Rev2.4 write scope safety' {
@@ -554,7 +561,7 @@ Describe 'Rev2.4 Safety Tests' {
         }
 
         It 'Gate ordering unchanged — WhatIf and Approval gates before Connect-MgGraph' {
-            $content = Get-Content $script:epPath24 -Raw
+            $content = Get-Content -LiteralPath $script:assessmentFlowPath24 -Raw
             $posA    = $content.IndexOf('Test-DecomWhatIfManifest')
             $posB    = $content.IndexOf('Test-DecomApprovalManifest')
             $posConn = $content.IndexOf('Connect-MgGraph')
@@ -595,6 +602,9 @@ Describe 'Rev2.5 Safety Tests' {
         $script:writeReadinessPath25 = Join-Path $PSScriptRoot '..\src\Modules\WriteReadiness.psm1'
         $script:releaseValPath25     = Join-Path $PSScriptRoot '..\src\Modules\ReleaseValidation.psm1'
         $script:releasePkgPath25     = Join-Path $PSScriptRoot '..\src\Modules\ReleasePackaging.psm1'
+        # M4: region F (containing the only remaining Connect-MgGraph in the entry point)
+        # moved to src/EntryPoint/AssessmentFlow.ps1; main retains SelfTest (region C)
+        $script:assessmentFlowPath25 = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
     }
 
     Context 'Rev2.5 new modules contain no write verbs' {
@@ -687,9 +697,15 @@ Describe 'Rev2.5 Safety Tests' {
     Context 'Rev2.5 ExecuteRemediation branch ordering unchanged' {
 
         It 'SelfTest exits before Connect-MgGraph in entry point' {
-            $content = Get-Content $script:epPath25 -Raw
-            $posSelfTest = $content.IndexOf('if ($SelfTest)')
-            $posConnect  = $content.IndexOf('Connect-MgGraph')
+            # M4: SelfTest (region C) stays in main; Connect-MgGraph now lives only in
+            # Companion F (AssessmentFlow.ps1). Concatenate in dot-source order (main
+            # always runs before any dot-sourced companion) so first-occurrence IndexOf
+            # semantics are preserved across the split, matching pre-decomposition intent.
+            $mainContent = Get-Content $script:epPath25 -Raw
+            $companionContent = Get-Content -LiteralPath $script:assessmentFlowPath25 -Raw
+            $corpus = $mainContent + "`n" + $companionContent
+            $posSelfTest = $corpus.IndexOf('if ($SelfTest)')
+            $posConnect  = $corpus.IndexOf('Connect-MgGraph')
             $posSelfTest | Should -BeGreaterThan 0
             $posConnect  | Should -BeGreaterThan 0
             $posSelfTest | Should -BeLessThan $posConnect

@@ -14,6 +14,10 @@ Describe 'P1Fixes.Rev32 — Scope Gate and Stale-Credential Skip' {
         Import-Module (Join-Path $script:ModulesPath 'Remediation.psm1')  -Force -DisableNameChecking
 
         $script:EntryContent = Get-Content $script:EntryPoint -Raw
+        # M4: region F (ExecuteRemediation branch, $writeScopes, Assessment/WhatIfRemediation
+        # scope guards) moved to src/EntryPoint/AssessmentFlow.ps1
+        $script:AssessmentFlowPath = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
+        $script:AssessmentFlowContent = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
     }
 
     AfterAll {
@@ -25,17 +29,17 @@ Describe 'P1Fixes.Rev32 — Scope Gate and Stale-Credential Skip' {
     # ── P1-01: Scope gate ──────────────────────────────────────────────────────
 
     It 'ExecuteRemediation write scopes include Application.ReadWrite.All' {
-        $execBlock = $script:EntryContent -replace '(?s)^.*?(?=\$writeScopes\s*=\s*@)', ''
+        $execBlock = $script:AssessmentFlowContent -replace '(?s)^.*?(?=\$writeScopes\s*=\s*@)', ''
         $execBlock | Should -Match 'Application\.ReadWrite\.All'
     }
 
     It 'Assessment mode does not request Application.ReadWrite.All' {
-        $assessBlock = $script:EntryContent -replace '(?s)if\s*\(\$Mode\s*-eq\s*[''"]ExecuteRemediation[''"].*', ''
+        $assessBlock = $script:AssessmentFlowContent -replace '(?s)if\s*\(\$Mode\s*-eq\s*[''"]ExecuteRemediation[''"].*', ''
         $assessBlock | Should -Not -Match 'Application\.ReadWrite\.All'
     }
 
     It 'WhatIfRemediation mode does not request Application.ReadWrite.All' {
-        $nonExecBlock = $script:EntryContent -replace '(?s)if\s*\(\$Mode\s*-eq\s*[''"]ExecuteRemediation[''"].*', ''
+        $nonExecBlock = $script:AssessmentFlowContent -replace '(?s)if\s*\(\$Mode\s*-eq\s*[''"]ExecuteRemediation[''"].*', ''
         $nonExecBlock | Should -Not -Match 'Application\.ReadWrite\.All'
     }
 
