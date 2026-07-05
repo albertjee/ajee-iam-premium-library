@@ -256,7 +256,7 @@ The following Phase 1 items from the original plan were confirmed to target `src
 | Phase 3 | Create `NhiPatterns.psm1` (shared pattern arrays) | **COMPLETE (commit 096f2cd)** | N/A |
 | Phase 3 | NhiActivityLog + NhiGraphApiAudit decomposition into private helpers (tasks 7-11) | **COMPLETE (commit 58dca9e, 2430/2430)** | N/A |
 | Phase 4 | Extract HTML template constants in Reporting.psm1 + NhiReporting.psm1 | **COMPLETE (commit 096f2cd)** | N/A |
-| Phase 5 | Split NhiControlledDecommission.psm1 into 7 sub-modules | **Pending** | Phases 2+3 must pass |
+| Phase 5 | Split NhiControlledDecommission.psm1 into companions (Core/Gates/CleanupPlanning/PlanEvidence/LabRehearsal/Run4C) | **COMPLETE (commit fe4c7c0, 2430/2430)** | N/A |
 | Phase 6 | Verification (mandatory after each phase) | Pending | Per phase |
 
 **Phase 2 COMPLETED (2026-07-04, commits e761f8a + 7204f3c):** Decomposed
@@ -302,7 +302,7 @@ src/Modules/Discovery.ReviewCorrelation.ps1    (594 lines)
 | (internal) | Extract HTML constants - Reporting + NhiReporting | P4 | Complete | Phase 4 done |
 | (internal) | Decompose Discovery.psm1 into 7 dot-source helpers | P2 | **Complete** | 2584->109 lines, commits e761f8a + 7204f3c, 2430/2430 |
 | (internal) | NhiActivityLog + NhiGraphApiAudit private-helper decomposition | P3 | **Complete** | Commit 58dca9e, 2430/2430, tasks 7-11 done |
-| (pending) | Split NhiControlledDecommission.psm1 into 7 sub-modules | P5/P6 | Blocked on P2+P3 | - |
+| (internal) | Split NhiControlledDecommission.psm1 into 6 dot-source companions | P5 | **Complete** | Commit fe4c7c0, 2430/2430, 5915->66 lines |
 
 ---
 
@@ -310,11 +310,28 @@ src/Modules/Discovery.ReviewCorrelation.ps1    (594 lines)
 
 > **Last updated:** 2026-07-04
 > **Branch:** `refactor/phase1-cleanup`
-> **HEAD:** `58dca9e`
+> **HEAD:** `fe4c7c0`
 > **Phase 2 status:** **COMPLETE** - commits e761f8a + 7204f3c, 2430/2430 passing
 > **Phase 3 status:** **COMPLETE** - commit 58dca9e, 2430/2430 passing
+> **Phase 5 status:** **COMPLETE** - commit fe4c7c0, 2430/2430 passing
 
 Phase 2 is complete (Discovery.psm1: 109 lines, 7 dot-sourced helpers).
 Phase 3 is complete (NhiActivityLog + NhiGraphApiAudit: 9 private helpers extracted + data-driven findings refactored).
 
-**Next work:** Phase 5 - verify freeze-file check for NhiControlledDecommission.psm1, then split into 7 sub-modules (Phase 5/6, blocked on Phases 2+3 complete -- now cleared).
+**Phase 5 COMPLETED (2026-07-04, commit fe4c7c0):** Split
+`NhiControlledDecommission.psm1` into 6 dot-source companion files. Loader reduced from
+5915 lines to 66 lines. All verified at 2430/2430, 0 failures.
+
+**Phase 5 companion files (fe4c7c0, actual disk line counts):**
+- `NhiControlledDecommission.Core.ps1` — 258 lines, 8 functions
+- `NhiControlledDecommission.Gates.ps1` — 377 lines, 11 functions
+- `NhiControlledDecommission.CleanupPlanning.ps1` — 581 lines, 12 functions
+- `NhiControlledDecommission.PlanEvidence.ps1` — 675 lines, 13 functions
+- `NhiControlledDecommission.LabRehearsal.ps1` — 1529 lines, 6 functions
+- `NhiControlledDecommission.Run4C.ps1` — 2382 lines, 14 functions
+
+**Final `NhiControlledDecommission.psm1`: 66 lines** — dot-source loader + Export-ModuleMember.
+
+---
+
+### 5.6 Open Issues

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Status:** PROPOSED - awaiting Albert's approval. Steam ON rule applies: no code changes until explicit approval.
+> **Status:** EXECUTED - committed at fe4c7c0, 2430/2430 passing
 > **Supersedes:** `docs/nhi-controlled-decommission-decomposition-plan.md` (7-module split - v1)
 > **Branch:** `refactor/phase1-cleanup`
 > **Baseline:** 2,430 tests, 0 failures (HEAD `91ed88b`)
