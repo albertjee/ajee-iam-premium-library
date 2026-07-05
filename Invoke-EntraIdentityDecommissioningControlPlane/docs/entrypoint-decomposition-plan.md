@@ -1,10 +1,13 @@
 # Entry-Point Decomposition Plan (v1 - APPROVED)
 
-> Status: APPROVED by Albert 2026-07-05 ("go ahead", following Gate 1 full-project decision).
-> M1 assertion-migration table still requires its own approval stop before any code moves.
+> Status: M1-M7 COMPLETE, 2026-07-05. All 6 regions (D-I) extracted to
+> src/EntryPoint/ companions; entry point reduced from 1906 to 209 lines.
+> M8 (closed-set safety test, docs) in progress. See
+> docs/entrypoint-decomposition-anchors.md for the full commit-by-milestone
+> history and post-landing corrections found along the way.
 > Baseline: main `48d0eeb`, 2408/2408 passing
-> Scope: `Invoke-EntraIdentityDecommissioningControlPlane.ps1` (1906 lines) + 9 test files
-> that assert on its source text
+> Scope: `Invoke-EntraIdentityDecommissioningControlPlane.ps1` (1906 lines) + 9+ test files
+> that assert on its source text (grew to 13+ files during migration; see anchors doc)
 
 ---
 

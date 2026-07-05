@@ -410,4 +410,62 @@ not yet executed.
 
 ---
 
-### 5.6 Open Issues
+### 5.10 Entry-Point Decomposition (M1-M8, branch refactor/entrypoint-decomposition)
+
+Separate campaign from Phase 1-7 above (different branch). Decomposed
+`Invoke-EntraIdentityDecommissioningControlPlane.ps1` (1906 lines, 0 functions,
+48 parameters, pure top-to-bottom procedural flow) into 6 dot-sourced companions
+under `src/EntryPoint/`, one region per milestone, migrating every test that
+asserts on the entry point's source text as each region moved.
+
+**Trade-off (signed off by Albert at Gate 1, full detail in
+`docs/entrypoint-decomposition-plan.md` section 1):** the pre-decomposition file
+was a deliberately monolithic auditable artifact — 9+ test files proved safety
+properties (no mutation cmdlets, SelfTest-before-Graph ordering) by scanning ONE
+file. Mitigated by the M8 closed-set safety test (`tests/EntryPointClosedSet.Tests.ps1`),
+which makes the companion set itself machine-checked: main must dot-source
+exactly the 6 expected companions in the expected order, and `src/EntryPoint/`
+must contain exactly those 6 files.
+
+**Milestones and commits:**
+
+| Milestone | Region | Companion | Commit | Lines extracted |
+|---|---|---|---|---|
+| M1 | — (assertion-migration table) | — | `89cfcb0` | — |
+| M2 | D — controlled NHI decommission | `ControlledNhiDecommission.ps1` | `7a332b0`/`52a4f3a` (PR #21) | 443 |
+| M3 | E — Rev4.0 M35 NHI execution guard | `NhiExecutionFlow.ps1` | `6420c45` | 317 |
+| M4 | F — assessment/write-readiness/Graph connect | `AssessmentFlow.ps1` | `6469099` | 286 |
+| M5 | G — NHI governance pack + demo block | `NhiGovernancePack.ps1` | `8857b21` | 368 |
+| M6 | H — Rev3.4 hardening outputs | `HardeningOutputs.ps1` | `c54b40c` | 217 |
+| M7 | I — Rev3.5 NHI governance pack | `Rev35GovernancePack.ps1` | `ed755ac` | 75 |
+| M8 | closed-set safety test + docs | — | (this commit) | — |
+
+Entry point: **1906 -> 209 lines** (param block + setup/imports + SelfTest +
+6 dot-source lines). Canonical test count grew from 2408 (pre-decomposition
+baseline) to **2412** (2407 migrated + 5 new M8 closed-set tests).
+
+**Process discipline that paid off:** starting at M4, the full test suite was
+run *before* touching any test file at each milestone (not just the files the
+recon/anchor inventory predicted). This caught real gaps the static inventory
+missed every time:
+- M4 surfaced 2 additional broken files beyond the 9-file M1 inventory and the
+  4-agent M4 recon sweep (`NhiControlledDecommission.Rev4x.Consolidated.Tests.ps1`
+  had never been in any inventory), including a **pre-existing latent bug from
+  M2** (a boundary-straddler assertion broken since the region-D banner moved,
+  never caught because nobody ran that specific file until M4's full-suite gate).
+- M6 and M7 confirmed the opposite case: when recon predicted near-zero or exact
+  failure counts for genuinely low-coverage regions, the full-suite run matched
+  the prediction precisely (1 failure at M6, 2 at M7, both exactly as forecast) —
+  validating that the recon agents' region-by-region test-anchor tracing was
+  reliable once cross-checked against ground truth, not merely trusted blind.
+
+Two anchor mis-attributions in `docs/entrypoint-decomposition-anchors.md`'s
+original M1 table (SchemaVersion 3.6 attributed to region F, actually region G;
+a Rev3.0 error string attributed to region E, actually region B) were found and
+corrected post-M3, before they could cause confusion at the milestone that
+actually needed to act on them.
+
+**Not yet done:** M9 (external review — CodeRabbit + `/code-review` — and PR to
+main). Per CLAUDE.md, Albert pushes/merges manually.
+
+---

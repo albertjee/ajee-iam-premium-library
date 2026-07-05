@@ -1,6 +1,9 @@
 # Entry-Point Decomposition — M1 Assertion-Migration Anchors
 
-> **Status:** M1 APPROVED — 89cfcb0 committed (P1/P2/P3 pre-existing issues resolved). M2 (region D) committed 7a332b0/52a4f3a. M3 (region E) committed 6420c45, 2406/2407 passing. M4-M7 pending.
+> **Status:** M1-M7 COMPLETE. M1 89cfcb0. M2 (region D) 7a332b0/52a4f3a. M3 (region E) 6420c45.
+> M4 (region F) 6469099. M5 (region G) 8857b21. M6 (region H) c54b40c. M7 (region I) ed755ac,
+> the final region -- entry point now 209 lines (from 1906), 6 companions in src/EntryPoint/.
+> M8 (closed-set safety test) in progress.
 > **Baseline:** `48d0eeb`, 2408/2408, branch `refactor/entrypoint-decomposition`
 > **Plan (APPROVED):** `docs/entrypoint-decomposition-plan.md`
 > **Migration path for `$script:ControlledBranch`:** Path B (direct companion read in test BeforeAll)
