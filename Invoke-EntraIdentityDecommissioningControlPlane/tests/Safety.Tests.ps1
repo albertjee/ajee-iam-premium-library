@@ -681,7 +681,9 @@ Describe 'Rev2.5 Safety Tests' {
     Context 'Rev2.5 ApprovalManifest execution map unchanged' {
 
         It 'Entry point ApprovalManifest processing still guards on ApprovedActions' {
-            $content = Get-Content $script:epPath25 -Raw
+            # M4/M6: ApprovedActions now lives in Companion F (AssessmentFlow.ps1) and
+            # Companion H (HardeningOutputs.ps1), not main.
+            $content = Get-Content -LiteralPath $script:assessmentFlowPath25 -Raw
             $content | Should -Match 'ApprovedActions'
         }
 
