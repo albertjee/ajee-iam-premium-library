@@ -254,7 +254,7 @@ The following Phase 1 items from the original plan were confirmed to target `src
 |---|---|---|---|
 | Phase 2 | Discovery.psm1 decomposition — 7 dot-sourced helpers; 2584 -> 109 lines | **COMPLETE (commits e761f8a + 7204f3c, 2430/2430)** | N/A |
 | Phase 3 | Create `NhiPatterns.psm1` (shared pattern arrays) | **COMPLETE (commit 096f2cd)** | N/A |
-| Phase 3 | NhiActivityLog + NhiGraphApiAudit decomposition into private helpers (tasks 7-11) | **Pending** | N/A |
+| Phase 3 | NhiActivityLog + NhiGraphApiAudit decomposition into private helpers (tasks 7-11) | **COMPLETE (commit 58dca9e, 2430/2430)** | N/A |
 | Phase 4 | Extract HTML template constants in Reporting.psm1 + NhiReporting.psm1 | **COMPLETE (commit 096f2cd)** | N/A |
 | Phase 5 | Split NhiControlledDecommission.psm1 into 7 sub-modules | **Pending** | Phases 2+3 must pass |
 | Phase 6 | Verification (mandatory after each phase) | Pending | Per phase |
@@ -301,7 +301,7 @@ src/Modules/Discovery.ReviewCorrelation.ps1    (594 lines)
 | a4bb52a5 | Create NhiPatterns.psm1 | P3 | Complete | Shared pattern arrays extracted |
 | (internal) | Extract HTML constants - Reporting + NhiReporting | P4 | Complete | Phase 4 done |
 | (internal) | Decompose Discovery.psm1 into 7 dot-source helpers | P2 | **Complete** | 2584->109 lines, commits e761f8a + 7204f3c, 2430/2430 |
-| (pending) | NhiActivityLog + NhiGraphApiAudit private-helper decomposition | P3 | Pending | Tasks 7-11 remaining (task 6 NhiPatterns done) |
+| (internal) | NhiActivityLog + NhiGraphApiAudit private-helper decomposition | P3 | **Complete** | Commit 58dca9e, 2430/2430, tasks 7-11 done |
 | (pending) | Split NhiControlledDecommission.psm1 into 7 sub-modules | P5/P6 | Blocked on P2+P3 | - |
 
 ---
@@ -310,9 +310,11 @@ src/Modules/Discovery.ReviewCorrelation.ps1    (594 lines)
 
 > **Last updated:** 2026-07-04
 > **Branch:** `refactor/phase1-cleanup`
-> **HEAD:** `7204f3c`
+> **HEAD:** `58dca9e`
 > **Phase 2 status:** **COMPLETE** - commits e761f8a + 7204f3c, 2430/2430 passing
+> **Phase 3 status:** **COMPLETE** - commit 58dca9e, 2430/2430 passing
 
-Phase 2 is complete. Discovery.psm1 is 109 lines, 7 dot-sourced helpers, all Gate-3 verified at 2430/2430.
+Phase 2 is complete (Discovery.psm1: 109 lines, 7 dot-sourced helpers).
+Phase 3 is complete (NhiActivityLog + NhiGraphApiAudit: 9 private helpers extracted + data-driven findings refactored).
 
-**Next work:** Phase 3 - NhiActivityLog and NhiGraphApiAudit decomposition into private helpers (Section 3 tasks 7-11). Task 6 (NhiPatterns.psm1) done per commit 096f2cd. See docs/refactoring-plan.md Section 5.3 Phase 3 plan for exact mechanics.
+**Next work:** Phase 5 - verify freeze-file check for NhiControlledDecommission.psm1, then split into 7 sub-modules (Phase 5/6, blocked on Phases 2+3 complete -- now cleared).
