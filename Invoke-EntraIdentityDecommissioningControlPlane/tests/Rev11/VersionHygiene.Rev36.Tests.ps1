@@ -13,6 +13,9 @@ Describe 'VersionHygiene.Rev36 — Version consistency and anti-drift' {
         $script:RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
         $script:EntryPoint = Join-Path $script:RepoRoot 'Invoke-EntraIdentityDecommissioningControlPlane.ps1'
         $script:ModulesPath = Join-Path $script:RepoRoot 'src\Modules'
+        # M5: region G (executive pack context, containing SchemaVersion = '3.6') moved
+        # to src/EntryPoint/NhiGovernancePack.ps1
+        $script:NhiGovernancePackPath = Join-Path $script:RepoRoot 'src\EntryPoint\NhiGovernancePack.ps1'
     }
 
     Context 'Entry point ToolVersion' {
@@ -28,11 +31,12 @@ Describe 'VersionHygiene.Rev36 — Version consistency and anti-drift' {
     }
 
     Context 'Executive pack SchemaVersion' {
-        # TODO M8: After Region F extraction to src/EntryPoint/AssessmentFlow.ps1,
-        # 'SchemaVersion = ''3.6''' moves to the companion. Update this test to read
-        # the concatenated corpus or Companion F directly so the assertion survives.
+        # M5: 'SchemaVersion = ''3.6''' moved to src/EntryPoint/NhiGovernancePack.ps1
+        # (executive pack context construction, region G). Corrected from an earlier
+        # note that mis-attributed this to region F -- see docs/entrypoint-decomposition-anchors.md
+        # P3 for the full correction history.
         It 'Executive pack context uses SchemaVersion 3.6' {
-            $content = Get-Content $script:EntryPoint -Raw
+            $content = Get-Content -LiteralPath $script:NhiGovernancePackPath -Raw
             $content | Should -Match "SchemaVersion\s*=\s*'3\.6'"
         }
     }
