@@ -86,26 +86,18 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
 
     # ── Item 4: Write scopes gated behind ExecuteRemediation ──
     #
-    # DEAD-CODE STRIP: Connect-MgGraph at entry-point line 804 sits inside
-    # `if ($ExecuteNhiDecommission)` whose entry is blocked by the prior
-    # `if ($ExecuteNhiControlledDecommission)` guard that exits at line 635.
-    # That line-804 call is statically present but never reachable at runtime.
-    # We remove both dead blocks before IndexOf so the ordering comparison operates
-    # on the assessment/ExecuteRemediation execution path only.
+    # M3: Region D (controlled NHI decommission) and Region E (NHI execution guard,
+    # including the dead/unreachable Connect-MgGraph this test used to strip out)
+    # were extracted to dot-sourced companions and no longer appear in main.
+    # The three markers below now live entirely in the ExecuteRemediation branch
+    # (region F), so no dead-code stripping is needed - compare directly.
     #
     It 'Gate ordering unchanged — WhatIf and Approval gates before Connect-MgGraph' {
         $content = Get-Content $script:EntryPoint -Raw
 
-        # Strip: controlled decommission block (exits, never reaches NHI exec entry)
-        # Strip: NHI execution guard block (dead - Connect-MgGraph at line 804 unreachable)
-        # Strip: ExecuteRemediation block (manifests present, separate from assessment path)
-        $reachableContent = $content -replace '(?s)# ── Rev4\.2-S1 controlled NHI decommission.*?exit 0\r?\n\}',
-            '' -replace '(?s)# ── Rev4\.0 M35: NHI Execution Guard.*?exit 1\r?\n\}',
-            '' -replace '(?s)# ExecuteRemediation branch.*$', ''
-
-        $posA    = $reachableContent.IndexOf('Test-DecomWhatIfManifest')
-        $posB    = $reachableContent.IndexOf('Test-DecomApprovalManifest')
-        $posConn = $reachableContent.IndexOf('Connect-MgGraph')
+        $posA    = $content.IndexOf('Test-DecomWhatIfManifest')
+        $posB    = $content.IndexOf('Test-DecomApprovalManifest')
+        $posConn = $content.IndexOf('Connect-MgGraph')
         $posA    | Should -BeGreaterThan 0
         $posB    | Should -BeGreaterThan 0
         $posConn | Should -BeGreaterThan 0

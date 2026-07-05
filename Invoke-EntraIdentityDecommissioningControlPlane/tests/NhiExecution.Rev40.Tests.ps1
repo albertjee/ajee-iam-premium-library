@@ -1235,10 +1235,12 @@ Describe 'M35 Entry Point — New Parameters' {
 Describe 'M35 Entry Point — Guard Logic' {
     BeforeAll {
         $Script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        # M3: region E moved to companion; guard logic now lives in NhiExecutionFlow.ps1
+        $Script:NhiExecutionFlowPath = Join-Path $PSScriptRoot '..\src\EntryPoint\NhiExecutionFlow.ps1'
     }
 
     It '-ExecuteNhiDecommission without -ApprovedManifestPath throws' {
-        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
         $content | Should -Match 'ExecuteNhiDecommission' -Because 'guard requires ApprovedManifestPath'
         # Guard: checks -not $ApprovedManifestPath then errors/exits
         $content | Should -Match '-not \$ApprovedManifestPath'
@@ -1246,7 +1248,7 @@ Describe 'M35 Entry Point — Guard Logic' {
     }
 
     It '-Rollback without -ExecutionRunId throws' {
-        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
         $content | Should -Match '\$Rollback\b'
         $content | Should -Match 'if \(.*-not \$ExecutionRunId'
     }
@@ -1254,20 +1256,20 @@ Describe 'M35 Entry Point — Guard Logic' {
     It '-ExecutionRunId invalid format throws' {
         # Pattern: yyyyMMdd_HHmmss via -match with \d pattern
         # The regex string uses \d escapes which appear in source
-        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
         ($content -match 'ExecutionRunId -notmatch' -or $content -match "notmatch.*ExecutionRunId") | Should -Be $true
     }
 
     It 'Supplied valid -ExecutionRunId is passed through to execution functions' {
         # Check both snapshot and tag pass -ExecutionRunId parameter
-        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
         $content | Should -Match 'ExecutionRunId'
         $content | Should -Match 'Invoke-NhiSnapshot'
         $content | Should -Match 'Invoke-NhiTag'
     }
 
     It 'Destructive cmdlet guard present in entry point' {
-        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        $content = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
         # Guard must reference blocked cmdlet names — check for one name visible in comment
         # [Frozen test guard: blocked cmdlet names referenced via comment in entry point]
         $content | Should -Match 'NHI_REV40_BLOCKED_CMDLETS_DEFINITION'
@@ -1280,7 +1282,9 @@ Describe 'M35 Entry Point — Guard Logic' {
 Describe 'M35 Entry Point — Execution Flow' {
     BeforeAll {
         $Script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
-        $content = Get-Content -Path $Script:EntryPointPath -Raw
+        # M3: region E moved to companion; execution flow now lives in NhiExecutionFlow.ps1
+        $Script:NhiExecutionFlowPath = Join-Path $PSScriptRoot '..\src\EntryPoint\NhiExecutionFlow.ps1'
+        $content = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
     }
 
     It 'ExecutionOutputPath is created if it does not exist' {
@@ -1330,7 +1334,9 @@ Describe 'M35 Entry Point — Execution Flow' {
     It 'Existing assessment behavior unchanged when -ExecuteNhiDecommission not passed' {
         # Assessment pipeline should NOT be gated on -ExecuteNhiDecommission
         # Discovery, analysis, export paths should remain intact
-        $content | Should -Match 'Invoke-DecomAssessmentDiscovery' -Because 'Discovery must run in normal mode'
+        # M3: Invoke-DecomAssessmentDiscovery lives in region F (main entry point), not the NhiExecutionFlow companion
+        $entryContent = Get-Content -Path $Script:EntryPointPath -Raw
+        $entryContent | Should -Match 'Invoke-DecomAssessmentDiscovery' -Because 'Discovery must run in normal mode'
     }
 
     It 'WhatIf output written to NhiExecutionWhatIf.json in ExecutionOutputPath' {
