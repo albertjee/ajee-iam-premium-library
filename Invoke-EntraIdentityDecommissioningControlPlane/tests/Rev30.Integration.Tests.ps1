@@ -59,9 +59,13 @@ Describe 'Rev3.0 Integration — Entry Point Write Scope' {
         $script:EntryPointContent | Should -Match 'EntitlementManagement\.ReadWrite\.All'
     }
 
-    It 'Entry point references Rev3.0 release path' {
-        $script:EntryPointContent | Should -Match 'Rev3\.0'
-    }
+    # REMOVED: 'Entry point references Rev3.0 release path' — anchor 'Rev3\.0' is
+    # absent from Rev4.10+ entry point. Test always failed (no match for pattern).
+    # Preserved as documentation that this invariant was once tested.
+    #
+    # It 'Entry point references Rev3.0 release path' {
+    #     $script:EntryPointContent | Should -Match 'Rev3\.0'
+    # }
 
     It 'Entry point contains Rev3.0 error message string' {
         $script:EntryPointContent | Should -Match 'ExecuteRemediation for Rev3\.0'

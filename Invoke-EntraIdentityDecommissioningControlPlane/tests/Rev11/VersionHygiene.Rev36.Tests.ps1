@@ -28,6 +28,9 @@ Describe 'VersionHygiene.Rev36 — Version consistency and anti-drift' {
     }
 
     Context 'Executive pack SchemaVersion' {
+        # TODO M8: After Region F extraction to src/EntryPoint/AssessmentFlow.ps1,
+        # 'SchemaVersion = ''3.6''' moves to the companion. Update this test to read
+        # the concatenated corpus or Companion F directly so the assertion survives.
         It 'Executive pack context uses SchemaVersion 3.6' {
             $content = Get-Content $script:EntryPoint -Raw
             $content | Should -Match "SchemaVersion\s*=\s*'3\.6'"
