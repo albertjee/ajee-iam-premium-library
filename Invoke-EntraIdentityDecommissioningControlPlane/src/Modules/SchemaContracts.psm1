@@ -518,32 +518,3 @@ function Export-DecomSchemaContractsMarkdown {
     Write-DecomOk "Schema contracts markdown: $OutputPath"
 }
 
-function Export-DecomSchemaValidationJson {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [PSObject]$Object,
-        [Parameter(Mandatory = $true)]
-        [PSObject]$Contract,
-        [Parameter(Mandatory = $true)]
-        [string]$OutputPath
-    )
-
-    $validationResult = Test-DecomObjectAgainstSchemaContract -Object $Object -Contract $Contract
-
-    $jsonObject = [PSCustomObject]@{
-        SchemaVersion = '3.0'
-        ToolVersion   = $Contract.SchemaVersion
-        GeneratedUtc  = (Get-Date).ToUniversalTime().ToString('o')
-        ObjectType    = ($Contract | Get-Member -MemberType NoteProperty | Where-Object {$_.Name -eq 'Description'}).Value
-        Passed        = $validationResult.Passed
-        Errors        = $validationResult.Errors
-        MissingFields = $validationResult.MissingFields
-        TypeMismatches= $validationResult.TypeMismatches
-        InvalidValues = $validationResult.InvalidValues
-    }
-
-    $json = $jsonObject | ConvertTo-Json -Depth 10
-    $json | Out-File -FilePath $OutputPath -Encoding UTF8
-    Write-DecomOk "Schema validation JSON: $OutputPath"
-}

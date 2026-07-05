@@ -24,32 +24,6 @@ $script:PassCount  = 0
 $script:FailCount  = 0
 $script:TestCount  = 0
 
-function Test-It {
-    param(
-        [string]$Name,
-        [scriptblock]$Block,
-        [string]$Expected = 'No error'
-    )
-    $script:TestCount++
-    try {
-        $result = & $Block 2>&1
-        $err = $result | Where-Object { $_.Exception } | Select-Object -First 1
-        if (-not $err) {
-            if ($VerboseOutput) { Write-Host "  [PASS] $Name" -ForegroundColor Green }
-            $script:PassCount++
-            return $true
-        } else {
-            Write-Host "  [FAIL] $Name — $err" -ForegroundColor Red
-            $script:FailCount++
-            return $false
-        }
-    } catch {
-        Write-Host "  [FAIL] $Name — $_" -ForegroundColor Red
-        $script:FailCount++
-        return $false
-    }
-}
-
 $moduleRoot = $PSScriptRoot | Split-Path
 $modulesDir  = Join-Path $moduleRoot 'src\Modules'
 $testsDir    = Join-Path $moduleRoot 'tests'

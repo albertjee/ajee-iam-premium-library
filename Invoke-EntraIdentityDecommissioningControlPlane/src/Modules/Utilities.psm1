@@ -19,41 +19,6 @@ function Reset-DecomRuntimeState {
     $script:DecomCapabilityState   = @{}
 }
 
-function Write-DecomWarnOnce {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Key,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Message
-    )
-
-    $state = $script:DecomWarningOnceState[$Key]
-    if ($null -eq $state) {
-        $state = [pscustomobject]@{
-            Message         = $Message
-            Emitted         = $false
-            SuppressedCount  = 0
-            FirstEmittedUtc  = $null
-            LastEmittedUtc   = $null
-        }
-        $script:DecomWarningOnceState[$Key] = $state
-    }
-
-    if (-not $state.Emitted) {
-        Write-DecomWarn $Message
-        $state.Emitted = $true
-        $state.FirstEmittedUtc = [DateTime]::UtcNow.ToString('o')
-        $state.LastEmittedUtc = $state.FirstEmittedUtc
-        return $true
-    }
-
-    $state.SuppressedCount++
-    $state.LastEmittedUtc = [DateTime]::UtcNow.ToString('o')
-    return $false
-}
-
 function Get-DecomCapabilityState {
     [CmdletBinding()]
     param(

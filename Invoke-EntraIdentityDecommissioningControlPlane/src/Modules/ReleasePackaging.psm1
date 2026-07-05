@@ -122,35 +122,6 @@ function New-DecomReleasePackage {
     }
 }
 
-function Copy-DecomReleaseAsset {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$SourcePath,
-        [Parameter(Mandatory = $true)]
-        [string]$DestinationPath,
-        [switch]$MarkMissingIfNotFound
-    )
-
-    if (Test-Path $SourcePath) {
-        Copy-Item -Path $SourcePath -Destination $DestinationPath -Force
-        return $true
-    } else {
-        if ($MarkMissingIfNotFound) {
-            # Create manifest entry indicating missing file
-            $manifestEntry = [PSCustomObject]@{
-                Source = $SourcePath
-                Destination = $DestinationPath
-                Missing = $true
-                Reason = "Source file not found"
-            }
-            # This would be added to manifest in real implementation
-            Write-DecomWarn "Asset not found (marked as missing): $SourcePath"
-        }
-        return $false
-    }
-}
-
 function Write-DecomReleasePackageManifest {
     [CmdletBinding()]
     param(
