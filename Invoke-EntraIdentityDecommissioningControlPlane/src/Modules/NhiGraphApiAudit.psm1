@@ -79,6 +79,170 @@ function Get-NhiAgentGraphApiAudit {
 Export-ModuleMember -Function Get-NhiAgentGraphApiAudit
 
 #---------------------------------------------------------------------------
+# Helper: _Classify-GraphApiOperation
+# Classifies a single Graph API audit log entry into operation categories.
+# Returns a [hashtable] with: UserModification, RoleAssignment, ConsentGrant,
+# MailboxModification, PolicyModification, ComplianceSensitive, PrivilegeEscalation.
+#---------------------------------------------------------------------------
+function _Classify-GraphApiOperation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object]$Log,
+
+        [string]$ComplianceRegex,
+        [string]$PrivilegeRegex
+    )
+
+    $displayName = $Log.ActivityDisplayName
+    if ([string]::IsNullOrEmpty($displayName)) {
+        $displayName = ''
+    }
+
+    $userModification   = $displayName -match '(User|Member|Account|Password)'
+    $roleAssignment     = $displayName -match '(Role|Admin|Privilege)'
+    $consentGrant       = $displayName -match '(Consent|Permission|Grant)'
+    $mailboxModification = $displayName -match '(Mailbox|Mail|Exchange)'
+    $policyModification  = $displayName -match '(Policy|Conditional|MFA|Authentication)'
+    $complianceSensitive = $ComplianceRegex -and ($displayName -match $ComplianceRegex)
+    $privilegeEscalation = $PrivilegeRegex -and ($displayName -match $PrivilegeRegex)
+
+    return @{
+        UserModification    = $userModification
+        RoleAssignment      = $roleAssignment
+        ConsentGrant        = $consentGrant
+        MailboxModification = $mailboxModification
+        PolicyModification  = $policyModification
+        ComplianceSensitive = $complianceSensitive
+        PrivilegeEscalation = $privilegeEscalation
+    }
+}
+
+#---------------------------------------------------------------------------
+# Helper: _Aggregate-GraphApiMetrics
+# Iterates $AuditLogs, calls _Classify-GraphApiOperation per entry,
+# accumulates counts and computed metrics.
+# Returns a [hashtable] with all counts, $false/$true for signals,
+# and individual op counts.
+#---------------------------------------------------------------------------
+function _Aggregate-GraphApiMetrics {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [object[]]$AuditLogs,
+
+        [string]$ComplianceRegex,
+        [string]$PrivilegeRegex
+    )
+
+    $totalOps = 0
+    $successfulOps = 0
+    $failedOps = 0
+    $userMods = 0
+    $roleAssign = 0
+    $consentGrant = 0
+    $mailboxMod = 0
+    $policyMod = 0
+    $complianceSensitive = 0
+    $privilegeEscalation = 0
+
+    foreach ($log in $AuditLogs) {
+        $totalOps++
+        $result = $log.Result
+        if ($result -eq 'Success') {
+            $successfulOps++
+        }
+        else {
+            $failedOps++
+        }
+
+        $classified = _Classify-GraphApiOperation `
+            -Log $log `
+            -ComplianceRegex $ComplianceRegex `
+            -PrivilegeRegex $PrivilegeRegex
+
+        if ($classified.UserModification)    { $userMods++ }
+        if ($classified.RoleAssignment)      { $roleAssign++ }
+        if ($classified.ConsentGrant)        { $consentGrant++ }
+        if ($classified.MailboxModification) { $mailboxMod++ }
+        if ($classified.PolicyModification)  { $policyMod++ }
+        if ($classified.ComplianceSensitive)  { $complianceSensitive++ }
+        if ($classified.PrivilegeEscalation)  { $privilegeEscalation++ }
+    }
+
+    return @{
+        TotalOps              = $totalOps
+        SuccessfulOps         = $successfulOps
+        FailedOps             = $failedOps
+        UserMods              = $userMods
+        RoleAssign            = $roleAssign
+        ConsentGrant          = $consentGrant
+        MailboxMod            = $mailboxMod
+        PolicyMod             = $policyMod
+        ComplianceSensitive   = $complianceSensitive
+        PrivilegeEscalation    = $privilegeEscalation
+    }
+}
+
+#---------------------------------------------------------------------------
+# Helper: _Compute-GraphApiRiskScore
+# Calculates additive risk score from aggregated Graph API metrics.
+# Returns [hashtable] with OverallRiskScore (int capped at 100) and
+# RiskSignals (array of human-readable signals).
+#---------------------------------------------------------------------------
+function _Compute-GraphApiRiskScore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Metrics
+    )
+
+    $riskScore = 0
+    $riskSignals = @()
+
+    if ($Metrics.UserMods -gt 5) {
+        $riskScore += 15
+        $riskSignals += "High volume user modifications: $($Metrics.UserMods) operations"
+    }
+    if ($Metrics.RoleAssign -gt 0) {
+        $riskScore += 25
+        $riskSignals += "Role assignment activity detected: $($Metrics.RoleAssign) operations"
+    }
+    if ($Metrics.ConsentGrant -gt 3) {
+        $riskScore += 20
+        $riskSignals += "Excessive consent grants: $($Metrics.ConsentGrant) operations"
+    }
+    if ($Metrics.MailboxMod -gt 0) {
+        $riskScore += 15
+        $riskSignals += "Mailbox modifications: $($Metrics.MailboxMod) operations"
+    }
+    if ($Metrics.PolicyMod -gt 0) {
+        $riskScore += 20
+        $riskSignals += "Policy modifications: $($Metrics.PolicyMod) operations"
+    }
+    if ($Metrics.ComplianceSensitive -gt 0) {
+        $riskScore += 30
+        $riskSignals += "Compliance-sensitive operations: $($Metrics.ComplianceSensitive) operations"
+    }
+    if ($Metrics.PrivilegeEscalation -gt 0) {
+        $riskScore += 35
+        $riskSignals += "Privilege escalation activity: $($Metrics.PrivilegeEscalation) operations"
+    }
+    if ($Metrics.FailedOps -gt $Metrics.SuccessfulOps) {
+        $riskScore += 10
+        $riskSignals += "Operation failure rate exceeds success rate"
+    }
+
+    if ($riskScore -gt 100) { $riskScore = 100 }
+
+    return @{
+        OverallRiskScore = $riskScore
+        RiskSignals      = $riskSignals
+    }
+}
+
+#---------------------------------------------------------------------------
 # Function: Invoke-NhiGraphApiOperationAnalysis
 #---------------------------------------------------------------------------
 function Invoke-NhiGraphApiOperationAnalysis {
@@ -139,150 +303,41 @@ function Invoke-NhiGraphApiOperationAnalysis {
         }
     }
 
-    # Classify operations by ActivityDisplayName
-    $totalOps = $AuditLogs.Count
-    $successfulOps = 0
-    $failedOps = 0
-    $userMods = 0
-    $roleAssign = 0
-    $consentGrant = 0
-    $mailboxMod = 0
-    $policyMod = 0
-    $complianceSensitive = 0
-    $privilegeEscalation = 0
-
     # Load shared patterns
     $patterns = Get-NhiSharedPatterns
     $complianceRegex = '(' + ($patterns.ComplianceSensitivePatterns -join '|') + ')'
     $privilegeRegex = '(' + ($patterns.PrivilegeEscalationPatterns -join '|') + ')'
 
-    foreach ($log in $AuditLogs) {
-        # Check result status
-        $result = $log.Result
-        if ($result -eq 'Success') {
-            $successfulOps++
-        }
-        else {
-            $failedOps++
-        }
+    $metrics = _Aggregate-GraphApiMetrics -AuditLogs $AuditLogs -ComplianceRegex $complianceRegex -PrivilegeRegex $privilegeRegex
+    $totalOps = $metrics.TotalOps
+    $successfulOps = $metrics.SuccessfulOps
+    $failedOps = $metrics.FailedOps
+    $userMods = $metrics.UserMods
+    $roleAssign = $metrics.RoleAssign
+    $consentGrant = $metrics.ConsentGrant
+    $mailboxMod = $metrics.MailboxMod
+    $policyMod = $metrics.PolicyMod
+    $complianceSensitive = $metrics.ComplianceSensitive
+    $privilegeEscalation = $metrics.PrivilegeEscalation
 
-        # Classify by ActivityDisplayName using regex
-        $displayName = $log.ActivityDisplayName
-        if ([string]::IsNullOrEmpty($displayName)) {
-            continue
-        }
-
-        # User modification operations
-        if ($displayName -match '(User|Member|Account|Password)') {
-            $userMods++
-        }
-
-        # Role assignment operations
-        if ($displayName -match '(Role|Admin|Privilege)') {
-            $roleAssign++
-        }
-
-        # Consent grant operations
-        if ($displayName -match '(Consent|Permission|Grant)') {
-            $consentGrant++
-        }
-
-        # Mailbox modification operations
-        if ($displayName -match '(Mailbox|Mail|Exchange)') {
-            $mailboxMod++
-        }
-
-        # Policy modification operations
-        if ($displayName -match '(Policy|Conditional|MFA|Authentication)') {
-            $policyMod++
-        }
-
-        # Compliance-sensitive operations
-        if ($displayName -match $complianceRegex) {
-            $complianceSensitive++
-        }
-
-        # Privilege escalation operations
-        if ($displayName -match $privilegeRegex) {
-            $privilegeEscalation++
-        }
-    }
-
-    # Calculate failure rate
     $failureRate = 0.0
     if ($totalOps -gt 0) {
         $failureRate = [decimal]($failedOps / $totalOps)
     }
 
-    # Calculate risk score (additive, cap at 100)
-    $riskScore = 0
+    $riskResult = _Compute-GraphApiRiskScore -Metrics $metrics
+    $riskScore = $riskResult.OverallRiskScore
+    $riskSignals = $riskResult.RiskSignals
 
-    if ($userMods -gt 5) {
-        $riskScore += 15
-    }
-    if ($roleAssign -gt 0) {
-        $riskScore += 25
-    }
-    if ($consentGrant -gt 3) {
-        $riskScore += 20
-    }
-    if ($mailboxMod -gt 0) {
-        $riskScore += 15
-    }
-    if ($policyMod -gt 0) {
-        $riskScore += 20
-    }
-    if ($complianceSensitive -gt 0) {
-        $riskScore += 30
-    }
-    if ($privilegeEscalation -gt 0) {
-        $riskScore += 35
-    }
-    if ($failedOps -gt $successfulOps) {
-        $riskScore += 10
-    }
-
-    # Cap at 100
-    if ($riskScore -gt 100) {
-        $riskScore = 100
-    }
-
-    # Build risk signals
-    $riskSignals = @()
-    if ($userMods -gt 5) {
-        $riskSignals += "High volume user modifications: $userMods operations"
-    }
-    if ($roleAssign -gt 0) {
-        $riskSignals += "Role assignment activity detected: $roleAssign operations"
-    }
-    if ($consentGrant -gt 3) {
-        $riskSignals += "Excessive consent grants: $consentGrant operations"
-    }
-    if ($mailboxMod -gt 0) {
-        $riskSignals += "Mailbox modifications: $mailboxMod operations"
-    }
-    if ($policyMod -gt 0) {
-        $riskSignals += "Policy modifications: $policyMod operations"
-    }
-    if ($complianceSensitive -gt 0) {
-        $riskSignals += "Compliance-sensitive operations: $complianceSensitive operations"
-    }
-    if ($privilegeEscalation -gt 0) {
-        $riskSignals += "Privilege escalation activity: $privilegeEscalation operations"
-    }
-    if ($failedOps -gt $successfulOps) {
-        $riskSignals += "Operation failure rate exceeds success rate"
-    }
-
-    # Calculate high-risk count
+    # High-risk count: compliance-sensitive + privilege-escalation + role-assignment
     $highRiskCount = 0
     if ($complianceSensitive -gt 0) { $highRiskCount += $complianceSensitive }
     if ($privilegeEscalation -gt 0) { $highRiskCount += $privilegeEscalation }
     if ($roleAssign -gt 0) { $highRiskCount += $roleAssign }
 
     return [PSCustomObject]@{
-        QuerySucceeded             = $true
-        CapabilityAvailable        = $true
+        QuerySucceeded                = $true
+        CapabilityAvailable           = $true
         PSTypeName                    = 'NhiGraphApiAudit.AnalysisResult'
         TotalOperations               = $totalOps
         SuccessfulOperations          = $successfulOps
@@ -353,37 +408,75 @@ function Invoke-NhiGraphApiAuditScan {
         $NhiObject.GraphApiAuditAnalysis = $analysis
     }
 
-    # Generate findings — all New-DecomFinding calls on single lines (no backtick continuation)
-    $findings = [System.Collections.Generic.List[PSCustomObject]]::new()
+    # Data-driven finding emission — iterate standard definitions.
+    # GRAPH-000 and GRAPH-001 (no-ops / general activity) are handled separately
+    # below; remaining 6 finding types use a definition table.
+    # Each definition: FindingId, MetricProperty, Threshold, Severity, RiskScore, Template.
+    $_standardDefs = @(
+        @{ FindingId = 'NHI-GRAPH-002'; MetricProp = 'UserModificationOps';          Threshold = 0;   Severity = 'High';     RiskScore = 65; Template = 'User modification operations: {0}' },
+        @{ FindingId = 'NHI-GRAPH-003'; MetricProp = 'RoleAssignmentOps';            Threshold = 0;   Severity = 'Critical'; RiskScore = 90; Template = 'CRITICAL: Role assignment operations: {0}' },
+        @{ FindingId = 'NHI-GRAPH-004'; MetricProp = 'ConsentGrantOps';              Threshold = 0;   Severity = 'High';     RiskScore = 75; Template = 'Application consent grants: {0}' },
+        @{ FindingId = 'NHI-GRAPH-005'; MetricProp = 'ComplianceSensitiveOpCount';   Threshold = 0;   Severity = 'Critical'; RiskScore = 95; Template = 'CRITICAL: Compliance-sensitive operations: {0}' },
+        @{ FindingId = 'NHI-GRAPH-006'; MetricProp = 'PolicyModificationOps';        Threshold = 0;   Severity = 'Critical'; RiskScore = 88; Template = 'CRITICAL: Security policy modifications: {0}' },
+        @{ FindingId = 'NHI-GRAPH-007'; MetricProp = 'HighRiskOpCount';              Threshold = 0;   Severity = 'High';     RiskScore = 70; Template = 'High-risk operations: {0}' }
+    )
 
+    foreach ($def in $_standardDefs) {
+        $metricValue = $analysis.($def.MetricProp)
+        if ($analysis.QuerySucceeded -and $metricValue -gt $def.Threshold) {
+            $findings.Add((
+                New-DecomFinding `
+                    -FindingId $def.FindingId `
+                    -Category 'NHI Activity - Graph API Audit' `
+                    -Severity $def.Severity `
+                    -RiskScore $def.RiskScore `
+                    -Evidence ($def.Template -f $metricValue) `
+                    -ObjectId $objectId `
+                    -DisplayName $displayName
+            ))
+        }
+    }
+
+    # GRAPH-000: No operations, GRAPH-001: Activity summary
     if ($analysis.QuerySucceeded -and $analysis.TotalOperations -eq 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-000' -Category 'NHI Activity - Graph API Audit' -Severity 'Informational' -RiskScore 0 -Evidence 'No Graph API operations detected in assessment window' -ObjectId $objectId -DisplayName $displayName))
-    } elseif ($analysis.QuerySucceeded) {
-        $sev001 = if ($analysis.OverallRiskScore -lt 50) { 'Medium' } else { 'High' }
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-001' -Category 'NHI Activity - Graph API Audit' -Severity $sev001 -RiskScore $analysis.OverallRiskScore -Evidence "Agent initiated $($analysis.TotalOperations) Graph operations: $($analysis.SuccessfulOperations) successful, $($analysis.FailedOperations) failed" -ObjectId $objectId -DisplayName $displayName))
+        $findings.Add((
+            New-DecomFinding `
+                -FindingId 'NHI-GRAPH-000' `
+                -Category 'NHI Activity - Graph API Audit' `
+                -Severity 'Informational' `
+                -RiskScore 0 `
+                -Evidence 'No Graph API operations detected in assessment window' `
+                -ObjectId $objectId `
+                -DisplayName $displayName
+        ))
+    }
+    elseif ($analysis.QuerySucceeded -and $analysis.TotalOperations -gt 0) {
+        $sev = if ($analysis.OverallRiskScore -lt 50) { 'Medium' } else { 'High' }
+        $findings.Add((
+            New-DecomFinding `
+                -FindingId 'NHI-GRAPH-001' `
+                -Category 'NHI Activity - Graph API Audit' `
+                -Severity $sev `
+                -RiskScore $analysis.OverallRiskScore `
+                -Evidence "Agent initiated $($analysis.TotalOperations) Graph operations: $($analysis.SuccessfulOperations) successful, $($analysis.FailedOperations) failed" `
+                -ObjectId $objectId `
+                -DisplayName $displayName
+        ))
     }
 
-    if ($analysis.QuerySucceeded -and $analysis.UserModificationOps -gt 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-002' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 65 -Evidence "User modification operations: $($analysis.UserModificationOps)" -ObjectId $objectId -DisplayName $displayName))
-    }
-    if ($analysis.QuerySucceeded -and $analysis.RoleAssignmentOps -gt 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-003' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 90 -Evidence "CRITICAL: Role assignment operations: $($analysis.RoleAssignmentOps)" -ObjectId $objectId -DisplayName $displayName))
-    }
-    if ($analysis.QuerySucceeded -and $analysis.ConsentGrantOps -gt 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-004' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 75 -Evidence "Application consent grants: $($analysis.ConsentGrantOps)" -ObjectId $objectId -DisplayName $displayName))
-    }
-    if ($analysis.QuerySucceeded -and $analysis.ComplianceSensitiveOpCount -gt 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-005' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 95 -Evidence "CRITICAL: Compliance-sensitive operations: $($analysis.ComplianceSensitiveOpCount)" -ObjectId $objectId -DisplayName $displayName))
-    }
-    if ($analysis.QuerySucceeded -and $analysis.PolicyModificationOps -gt 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-006' -Category 'NHI Activity - Graph API Audit' -Severity 'Critical' -RiskScore 88 -Evidence "CRITICAL: Security policy modifications: $($analysis.PolicyModificationOps)" -ObjectId $objectId -DisplayName $displayName))
-    }
-    if ($analysis.QuerySucceeded -and $analysis.HighRiskOpCount -gt 0) {
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-007' -Category 'NHI Activity - Graph API Audit' -Severity 'High' -RiskScore 70 -Evidence "High-risk operations: $($analysis.HighRiskOpCount)" -ObjectId $objectId -DisplayName $displayName))
-    }
+    # GRAPH-008: High failure rate (special: computed percentage)
     if ($analysis.QuerySucceeded -and $analysis.FailureRate -gt 0.5) {
         $failurePct = [math]::Round($analysis.FailureRate * 100, 1)
-        $findings.Add((New-DecomFinding -FindingId 'NHI-GRAPH-008' -Category 'NHI Activity - Graph API Audit' -Severity 'Medium' -RiskScore 45 -Evidence "High operation failure rate: ${failurePct}% failure rate ($($analysis.FailedOperations) of $($analysis.TotalOperations) operations failed)" -ObjectId $objectId -DisplayName $displayName))
+        $findings.Add((
+            New-DecomFinding `
+                -FindingId 'NHI-GRAPH-008' `
+                -Category 'NHI Activity - Graph API Audit' `
+                -Severity 'Medium' `
+                -RiskScore 45 `
+                -Evidence "High operation failure rate: ${failurePct}% failure rate ($($analysis.FailedOperations) of $($analysis.TotalOperations) operations failed)" `
+                -ObjectId $objectId `
+                -DisplayName $displayName
+        ))
     }
 
     return $findings.ToArray()
