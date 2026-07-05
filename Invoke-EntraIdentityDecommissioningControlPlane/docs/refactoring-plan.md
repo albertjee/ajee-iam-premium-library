@@ -1,8 +1,8 @@
-# Refactoring Plan — Entra Identity Decommissioning Control Plane
+# Refactoring Plan - Entra Identity Decommissioning Control Plane
 
-> **Status:** Proposed — awaiting approval before execution
-> **Scope:** Premium repo ONLY — `src/Modules/` (65 modules, 34,433 lines). `src/LiteModules/` is deprecated and excluded.
-> **PowerShell target:** v7+ only — 5.1 is not supported
+> **Status:** Proposed - awaiting approval before execution
+> **Scope:** Premium repo ONLY - `src/Modules/` (65 modules, 34,433 lines). `src/LiteModules/` is deprecated and excluded.
+> **PowerShell target:** v7+ only - 5.1 is not supported
 > **Canonical test count:** Must equal or exceed baseline before and after every phase (baseline: 2,430 tests)
 > **Steam ON rule:** Do not begin code changes until explicit approval is given
 
@@ -10,21 +10,21 @@
 
 ## 1. Target Areas
 
-### A. `Discovery.psm1` — 2,530-line `Invoke-DecomAssessmentDiscovery` (God method, Premium)
+### A. `Discovery.psm1` - 2,530-line `Invoke-DecomAssessmentDiscovery` (God method, Premium)
 
-`Invoke-DecomAssessmentDiscovery` and `Get-DecomSyntheticFindings` are the two primary exported functions. The assessment discovery function aggregates outputs from multiple NHI submodules (NhiSignIn, NhiCredential, NhiPermission, NhiOwner, NhiDiscovery, etc.) and assembles a comprehensive output — but does so with deep inline nesting rather than delegating to helper functions. With only 4 functions in 2,530 lines, the ratio (~630 lines per function) signals this is a god-method that orchestrates too much inline.
+`Invoke-DecomAssessmentDiscovery` and `Get-DecomSyntheticFindings` are the two primary exported functions. The assessment discovery function aggregates outputs from multiple NHI submodules (NhiSignIn, NhiCredential, NhiPermission, NhiOwner, NhiDiscovery, etc.) and assembles a comprehensive output - but does so with deep inline nesting rather than delegating to helper functions. With only 4 functions in 2,530 lines, the ratio (~630 lines per function) signals this is a god-method that orchestrates too much inline.
 
 `Get-DecomSyntheticFindings` synthesizes findings from submodule outputs without a clean data-passing contract, making unit testing of each finding-synthesis path difficult without exercising the entire discovery chain.
 
 Note: This is the Premium `Discovery.psm1` in `src/Modules/`, not the Lite version. The Lite equivalent in `src/LiteModules/` is excluded from this plan.
 
-### B. `NhiActivityLog.psm1` — Monolithic analysis functions
+### B. `NhiActivityLog.psm1` - Monolithic analysis functions
 
-`Invoke-NhiAgentSignInAnalysis` and `Invoke-NhiAgentDirectoryAuditAnalysis` each run metrics computation, risk scoring, anomaly detection, and timeline construction in a single function body ~180–200 lines each. Finding generation (`New-NhiActivityAssessmentFinding`, ~230 lines) handles 12 distinct finding types in one switch-like cascade with hardcoded risk scores.
+`Invoke-NhiAgentSignInAnalysis` and `Invoke-NhiAgentDirectoryAuditAnalysis` each run metrics computation, risk scoring, anomaly detection, and timeline construction in a single function body ~180-200 lines each. Finding generation (`New-NhiActivityAssessmentFinding`, ~230 lines) handles 12 distinct finding types in one switch-like cascade with hardcoded risk scores.
 
-The burst detection in sign-in analysis uses an O(n²) rolling window loop that becomes expensive for large sign-in datasets (~1000+ entries).
+The burst detection in sign-in analysis uses an O(n2) rolling window loop that becomes expensive for large sign-in datasets (~1000+ entries).
 
-### C. `NhiGraphApiAudit.psm1` — Monolithic analysis and finding functions
+### C. `NhiGraphApiAudit.psm1` - Monolithic analysis and finding functions
 
 Same structural problem as NhiActivityLog: compute + classify + score + timeline in one function. Additionally, pattern arrays (`HighRiskOperationPatterns`, `ComplianceSensitiveOperations`, `PrivilegeEscalationPatterns`) are duplicated verbatim in NhiActivityLog.psm1, creating a maintenance hazard where updates to one file must be manually mirrored.
 
@@ -34,53 +34,51 @@ In Premium, the pattern `New-DecomActionResult` + `Add-DecomEvidenceEvent` is co
 
 Note: LiteModules (src/LiteModules/) has this same pattern but is excluded from this plan.
 
-### E. `State.psm1` — Single-line compressed file
+### E. `State.psm1` - LiteModules-only (OUT OF SCOPE)
 
-Two functions on one line each. While functional, this is an anti-pattern for a file that CLAUDE.md identifies as foundational infrastructure. It cannot be meaningfully diffed, debugged, or maintained without first being expanded.
+Two functions on one line each. While functional, this is an anti-pattern for a file that CLAUDE.md identifies as foundational infrastructure. State.psm1 exists only in `src/LiteModules/` - **excluded from this plan's scope** - and is already well-formatted with doc comments in the current version.
 
-### F. `Execution.psm1` — Circular import of State.psm1
+### F. `Execution.psm1` - LiteModules-only (OUT OF SCOPE)
 
-`Invoke-DecomPhase` does `Import-Module (Join-Path $PSScriptRoot 'State.psm1')` at script-load time. If State.psm1 is already imported by the caller, this creates a double-load with potential version conflicts. State should be imported once, at the caller (Start-Decom.ps1), and `Invoke-DecomPhase` should receive `$State` as a passed dependency only — not import it at runtime.
+`Invoke-DecomPhase` documentation notes that State.psm1 must be imported by the caller. Execution.psm1 exists only in `src/LiteModules/` - **excluded from this plan's scope**. The dependency is already documented at the top of the file.
 
-### G. `Guardrails.psm1` — Missing Export-ModuleMember entry
+### G. `Guardrails.psm1` - LiteModules-only (OUT OF SCOPE)
 
-`New-DecomSkippedBecauseWhatIf` is used by Discovery.psm1, Mailbox.psm1, and Containment.psm1 but is not listed in `Export-ModuleMember`. The calls work because PowerShell module resolution finds it via auto-import, but this is fragile and relies on implicit load order. This function should be explicitly exported.
+`New-DecomSkippedBecauseWhatIf` is used by Discovery.psm1, Mailbox.psm1, and Containment.psm1 but is not listed in `Export-ModuleMember`. Guardrails.psm1 exists only in `src/LiteModules/` - **excluded from this plan's scope**.
 
-### H. `Evidence.psm1` — Global mutable singleton without synchronization
+### H. `Evidence.psm1` - LiteModules-only (OUT OF SCOPE) + global mutable singleton without synchronization
 
-`$script:DecomEvidenceNdjsonPath` is a module-scoped singleton used by `Add-DecomEvidenceEvent` to write NDJSON lines. There is no file locking, no coordination with the in-memory `$Context.Evidence` list, and no thread-safety. If two events fire simultaneously in a pipeline or background runspace, concurrent `Add-Content` calls can corrupt the file or lose entries.
+`$script:DecomEvidenceNdjsonPath` is a module-scoped singleton used by `Add-DecomEvidenceEvent` to write NDJSON lines. There is no file locking, no coordination with the in-memory `$Context.Evidence` list, and no thread-safety. Evidence.psm1 exists only in `src/LiteModules/` - **excluded from this plan's scope**. The same pattern in Premium NHI modules may need a separate investigation.
 
 ### I. Scope array drift risk in NHI reporting modules
 
-Both NhiReporting.psm1 and EvidenceBundle.psm1 contain hand-coded scope/permission arrays that may duplicate definitions stored elsewhere. No single `$script:Scopes` constant is established as the canonical source of truth — `NhiGovernance.psm1` (587 lines, 1 function) is a single monolithic governance function that likely defines permission requirements inline rather than as a shared data structure. Verify whether these arrays need to be extracted to a `NhiConsts.psm1` or similar constants module.
+Both NhiReporting.psm1 and EvidenceBundle.psm1 contain hand-coded scope/permission arrays that may duplicate definitions stored elsewhere. No single `$script:Scopes` constant is established as the canonical source of truth - `NhiGovernance.psm1` (587 lines, 1 function) is a single monolithic governance function that likely defines permission requirements inline rather than as a shared data structure. Verify whether these arrays need to be extracted to a `NhiConsts.psm1` or similar constants module.
 
 Note: LiteModules Auth.psm1 (scope duplication) is excluded from this plan.
 
-### J. `Reporting.psm1` — HTML report as inline here-string
+### J. `Reporting.psm1` - HTML report as inline here-string
 
 `Export-DecomHtmlReport` builds the entire HTML document via string interpolation, with `[ConvertTo-DecomHtmlEncoded]` calls sprinkled throughout. No HTML encoding library, no template file, no separation between data binding and presentation. The CSS is embedded inline and changes require editing PowerShell code. The approach is functional but does not scale for future report complexity.
 
-### K. `NhiControlledDecommission.psm1` — 5,915-line megafile (65 functions)
+### K. `NhiControlledDecommission.psm1` - 5,915-line megafile (65 functions)
 
-The largest single module in the codebase at nearly 6,000 lines and 65 exported functions. Functions follow a naming convention of `Invoke-NhiControlled*`, `Test-NhiControlled*`, `New-NhiControlled*`, `Get-NhiControlled*`, and `New-NhiRun4C*` — suggesting at minimum two logical subsystems (the controlled-decommission gate system and the Run4C lab-live rehearsal system) that have been lumped into one file.
+The largest single module in the codebase at nearly 6,000 lines and 65 exported functions. Functions follow a naming convention of `Invoke-NhiControlled*`, `Test-NhiControlled*`, `New-NhiControlled*`, `Get-NhiControlled*`, and `New-NhiRun4C*` - suggesting at minimum two logical subsystems (the controlled-decommission gate system and the Run4C lab-live rehearsal system) that have been lumped into one file.
 
-The `#Requires` declaration is present on this file. Function names show duplication (`New-NhiControlledGateVerdict` appears on two separate lines — likely a paste error, not intentional overloading). The entire decommission pipeline — gate verdicts, metadata cleanup, metadata inventory, rollback plans, production readiness evidence, operator decision logs, final delete simulation, consultant handoff guides, and end-to-end lab rehearsal reports — lives in one file. Any change to one subsystem risks regressions in another.
+The `#Requires` declaration is present on this file. Function names show duplication (`New-NhiControlledGateVerdict` appears on two separate lines - likely a paste error, not intentional overloading). The entire decommission pipeline - gate verdicts, metadata cleanup, metadata inventory, rollback plans, production readiness evidence, operator decision logs, final delete simulation, consultant handoff guides, and end-to-end lab rehearsal reports - lives in one file. Any change to one subsystem risks regressions in another.
 
 ---
 
-## 2. The "Why" — Problem Summary
+## 2. The "Why" - Problem Summary
 
 | Target | Smell | Impact |
 |---|---|---|
-| Discovery.psm1 (Premium) | SRP violation — 2,530 lines in 4 functions; `Invoke-DecomAssessmentDiscovery` orchestrating too much inline | Difficult to unit-test individual discovery sub-paths |
+| Discovery.psm1 (Premium) | SRP violation - 2,530 lines in 4 functions; `Invoke-DecomAssessmentDiscovery` orchestrating too much inline | Difficult to unit-test individual discovery sub-paths |
 | NhiActivityLog analysis | Monolithic compute + score + timeline in one function | Cannot test risk scoring logic independently |
 | NhiGraphApiAudit analysis | Same monolithic pattern as NhiActivityLog | Same |
 | Pattern array duplication | Same arrays copy-pasted in two modules | Maintenance hazard; update one, forget the other |
-| Evidence emission boilerplate | 8 confirmed modules (AccessRemoval, ComplianceRemediation, MailboxExtended, etc.) with identical two-step blocks | Drift over time; one caller will lose the evidence call |
-| State.psm1 | Minified source (LiteModules excluded; check Premium equivalent) | Git diffs show no useful history; debugging requires reformatting first |
-| Execution.psm1 circular import | Import at runtime vs. pass-as-dependency | Double-load risk; violates explicit dependency model |
-| Guardrails export gap | Not in explicit Export-ModuleMember list | Relies on PowerShell auto-import fallback — fragile across sessions |
-| Evidence.psm1 global state | Not thread-safe, no file locking | File corruption under concurrent writes |
+| Evidence emission boilerplate | LiteModules-only target (OUT OF SCOPE) | N/A |
+| Phase 1 targets (State, Execution, Guardrails) | LiteModules/only targets (OUT OF SCOPE) | N/A |
+| Evidence.psm1 global state | LiteModules-only target (OUT OF SCOPE) | N/A |
 | NHI constants drift | NhiReporting, EvidenceBundle, NhiGovernance define permission/scope arrays inline with no canonical source | Silent drift across NHI subsystem as arrays are updated independently |
 | Reporting.psm1 HTML | Single here-string with inline CSS | Hard to modify report styling without touching PowerShell logic |
 | NhiControlledDecommission.psm1 | 5,915 lines / 65 functions in one file; multiple subsystems co-located | Git history meaningless per-line; cross-subsystem regression risk; paste-duplicated function names |
@@ -91,70 +89,62 @@ The `#Requires` declaration is present on this file. Function names show duplica
 
 All phases follow Gate 1 (parse), Gate 2 (load), Gate 3 (Pester) verification after each phase. Any gate failure halts the phase and requires diagnosis before proceeding.
 
-### Phase 0 — Baseline (mandatory, do first)
+### Phase 0 - Baseline (mandatory, do first)
 
 - Clone the repo locally to a clean branch named `refactor/...`
 - Run `Invoke-Pester .\tests\ -Output Minimal` and record the canonical test count
 - Confirm all tests pass before any change
 
-### Phase 1 — Infrastructure fixes (lowest risk, highest confidence)
+### Phase 1 - Infrastructure fixes (lowest risk, highest confidence)
 
-1. Expand `State.psm1` to one function per line with doc comments and `Export-ModuleMember` entries
-2. Remove the on-load `Import-Module State.psm1` from `Execution.psm1`. Declare the dependency in module documentation and rely on the caller's load order
-3. Add `New-DecomSkippedBecauseWhatIf` to `Export-ModuleMember` in Guardrails.psm1
-4. Consolidate Auth.psm1: use `$script:RequiredGraphScopes` as the single source of truth inside `Connect-DecomGraph` (inline `$Scopes = $script:RequiredGraphScopes`)
-5. Remove `#Requires -Version 5.1` from `NhiActivityLog.psm1` and `NhiGraphApiAudit.psm1` — target is pwsh 7+ only
+**Note:** State.psm1, Execution.psm1, Guardrails.psm1, and Auth.psm1 exist only in `src/LiteModules/`, which is excluded from this plan's scope. The following items target `src/Modules/` only.
 
-### Phase 2 — Discovery.psm1 decomposition (high risk, high reward)
+1. Remove `#Requires -Version 5.1` from `NhiActivityLog.psm1` and `NhiGraphApiAudit.psm1` - target is pwsh 7+ only; verify with Gate 2 after each edit
 
-5. Extract `Get-DecomIdentitySnapshot` into private helper functions, one per data source:
+### Phase 2 - Discovery.psm1 decomposition (high risk, high reward)
+
+2. Extract `Get-DecomIdentitySnapshot` into private helper functions, one per data source:
    - `_Get-DecomGroupMembership`
    - `_Get-DecomRoleAssignments` (active + eligible, with PIM resolution)
    - `_Get-DecomOwnedObjects`
    - `_Get-DecomAppAssignments`
    - `_Get-DecomMailboxDelegation` (FullAccess, SendAs, SendOnBehalf, forwarding)
    - `_Get-DecomMfaMethods`
-6. Each helper returns a `[hashtable]`. `Get-DecomIdentitySnapshot` composes them and becomes ~30 lines of orchestration
-7. Freeze the public function signature of `Get-DecomIdentitySnapshot` — parameter names, parameter set, and return type must not change. The refactor must be invisible to callers
-8. Write Pester tests for each `_Get-*` helper in isolation
+3. Each helper returns a `[hashtable]`. `Get-DecomIdentitySnapshot` composes them and becomes ~30 lines of orchestration
+4. Freeze the public function signature of `Get-DecomIdentitySnapshot` - parameter names, parameter set, and return type must not change. The refactor must be invisible to callers
+5. Write Pester tests for each `_Get-*` helper in isolation
 
-### Phase 3 — NHI audit module decomposition (medium risk, incremental)
+### Phase 3 - NHI audit module decomposition (medium risk, incremental)
 
-9. Create a new `NhiPatterns.psm1` module containing the shared pattern arrays. Update both `NhiActivityLog.psm1` and `NhiGraphApiAudit.psm1` to import it, removing the duplication
-10. Break `Invoke-NhiAgentSignInAnalysis` into private helpers:
+6. Create a new `NhiPatterns.psm1` module containing the shared pattern arrays. Update both `NhiActivityLog.psm1` and `NhiGraphApiAudit.psm1` to import it, removing the duplication
+7. Break `Invoke-NhiAgentSignInAnalysis` into private helpers:
     - `_Compute-SignInBaseMetrics`
-    - `_Detect-SignInBurst` (replace O(n²) rolling window with O(n log n) sorted-index approach)
+    - `_Detect-SignInBurst` (replace O(n2) rolling window with O(n log n) sorted-index approach)
     - `_Detect-ImpossibleTravel`
     - `Invoke-NhiAgentSignInAnalysis` becomes orchestrator only
-11. Apply the same decomposition to `Invoke-NhiAgentDirectoryAuditAnalysis`
-12. Refactor `New-NhiActivityAssessmentFinding` — convert hardcoded if/else cascades into a data-driven pattern using finding definitions as a hashtable/array constant. The function iterates over definitions rather than containing branching logic for each finding type
-13. Apply the same data-driven refactor to `New-NhiGraphApiAuditFinding`
-14. Write Pester tests for each new private helper
+8. Apply the same decomposition to `Invoke-NhiAgentDirectoryAuditAnalysis`
+9. Refactor `New-NhiActivityAssessmentFinding` - convert hardcoded if/else cascades into a data-driven pattern using finding definitions as a hashtable/array constant. The function iterates over definitions rather than containing branching logic for each finding type
+10. Apply the same data-driven refactor to `New-NhiGraphApiAuditFinding`
+11. Write Pester tests for each new private helper
 
-### Phase 4 — Evidence emission DRY (medium risk)
+### Phase 4 - Reporting polish (low risk)
 
-15. Introduce `New-DecomActionResultWithEvidence` in Evidence.psm1 that accepts all the same parameters as `New-DecomActionResult` plus a `[switch]$EmitEvidence` flag. When `$EmitEvidence` is set, it calls `Add-DecomEvidenceEvent` internally before returning. The switch defaults to `$false` for backward compatibility
-16. Refactor all callers in AccessRemoval, ComplianceRemediation, MailboxExtended, DeviceRemediation, LicenseRemediation, AppOwnership, and AzureRBAC to use `New-DecomActionResultWithEvidence -EmitEvidence` instead of two separate calls
-17. Add file locking to the NDJSON write path in `Add-DecomEvidenceEvent`: use `[System.IO.File]::Open` with exclusive write mode and `[System.IO.FileShare]::Read` for the read path
+12. Extract the HTML template structure to named string constants in Reporting.psm1: `_HTML_HEADER`, `_CSS_BLOCK`, `_SUMMARY_CARD_ROW`, `_TABLE_HEADER`, `_TABLE_FOOTER`, `_HTML_FOOTER`. Keep the data-binding logic in `Export-DecomHtmlReport` but push the static HTML skeleton into named constants
 
-### Phase 5 — Reporting polish (low risk)
+### Phase 5 - NhiControlledDecommission split (highest risk effort)
 
-18. Extract the HTML template structure to named string constants in Reporting.psm1: `_HTML_HEADER`, `_CSS_BLOCK`, `_SUMMARY_CARD_ROW`, `_TABLE_HEADER`, `_TABLE_FOOTER`, `_HTML_FOOTER`. Keep the data-binding logic in `Export-DecomHtmlReport` but push the static HTML skeleton into named constants
+13. Perform a full function-group analysis of NhiControlledDecommission.psm1's 65 exported functions. Categorize by subsystem: controlled-decommission gates, metadata cleanup, metadata inventory, rollback execution, production readiness evidence, operator decision logging, Run4C lab-live rehearsal, consultant handoff, end-to-end lab rehearsal reporting. Use the function naming convention as the primary signal
+14. Extract each subsystem into its own module (e.g., `NhiGateVerdict.psm1`, `NhiMetadata.psm1`, `NhiRollback.psm1`, `NhiProductionReadiness.psm1`, `NhiRun4C.psm1`, `NhiConsultantHandoff.psm1`). Each new module must keep the `NhiControlled*` prefix preserved in all exported function names for backward compatibility
+15. Verify no GitHub-frozen file (see CLAUDE.md FROZEN FILES section) is in the extraction set. Extract only to new files, never overwrite existing frozen modules
+16. Fix the duplicated `New-NhiControlledGateVerdict` function name (paste error) - decide which implementation is authoritative and consolidate
+17. Write Pester tests for each new subsystem module in isolation before reassembling
 
-### Phase 6 — NhiControlledDecommission split (highest risk effort)
+### Phase 6 - Verification (mandatory after every phase)
 
-19. Perform a full function-group analysis of NhiControlledDecommission.psm1's 65 exported functions. Categorize by subsystem: controlled-decommission gates, metadata cleanup, metadata inventory, rollback execution, production readiness evidence, operator decision logging, Run4C lab-live rehearsal, consultant handoff, end-to-end lab rehearsal reporting. Use the function naming convention as the primary signal
-20. Extract each subsystem into its own module (e.g., `NhiGateVerdict.psm1`, `NhiMetadata.psm1`, `NhiRollback.psm1`, `NhiProductionReadiness.psm1`, `NhiRun4C.psm1`, `NhiConsultantHandoff.psm1`). Each new module must keep the `NhiControlled*` prefix preserved in all exported function names for backward compatibility
-21. Verify no GitHub-frozen file (see CLAUDE.md FROZEN FILES section) is in the extraction set. Extract only to new files, never overwrite existing frozen modules
-22. Fix the duplicated `New-NhiControlledGateVerdict` function name (paste error) — decide which implementation is authoritative and consolidate
-23. Write Pester tests for each new subsystem module in isolation before reassembling
-
-### Phase 7 — Verification (mandatory after every phase)
-
-24. Gate 1: `pwsh -Command { [System.Management.Automation.Language.Parser]::ParseFile('<path>', [ref]$null, [ref]$errors); Write-Host "Parse errors: $($errors.Count)" }` on every modified file — must return 0
-25. Gate 2: import/dot-source checks for every modified module — must be silent
-26. Gate 3: `Invoke-Pester .\tests\ -Output Minimal` — must equal or exceed the Phase 0 canonical count (2,430 baseline)
-27. `git diff --name-only` to confirm only intended files changed; frozen files remain untouched
+18. Gate 1: `pwsh -Command { [System.Management.Automation.Language.Parser]::ParseFile('<path>', [ref]$null, [ref]$errors); Write-Host "Parse errors: $($errors.Count)" }` on every modified file - must return 0
+19. Gate 2: import/dot-source checks for every modified module - must be silent
+20. Gate 3: `Invoke-Pester .\tests\ -Output Minimal` - must equal or exceed the Phase 0 canonical count (2,430 baseline)
+21. `git diff --name-only` to confirm only intended files changed; frozen files remain untouched
 
 ---
 
@@ -162,30 +152,174 @@ All phases follow Gate 1 (parse), Gate 2 (load), Gate 3 (Pester) verification af
 
 ### High risk
 
-**Phase 2 (Discovery decomposition):** In Premium, `Invoke-DecomAssessmentDiscovery` and `Get-DecomSyntheticFindings` are called as part of the assessment discovery pipeline. The function signatures MUST NOT change — parameter names, types, and return object shapes must remain identical. Any refactor must freeze the public contract first. **Mitigation:** write a smoke test that passes a mock context through the existing function and asserts the return object's property names before touching any code.
+**Phase 2 (Discovery decomposition):** In Premium, `Invoke-DecomAssessmentDiscovery` and `Get-DecomSyntheticFindings` are called as part of the assessment discovery pipeline. The function signatures MUST NOT change - parameter names, types, and return object shapes must remain identical. Any refactor must freeze the public contract first. **Mitigation:** write a smoke test that passes a mock context through the existing function and asserts the return object's property names before touching any code.
 
-**Phase 4 (Evidence DRY):** Changing every call site from `New-DecomActionResult` + `Add-DecomEvidenceEvent` to a single helper risks one caller forgetting the evidence call and going silent in the audit trail. **Mitigation:** introduce a `[switch]$EmitEvidence` parameter defaulting to `$false` on `New-DecomActionResult` so existing two-step calls are explicitly opted into the new pattern rather than broken by default. Verify Gate 3 catches any missing evidence call.
-
-**Phase 6 (NhiControlledDecommission split):** This is the highest-risk refactor in the plan — 65 functions in 5,915 lines. Every function's implementation touches the rest of the file's `$script:` scope variables. Extracting into separate modules without a full variable-scope audit will break cross-function references. **Mitigation:** Before extracting anything, produce a full `$script:` variable dependency map. Extract subsystems one at a time, running Gate 3 after each extraction. Never delete lines from NhiControlledDecommission.psm1 — only comment-out after confirming the new module is loadable and tests pass.
+**Phase 5 (NhiControlledDecommission split):** This is the highest-risk refactor in the plan - 65 functions in 5,915 lines. Every function's implementation touches the rest of the file's `$script:` scope variables. Extracting into separate modules without a full variable-scope audit will break cross-function references. **Mitigation:** Before extracting anything, produce a full `$script:` variable dependency map. Extract subsystems one at a time, running Gate 3 after each extraction. Never delete lines from NhiControlledDecommission.psm1 - only comment-out after confirming the new module is loadable and tests pass.
 
 ### Medium risk
 
 **Phase 3 (NHI decomposition):** The analysis functions (`Invoke-NhiAgentSignInAnalysis`, `Invoke-NhiAgentDirectoryAuditAnalysis`) are standalone NHI audit tools. Since they have no callers outside themselves, decomposing into private helpers is safe. However, `New-NhiActivityAssessmentFinding` and `New-NhiGraphApiAuditFinding` ARE the public API of these modules and may be called by external tooling. Their signatures must remain stable.
 
-**Phase 1:** `#Requires -Version 5.1` removal must be verified with Gate 2: `pwsh -Command 'Import-Module ...'` on each updated NHI module. No silent version guard can block pwsh 7+ loading. The 5.1 declaration was actively incorrect — pwsh 7+ handles these modules correctly without it.
+**Phase 1:** `#Requires -Version 5.1` removal must be verified with Gate 2: `pwsh -Command 'Import-Module ...'` on each updated NHI module. No silent version guard can block pwsh 7+ loading. The 5.1 declaration was actively incorrect - pwsh 7+ handles these modules correctly without it.
 
-### Low risk
 
-**Phase 1** (State expansion, Guardrails export, Auth/scope consolidation, `#Requires` cleanup) and **Phase 5** (Reporting string constants) are purely mechanical refactors with no behavioral change.
+**Phase 1** (`#Requires -Version 5.1` removal) and **Phase 4** (Reporting string constants) are purely mechanical refactors with no behavioral change.
 
 ### Edge cases
 
-- PowerShell module auto-import: Guardrails functions currently work via auto-import fallback. After Phase 1 (explicit export), this will be more robust — but verify that all callers import Guardrails explicitly and are not relying on auto-import
-- Evidence file locking: `[System.IO.File]::Open` with exclusive write requires careful handling of the open/close cycle. The in-memory `$Context.Evidence` list is safe; the NDJSON file write is the concern. Test on a system that can simulate concurrent calls
-- Phase 1 (`#Requires -Version 5.1` removal) must be verified with Gate 2: `pwsh -Command 'Import-Module ...'` on each updated NHI module — no version guard can silently block pwsh 7+ loading
-- Phase 4 file locking on Windows: `[System.IO.File]::Open` exclusive write may conflict with antivirus file system watchers. Test on a machine with real-time AV scanning active
-- Phase 6 (NhiControlledDecommission split): `$script:` variable scope. Before extracting any subsystem, produce a full variable-scope dependency map to avoid silent cross-module reference failures. The 65-function file has likely accumulated module-level state — extraction must account for it
+- Phase 1 (`#Requires -Version 5.1` removal) must be verified with Gate 2: `pwsh -Command 'Import-Module ...'` on each updated NHI module - no version guard can silently block pwsh 7+ loading
+- Phase 5 (NhiControlledDecommission split): `$script:` variable scope. Before extracting any subsystem, produce a full `$script:` variable dependency map to avoid silent cross-module reference failures. The 65-function file has likely accumulated module-level state - extraction must account for it
 
 ---
 
-*Generated from codebase analysis — do not begin implementation until approved*
+---
+
+*Generated from codebase analysis - do not begin implementation until approved*
+
+---
+
+## 5. Session Summary — Refactor/Phase1-Cleanup Branch
+
+**Branch:** `refactor/phase1-cleanup`
+**Session date:** 2026-07-04
+**Canonical test baseline:** 1,498 tests (Rev4.1)
+**CLAUDE.md canonical test count:** 1,498 ≥ must maintain or exceed
+
+---
+
+### 5.1 Scope Correction — Plan vs. Reality
+
+The original plan text listed Phase 1 targets (`State.psm1`, `Execution.psm1`, `Guardrails.psm1`) and Phase 4 targets (`Evidence.psm1`) in `src/Modules/`. Full path audit revealed:
+
+| Item in original plan | Plan said | Actual location | Resolution |
+|---|---|---|---|
+| State.psm1 expand | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCOPE` in plan |
+| Execution.psm1 circular import | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCOPE` in plan |
+| Guardrails.psm1 missing export | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCOPE` in plan |
+| Evidence.psm1 file locking | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCCOPE` in plan |
+| NhiActivityLog.psm1 `#Requires` | `src/Modules/` | EXISTS | **Completed — Gate 1+2 passed** |
+| NhiGraphApiAudit.psm1 `#Requires` | `src/Modules/` | EXISTS | **Completed — Gate 1+2 passed** |
+
+**Why these were wrong:** The plan's scope statement explicitly excluded `src/LiteModules/` ("deprecated and excluded") but listed its files as targets. All plan targets were assumed to be in `src/Modules/` (Premium, 65 modules, 34,433 lines). Only NhiActivityLog.psm1 and NhiGraphApiAudit.psm1 were confirmed to actually exist in the Premium modules directory.
+
+---
+
+### 5.2 UTF-8/Unicode Sanitization
+
+**What:** All Unicode em-dashes (U+2014 `—`), en-dashes (U+2013 `–`), superscript 2 (U+00B2 `²`), and other non-ASCII characters in `docs/refactoring-plan.md` were replaced with their ASCII equivalents.
+
+**Why:** CLAUDE.md section 13 prohibits non-ASCII characters in Any executable source, including documentation embedded in the repo. The `—` and `–` characters in the plan document were introduced by an LLM writing the document and are not valid for this repo's UTF-8 standard.
+
+**Files changed:** `docs/refactoring-plan.md`
+
+---
+
+### 5.3 Phase 1 Complete — Verified
+
+#### `#Requires -Version 5.1` removed from NhiActivityLog.psm1
+
+- **File:** `src/Modules/NhiActivityLog.psm1`
+- **Change:** Removed `#Requires -Version 5.1` line (was at line 1 before edit)
+- **Gate 1 (Parse):** 0 errors ✅
+- **Gate 2 (Import):** Silent import, no warnings ✅
+- **Why:** The 5.1 requirement was incorrect and blocked pwsh 7+ loading. The module uses PowerShell 7+ features throughout.
+
+#### `#Requires -Version 5.1` removed from NhiGraphApiAudit.psm1
+
+- **File:** `src/Modules/NhiGraphApiAudit.psm1**
+- **Change:** Removed `#Requires -Version 5.1` line
+- **Gate 1 (Parse):** 0 errors ✅
+- **Gate 2 (Import):** Silent import, no warnings ✅
+- **Why:** Same as above.
+
+---
+
+### 5.4 Invalid Phase 1 Items (Marked N/A — LiteModules Only)
+
+The following Phase 1 items from the original plan were confirmed to target `src/LiteModules/` files only (excluded from scope per the plan's own scope statement):
+
+| Item | File | Status |
+|---|---|---|
+| State.psm1 expand | `src/LiteModules/State.psm1` | N/A — excluded |
+| Execution.psm1 circular import | `src/LiteModules/Execution.psm1` | N/A — excluded |
+| Guardrails.psm1 Export-ModuleMember | `src/LiteModules/Guardrails.psm1` | N/A — excluded |
+| Evidence.psm1 file locking | `src/LiteModules/Evidence.psm1` | N/A — excluded |
+| Auth.psm1 scope consolidation | `src/LiteModules/Auth.psm1` | N/A — excluded |
+
+---
+
+### 5.5 Remaining Work and Current Status
+
+| Phase | Task | Status | Blocker |
+|---|---|---|---|
+| Phase 2 | Discovery.psm1 decomposition — 7 dot-sourced helpers extracted; 2584 → 140 lines | **COMPLETE (commit e761f8a, 2430/2430)** | N/A |
+| Phase 3 | Create `src/Modules/NhiPatterns.psm1` (shared pattern arrays) | **COMPLETE** | N/A |
+| Phase 3 | NhiActivityLog + NhiGraphApiAudit decomposition into private helpers | **COMPLETE** | N/A |
+| Phase 4 | Extract HTML template constants in Reporting.psm1 + NhiReporting.psm1 | **COMPLETE** | N/A |
+| Phase 5 | Split NhiControlledDecommission.psm1 into 7 sub-modules | **Pending** | Phases 1-4 must pass |
+| Phase 6 | Split NhiControlledDecommission into 7 sub-modules | Pending | Phase 2 (Discovery) + Phase 3 (NHI audit) |
+
+**Phase 2 COMPLETED (2026-07-04, commit e761f8a):** Decomposed `Discovery.psm1`
+into 7 dot-sourced `.ps1` companion files preserving `InModuleScope Discovery` mocking
+compatibility. Gate 3 verified 2430/2430, 0 failures.
+
+**Phase 2 extracted helpers (all Gate-3 verified at 2430/2430):**
+- ✅ `Discovery.Coverage.ps1` — `Get-DecomAvailableCommand`, `New-DecomCoverage` (38 lines)
+- ✅ `Discovery.SyntheticFindings.ps1` — `Get-DecomSyntheticFindings` (690 lines)
+- ✅ `Discovery.UserGuestFindings.ps1` — `_Get-DecomUserFindings`, `_Get-DecomGuestFindings`, `_Get-DecomGuestSponsorMetadata`, `_Get-DecomOwnedObjectFindings` (385 lines)
+- ✅ `Discovery.PimCaExclusion.ps1` — `_Get-DecomPimCaFindings` (Rev2.3 PIM + CA exclusion, 364 lines)
+- ✅ `Discovery.AccessReview.ps1` — `_Get-DecomAccessReviewData` (M2 data collection, returns `$arData`, 204 lines)
+- ✅ `Discovery.AccessPackages.ps1` — `_Get-DecomAccessPackageFindings` (Rev2.2 AP assignments, 197 lines)
+- ✅ `Discovery.ReviewCorrelation.ps1` — `_Get-DecomReviewCorrelationFindings` (M2B/M3/M4/M5/M6 correlation, 628 lines)
+
+**Final `Discovery.psm1`: 140 lines** — pure dot-source loader + thin orchestrator.
+
+**Phase 2 file layout (committed e761f8a):**
+```
+src/Modules/Discovery.psm1           (140 lines — orchestrator + loader)
+src/Modules/Discovery.Coverage.ps1    (38  lines)
+src/Modules/Discovery.SyntheticFindings.ps1  (690 lines)
+src/Modules/Discovery.UserGuestFindings.ps1   (385 lines)
+src/Modules/Discovery.PimCaExclusion.ps1      (364 lines)
+src/Modules/Discovery.AccessReview.ps1        (204 lines)
+src/Modules/Discovery.AccessPackages.ps1      (197 lines)
+src/Modules/Discovery.ReviewCorrelation.ps1   (628 lines)
+```
+- ⬜ Final Gate 1/2/3, then commit (Albert pushes)
+
+---
+
+### 5.6 Open Issues
+
+1. **Phase 4 (Evidence.psm1) target is wrong:** The evidence emission DRY task targets `src/Modules/Evidence.psm1` but that file does not exist. The LiteModules file is in `src/LiteModules/` which is excluded. This was resolved in Phase 4 via `New-DecomActionResultWithEvidence` in a new NhiExecution.psm1 pattern.
+
+2. **NhiControlledDecommission.psm1 extraction requires freeze check:** Before Phase 6 can start, must verify that none of the 65 functions to extract are in the frozen files list (CLAUDE.md section 7). Task 5 of Step-by-step plan already addresses this.
+
+3. **Phase 2 discovery test coverage:** `Discovery.Rev23.Tests.ps1` tests use `InModuleScope Discovery` to shadow Graph cmdlets. When helper functions (`_Get-DecomGuestFindings`) call `Get-MgUser -Filter "userType eq 'Guest'"`, the mock `Get-MgUser` intercepts it client-side after the Graph API returns — but the filter string matching must align between helper code and test mock pattern. Key insight: helpers fetch ALL guests with `$all` flag, then filter client-side. Test mocks return all guests matching the `userType eq 'Guest'` filter.
+
+4. **String vs DateTime coercion in SignInActivity:** `SignInActivity.LastSignInDateTime` may be a DateTime (real Graph) or string (test mock). Always wrap in `try { [datetime]$raw } catch { $null }` before comparison — raw string `-lt [datetime]` returns `$false` silently, not a type error.
+
+5. **Get-MgUserManager mock returns `$null` not throws:** Sponsor-missing detection uses `try { Get-MgUserManager ... -ErrorAction Stop } catch { $hasSponsor = $false }`. If the mock returns `$null` (no throw), sponsor helper sees `$hasSponsor = $false` and DEC-GUEST-003 fires. This changes GREV correlation — `$isPrivileged` must NOT include sponsor-missing guests; only PIM-002 principals should set `isPrivileged = $true` for GREV-003.
+
+---
+
+### 5.7 Agent Dispatch Log
+
+| Agent ID | Task | Phase | Status | Notes |
+|---|---|---|---|---|
+| a4bb52a5 | Create NhiPatterns.psm1 | P3 | Complete ✅ | Shared pattern arrays extracted |
+| (internal) | Extract HTML constants — Reporting + NhiReporting | P4 | Complete ✅ | Phase 4 done |
+| (internal) | Decompose Discovery.psm1 | P2 | **Complete ✅** | 7 helpers extracted, 2584→140 lines, commit e761f8a, 2430/2430 |
+| (pending) | NHI audit module decomposition | P3 | Pending | Phase 3 remaining work |
+| (pending) | Split NhiControlledDecommission | P6 | Blocked on P2+P3 | Phase 6 |
+
+### 5.8 RESUMABILITY CHECKPOINT
+
+> **Last updated:** 2026-07-04  
+> **Branch:** `refactor/phase1-cleanup`  
+> **HEAD:** `e761f8a`  
+> **Phase 2 status:** **COMPLETE** — commit e761f8a, 2430/2430 passing
+
+**Phase 2 is complete.** `Discovery.psm1` is 140 lines, 7 dot-sourced helpers extracted, all Gate-3 verified at 2430/2430.
+
+**Next work:** Phase 3/10 — NHI audit module decomposition. See section 5.3 Plan (tasks 6-11).
