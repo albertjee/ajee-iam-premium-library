@@ -1,5 +1,42 @@
 # Changelog
 
+## Refactor 2026-07 - Entry-Point Decomposition (M1-M8)
+
+### Summary
+Decomposed `Invoke-EntraIdentityDecommissioningControlPlane.ps1` (1906 lines, 0 functions, pure
+top-to-bottom procedural flow) into 6 dot-sourced companions under `src/EntryPoint/`, one region
+per milestone (M2-M7), migrating every test that reads the entry point's source text as each
+region moved. Branch `refactor/entrypoint-decomposition`. Full milestone/commit table and process
+notes: `docs/refactoring-plan.md` section 5.10.
+
+### Changes
+- **M1** (`89cfcb0`): assertion-migration table for all entry-anchored tests, approved before any
+  code moved.
+- **M2** (`7a332b0`/`52a4f3a`, PR #21): region D (controlled NHI decommission, 443 lines) ->
+  `src/EntryPoint/ControlledNhiDecommission.ps1`. Fixed a `pwsh -File` subprocess exit-code bug
+  (`exit` vs `[System.Environment]::Exit`) surfaced by the split.
+- **M3** (`6420c45`): region E (Rev4.0 M35 NHI execution guard, 317 lines) ->
+  `src/EntryPoint/NhiExecutionFlow.ps1`.
+- **M4** (`6469099`): region F (assessment context/write-readiness/Graph connect, 286 lines) ->
+  `src/EntryPoint/AssessmentFlow.ps1`. Full-suite gate caught 2 test files missing from every
+  prior inventory, including a pre-existing latent bug dating back to M2.
+- **M5** (`8857b21`): region G (NHI governance pack + demo block, 368 lines) ->
+  `src/EntryPoint/NhiGovernancePack.ps1`.
+- **M6** (`c54b40c`): region H (Rev3.4 hardening outputs, 217 lines) ->
+  `src/EntryPoint/HardeningOutputs.ps1`.
+- **M7** (`ed755ac`): region I (Rev3.5 NHI governance pack, 75 lines, final region) ->
+  `src/EntryPoint/Rev35GovernancePack.ps1`. Entry point down to 209 lines.
+- **M8**: added `tests/EntryPointClosedSet.Tests.ps1` -- machine-checked closed-set safety test
+  (main dot-sources exactly the 6 expected companions in order; `src/EntryPoint/` contains exactly
+  those 6 files) mitigating the single-file audit-surface trade-off signed off at Gate 1.
+
+### Test Count
+- 2412 total, 2412 passing, 0 failed. 2408 pre-decomposition baseline -> 2407 after M2-M7 test
+  anchor migrations (net -1, incidental to migration, not a coverage loss) -> 2412 after M8 adds
+  5 new closed-set tests. Net +4 overall.
+
+---
+
 ## Refactor 2026-07 - Module Decomposition and Test Consolidation (Phases 1-7)
 
 ### Summary

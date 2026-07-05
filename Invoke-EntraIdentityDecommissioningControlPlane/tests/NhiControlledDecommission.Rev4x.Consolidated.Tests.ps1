@@ -35,6 +35,10 @@
 BeforeAll {
     $script:ModulePath = Join-Path $PSScriptRoot '..\src\Modules\NhiControlledDecommission.psm1'
     $script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+    # M2: region D (controlled NHI decommission banner) moved to Companion D.
+    # M4: region F (Connect-MgGraph, ExecuteRemediation branch) moved to Companion F.
+    $script:ControlledDCompanionPath = Join-Path $PSScriptRoot '..\src\EntryPoint\ControlledNhiDecommission.ps1'
+    $script:AssessmentFlowCompanionPath = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
 
     Remove-Module NhiControlledDecommission -Force -ErrorAction SilentlyContinue
     Import-Module $script:ModulePath -Force -DisableNameChecking
@@ -3014,7 +3018,12 @@ Describe 'Rev4.9 production readiness gate suite' {
         }
 
         It 'keeps SelfTest before the controlled Graph connection path' {
-            $source = Get-Content -LiteralPath $script:EntryPointPath -Raw
+            # M4: Connect-MgGraph moved from main to Companion F (AssessmentFlow.ps1).
+            # Concatenate in dot-source order (main runs before any dot-sourced companion)
+            # so first-occurrence IndexOf semantics are preserved across the split.
+            $mainSource = Get-Content -LiteralPath $script:EntryPointPath -Raw
+            $companionSource = Get-Content -LiteralPath $script:AssessmentFlowCompanionPath -Raw
+            $source = $mainSource + "`n" + $companionSource
             $source.IndexOf('# SelfTest early exit - no Graph connection, discovery, or remediation') | Should -BeLessThan $source.IndexOf('Connect-MgGraph')
         }
 
@@ -3052,8 +3061,12 @@ Describe 'Rev4.9 production readiness gate suite' {
         }
 
         It 'keeps default Assessment out of the controlled readiness path' {
+            # M2 (BS-2, anchors doc): the controlled-decommission banner moved from main
+            # to Companion D. Positive assertion now reads Companion D directly; negative
+            # assertion (Assessment-mode guard) stays in main since it never moved.
             $script:Source = Get-Content -LiteralPath $script:EntryPointPath -Raw
-            $script:Source | Should -Match '# Rev4\.2-S1 controlled NHI decommission planner/evidence flow'
+            $script:ControlledDSource = Get-Content -LiteralPath $script:ControlledDCompanionPath -Raw
+            $script:ControlledDSource | Should -Match '# Rev4\.2-S1 controlled NHI decommission planner/evidence flow'
             $script:Source | Should -Not -Match 'if \(\$Mode -eq ''Assessment''.*ProductionReadiness'
         }
     }

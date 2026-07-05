@@ -6,6 +6,9 @@ Describe 'Safety — Rev3.1 Write Isolation and Guest Safety Invariants' {
     BeforeAll {
         $script:ModulesPath = Join-Path $PSScriptRoot '..\src\Modules'
         $script:EntryPointPath = Join-Path $PSScriptRoot '..\Invoke-EntraIdentityDecommissioningControlPlane.ps1'
+        # M4: region F (write-scope Connect-MgGraph call) moved to
+        # src/EntryPoint/AssessmentFlow.ps1
+        $script:AssessmentFlowPath = Join-Path $PSScriptRoot '..\src\EntryPoint\AssessmentFlow.ps1'
     }
 
     It 'GuestGovernance.psm1 contains no write cmdlets (Remove-Mg)' {
@@ -69,12 +72,12 @@ Describe 'Safety — Rev3.1 Write Isolation and Guest Safety Invariants' {
     }
 
     It 'Entry point write scopes include GroupMember.ReadWrite.All' {
-        $content = Get-Content $script:EntryPointPath -Raw
+        $content = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
         $content | Should -Match 'GroupMember\.ReadWrite\.All'
     }
 
     It 'Entry point write scopes include AppRoleAssignment.ReadWrite.All' {
-        $content = Get-Content $script:EntryPointPath -Raw
+        $content = Get-Content -LiteralPath $script:AssessmentFlowPath -Raw
         $content | Should -Match 'AppRoleAssignment\.ReadWrite\.All'
     }
 }

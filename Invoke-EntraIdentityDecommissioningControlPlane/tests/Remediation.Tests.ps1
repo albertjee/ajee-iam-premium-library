@@ -385,7 +385,10 @@ Describe 'Rev2.1 Max Action Guardrail' {
     It 'Entry point MaxActions check is present in source' {
         $src = Get-Content '.\Invoke-EntraIdentityDecommissioningControlPlane.ps1' -Raw
         $src | Should -Match 'MaxActions'
-        $src | Should -Match 'exceeds'
+        # M4: the 'exceeds' guardrail message moved to region F's companion,
+        # src/EntryPoint/AssessmentFlow.ps1, alongside the ExecuteRemediation branch.
+        $companionSrc = Get-Content '.\src\EntryPoint\AssessmentFlow.ps1' -Raw
+        $companionSrc | Should -Match 'exceeds'
     }
 
     It 'Entry point ActionId filter is present in source' {
