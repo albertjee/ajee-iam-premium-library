@@ -2,7 +2,7 @@
 
 > Status: M1-M7 COMPLETE, 2026-07-05. All 6 regions (D-I) extracted to
 > src/EntryPoint/ companions; entry point reduced from 1906 to 209 lines.
-> M8 (closed-set safety test, docs) in progress. See
+> M8 (closed-set safety test, docs) complete. See
 > docs/entrypoint-decomposition-anchors.md for the full commit-by-milestone
 > history and post-landing corrections found along the way.
 > Baseline: main `48d0eeb`, 2408/2408 passing
