@@ -177,25 +177,16 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 - **Rev4.1 test count:** 1498 total tests, 1498 passing, 0 failed
   - 41 new tests (NhiActivityAudit.Rev41.Tests.ps1, M1-M6 activity audit modules)
   - HtmlEncoding cross-test contamination failure resolved during Rev4.1 fix cycles
-- **Current baseline (2026-07-05, Phase 7 test consolidation complete + working-tree cleanup):**
-  2408 total tests, 2408 passing, 0 failed, measured on the pristine committed tree. Prior
-  baseline was 2430 (post Phase 2/3/5 module-decomposition refactors, see
-  `docs/refactoring-plan.md` sections 5.5-5.8; intervening Rev4.2-4.9 growth not backfilled in
-  this section). Phase 7 merged 28 per-revision test files (Safety.Rev4x x8, NhiRun4C x12,
-  NhiControlledDecommission.Rev4x x8) into 3 consolidated files, net -12 tests (only genuine
-  duplicates removed; 39 mechanically-flagged "duplicates" verified as false positives — same
-  `It` name, different underlying function/fixture — and correctly kept separate). Full writeup:
-  `docs/refactoring-plan.md` section 5.9.
-  - Note: earlier session figures of 2430/2418 were measured with an UNTRACKED
-    `tests/Rev446LabReadinessEvidence.Tests.ps1` (10 tests, never committed) present in the
-    working tree; Pester discovers by filesystem, so those runs overcounted the committed tree
-    by 10. That file and its companion tool/doc were removed in the 2026-07-05 cleanup. The
-    committed tree's true count at the PR #19 merge (`89135d3`) was already 2408.
+- **Current baseline (2026-07-05, after all entry-point decomposition milestones):**
+  2412 total tests, 2412 passing, 0 failed (main `94ebd16`, PR #23). Pre-refactor baseline
+  was 2408 (`89135d3`, PR #19). Entry-point decomposition (PR #22) added 5 new closed-set
+  safety tests in M8; no test count regressions. Full milestone history:
+  `docs/entrypoint-decomposition-plan.md` section 4.
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Minimal
   ```
-- Must show 0 failures, >= 2408 tests passing.
+- Must show 0 failures, >= 2412 tests passing.
 
 ---
 
@@ -205,7 +196,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 2408 tests passing |
+| Tests | 0 failures, ≥ 2412 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 
