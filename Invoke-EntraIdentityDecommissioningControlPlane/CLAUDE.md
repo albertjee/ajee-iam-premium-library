@@ -187,6 +187,10 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
   - 14 new tests in NhiScopeCatalog.Rev42.Tests.ps1
   - ReleaseValidation.Rev33 Policy.ReadWrite exclusion updated (adds NhiScopeCatalog.psm1,
     drops NhiDiscovery.psm1/NhiPermission.psm1 - net tightening)
+- **Rev4.2 fix test count (2026-07-09):** 2448 total tests, 2448 passing, 0 failed
+  - NhiAnalysis high-risk OAuth grant counting fix, branch `fix/nhi-analysis-highrisk-scopes`
+  - 7 new tests in NhiAnalysisOAuth.Rev42.Tests.ps1 (TDD red-first)
+  - Behavior change (approved): HighRiskOAuthGrantCount now counts, +8 classification signal live
 - **Current baseline (2026-07-05, after all entry-point decomposition milestones):**
   2412 total tests, 2412 passing, 0 failed (main `94ebd16`, PR #23). Pre-refactor baseline
   was 2408 (`89135d3`, PR #19). Entry-point decomposition (PR #22) added 5 new closed-set
