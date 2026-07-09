@@ -188,8 +188,9 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
 
     It 'No Policy.ReadWrite.* scope appears in any operational module' {
         # Rev3CapabilityMatrix.psm1 documents it as deferred-reason text; ReleaseValidation.psm1 and WriteReadiness.psm1 reference it as forbidden/deferred scope documentation
-        # NhiDiscovery.psm1 defines Policy.ReadWrite.All as a high-risk permission to detect, not as a scope to request
-        $excluded = @('Rev3CapabilityMatrix.psm1', 'ReleaseValidation.psm1', 'WriteReadiness.psm1', 'NhiDiscovery.psm1', 'NhiPermission.psm1')
+        # NhiScopeCatalog.psm1 defines Policy.ReadWrite.All as a high-risk permission to detect, not as a scope to request
+        # (Rev4.2: high-risk lists moved out of NhiDiscovery.psm1/NhiPermission.psm1 into the catalog, so those two are no longer excluded)
+        $excluded = @('Rev3CapabilityMatrix.psm1', 'ReleaseValidation.psm1', 'WriteReadiness.psm1', 'NhiScopeCatalog.psm1')
         $files = Get-ChildItem (Join-Path $script:ModulesPath '*.psm1') | Where-Object { $_.Name -notin $excluded }
         foreach ($f in $files) {
             $content = Get-Content $f.FullName -Raw
