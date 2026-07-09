@@ -177,6 +177,11 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 - **Rev4.1 test count:** 1498 total tests, 1498 passing, 0 failed
   - 41 new tests (NhiActivityAudit.Rev41.Tests.ps1, M1-M6 activity audit modules)
   - HtmlEncoding cross-test contamination failure resolved during Rev4.1 fix cycles
+- **Rev4.1 test count (2026-07-09):** 2427 total tests, 2427 passing, 0 failed
+  - NhiExecutionGuard extraction branch `refactor/nhi-execution-guard` (PR #24)
+  - 15 new tests in NhiExecutionGuard.Rev41.Tests.ps1
+  - Fixes: ReleaseValidation.Rev33 false positives (NhiExecutionGuard.psm1 data exclusion),
+    NhiExecution.Rev40 guard test (updated to test modular architecture)
 - **Current baseline (2026-07-05, after all entry-point decomposition milestones):**
   2412 total tests, 2412 passing, 0 failed (main `94ebd16`, PR #23). Pre-refactor baseline
   was 2408 (`89135d3`, PR #19). Entry-point decomposition (PR #22) added 5 new closed-set
@@ -186,7 +191,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Minimal
   ```
-- Must show 0 failures, >= 2412 tests passing.
+- Must show 0 failures, >= 2427 tests passing.
 
 ---
 
