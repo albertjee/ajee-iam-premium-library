@@ -1,5 +1,55 @@
 # Changelog
 
+## Refactor 2026-07-09 - NhiExecutionGuard Extraction (Rev4.1)
+
+### Summary
+Extracted inline blocklist guard from `src/EntryPoint/NhiExecutionFlow.ps1` into a testable,
+versioned module `src/Modules/NhiExecutionGuard.psm1`. Replaces hardcoded regex blocklist with
+a `FileCommandSet` class preventing `IEnumerable` pipeline unroll (the root bug: bare `HashSet`
+return yields `$null` for empty files and individual chars for non-empty). Branch:
+`refactor/nhi-execution-guard` (PR #24).
+
+### Changes
+- **NhiExecutionGuard.psm1** (84 lines, Rev4.1 M1):
+  - `FileCommandSet` class: named class wrapping `HashSet[string]` — exposes `.ItemCount()`,
+    `.Contains()`, `.Raw()` methods; avoids `IEnumerable` unroll that corrupts empty HashSet
+    returns as `$null` and non-empty returns as char array.
+  - `$Script:NhiBlockedCmdlets`: 12 blocked cmdlet names as single DATA source (covers
+    `Remove-Mg*`, `HardDeleteServicePrincipal`, `Remove-MgServicePrincipalByAppId`, owner and
+    permission-grant variants).
+  - `Test-NhiExecutionModuleClean(Mandatory string[] ModulePaths)`: raw-string `[regex]::Escape()`
+    scan; throws `Write-DecomError` on first violation; skips absent files silently.
+  - `Get-FileCommandNames(Mandatory string Path, bool Recurse=$true)`: `Parser::ParseFile` +
+    `CommandAst.FindAll()` AST scanner; returns `FileCommandSet` (empty set, not `$null`, on
+    parse errors).
+- **NhiExecutionFlow.ps1** — replaces inline ~30-line blocklist blocklet with single
+  `Import-Module NhiExecutionGuard.psm1` + `Test-NhiExecutionModuleClean -ModulePaths $targetModules`.
+- **NhiExecutionGuard.Rev41.Tests.ps1** (230 lines, 15 tests): guard positive cases, blocking
+  detection across all 12 cmdlets, early-exit, AST scanner correctness (string literals, hashtable
+  keys, comments, nested `CommandAst`, malformed input).
+- **ReleaseValidation.Rev33.Tests.ps1** — excludes `NhiExecutionGuard.psm1` from deletion-cmdlet
+  content scans (blocked names appear as data strings, not invocations).
+- **NhiExecution.Rev40.Tests.ps1** — replaces "Destructive cmdlet guard present in entry point"
+  (fails: checks old inline variable names) with 5 assertions verifying new modular architecture.
+
+### Test Count
+- **2427 total, 2427 passing, 0 failed.**
+  - Prior baseline (PR #23): 2412/2412
+  - +15 new tests in NhiExecutionGuard.Rev41.Tests.ps1
+  - Fixes: ReleaseValidation.Rev33 exclusion (false positive), old Rev40 guard test (wrong assertions)
+
+### Key Fix: HashSet IEnumerable Unroll
+Bugs fixed in this milestone:
+1. `Get-FileCommandNames` returned `$null` for empty/parse-error files (HashSet implements
+   `IEnumerable`, pipeline unrolls empty to `$null`, non-empty to `char[]`). Fixed: class wraps
+   HashSet, class instances don't trigger pipeline enumeration.
+2. ReleaseValidation.Rev33 false positives: raw-string `-match` detected blocked cmdlet *names*
+   appearing as data strings in `$Script:NhiBlockedCmdlets` array. Fixed: exclusion list.
+3. NhiExecution.Rev40 guard test referenced inline variable names (`$NHI_REV40_BLOCKED_CMDLETS_DEFINITION`,
+   etc.) that no longer exist post-extraction. Fixed: updated to test new module interface.
+
+---
+
 ## Refactor 2026-07 - Utilities.psm1 Facade Decomposition
 
 ### Summary
