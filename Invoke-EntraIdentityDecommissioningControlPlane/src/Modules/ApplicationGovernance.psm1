@@ -2,6 +2,51 @@ $script:OwnerFindingIds = [System.Collections.Generic.HashSet[string]] @(
     'DEC-APP-001','DEC-APP-002','DEC-APP-003','DEC-SPN-001'
 )
 
+# Data-driven readiness definitions keyed by FindingId
+$script:_OwnerReadinessDefinitions = @{
+    'DEC-APP-001' = [PSCustomObject]@{
+        IsReadyForApproval = $true
+        PlanOnly           = $false
+        ReadinessStatus    = 'ReadyForOwnerApproval'
+        ReadinessReason    = 'Application has no owner. Owner assignment requires approval and new owner ObjectId in manifest.'
+        IsSPN              = $false
+    }
+    'DEC-APP-002' = [PSCustomObject]@{
+        IsReadyForApproval = $true
+        PlanOnly           = $false
+        ReadinessStatus    = 'ReadyForOwnerApproval'
+        ReadinessReason    = 'Application owned exclusively by disabled user(s). Active owner replacement required.'
+        IsSPN              = $false
+    }
+    'DEC-APP-003' = [PSCustomObject]@{
+        IsReadyForApproval = $false
+        PlanOnly           = $true
+        ReadinessStatus    = 'PlanOnlySingleOwner'
+        ReadinessReason    = 'Application has only one owner. Second owner recommended but not yet executable. Manual review required.'
+        IsSPN              = $false
+    }
+    'DEC-SPN-001' = [PSCustomObject]@{
+        IsReadyForApproval = $true
+        PlanOnly           = $false
+        ReadinessStatus    = 'ReadyForOwnerApproval'
+        ReadinessReason    = 'Service principal has no owner. Owner assignment requires approval and new owner ObjectId in manifest.'
+        IsSPN              = $true
+    }
+}
+
+$script:_SharedAppGovCssRule = @'
+body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1a1a2e}
+.header{background:#1a1a2e;color:#fff;padding:24px 32px}
+.header h1{margin:0;font-size:1.4rem}
+.header p{margin:4px 0 0;font-size:.8rem;opacity:.8}
+.section{padding:24px 32px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+th{background:#1a1a2e;color:#fff;padding:10px 12px;text-align:left;font-size:.8rem}
+td{padding:10px 12px;border-bottom:1px solid #eee;font-size:.82rem}
+tr:last-child td{border-bottom:none}
+footer{padding:16px 32px;font-size:.75rem;color:#888}
+'@
+
 function New-DecomApplicationGovernanceModel {
     [CmdletBinding()]
     param(
@@ -66,7 +111,6 @@ function New-DecomApplicationGovernanceModel {
             FindingId    = $fid
             OwnerCount   = $ownerCount
             HasOwner     = $hasOwner
-            IsSPN        = $isSPN
             ProtectedObject = $isProtected
         })
 
@@ -79,7 +123,7 @@ function New-DecomApplicationGovernanceModel {
             FindingId    = $fid
             OwnerCount   = $ownerCount
             HasOwner     = $hasOwner
-            IsSPN        = $isSPN
+            IsSPN        = $readiness.IsSPN
             ReadinessStatus = $readiness.ReadinessStatus
             PlanOnly     = $readiness.PlanOnly
         })
@@ -134,7 +178,6 @@ function Get-DecomApplicationOwnerReadiness {
     $findingId   = $Application.FindingId
     $ownerCount  = if ($null -ne $Application.OwnerCount) { [int]$Application.OwnerCount } else { 0 }
     $hasOwner    = $Application.HasOwner -eq $true
-    $isSPN       = $Application.IsSPN -eq $true
     $isProtected = $Application.ProtectedObject -eq $true
 
     if ($isProtected) {
@@ -153,82 +196,35 @@ function Get-DecomApplicationOwnerReadiness {
         }
     }
 
-    switch ($findingId) {
-        'DEC-APP-001' {
-            return [PSCustomObject]@{
-                ApplicationId    = $objectId
-                AppId            = $appId
-                DisplayName      = $displayName
-                FindingId        = $findingId
-                OwnerCount       = 0
-                HasOwner         = $false
-                IsSPN            = $false
-                ReadyForApproval = $true
-                PlanOnly         = $false
-                ReadinessStatus  = 'ReadyForOwnerApproval'
-                ReadinessReason  = 'Application has no owner. Owner assignment requires approval and new owner ObjectId in manifest.'
-            }
+    $def = $script:_OwnerReadinessDefinitions[$findingId]
+    if ($def) {
+        return [PSCustomObject]@{
+            ApplicationId    = $objectId
+            AppId            = $appId
+            DisplayName      = $displayName
+            FindingId        = $findingId
+            OwnerCount       = $ownerCount
+            HasOwner         = $hasOwner
+            IsSPN            = $def.IsSPN
+            ReadyForApproval = $def.IsReadyForApproval
+            PlanOnly         = $def.PlanOnly
+            ReadinessStatus  = $def.ReadinessStatus
+            ReadinessReason  = $def.ReadinessReason
         }
-        'DEC-APP-002' {
-            return [PSCustomObject]@{
-                ApplicationId    = $objectId
-                AppId            = $appId
-                DisplayName      = $displayName
-                FindingId        = $findingId
-                OwnerCount       = $ownerCount
-                HasOwner         = $hasOwner
-                IsSPN            = $false
-                ReadyForApproval = $true
-                PlanOnly         = $false
-                ReadinessStatus  = 'ReadyForOwnerApproval'
-                ReadinessReason  = 'Application owned exclusively by disabled user(s). Active owner replacement required.'
-            }
-        }
-        'DEC-APP-003' {
-            return [PSCustomObject]@{
-                ApplicationId    = $objectId
-                AppId            = $appId
-                DisplayName      = $displayName
-                FindingId        = $findingId
-                OwnerCount       = $ownerCount
-                HasOwner         = $hasOwner
-                IsSPN            = $false
-                ReadyForApproval = $false
-                PlanOnly         = $true
-                ReadinessStatus  = 'PlanOnlySingleOwner'
-                ReadinessReason  = 'Application has only one owner. Second owner recommended but not yet executable. Manual review required.'
-            }
-        }
-        'DEC-SPN-001' {
-            return [PSCustomObject]@{
-                ApplicationId    = $objectId
-                AppId            = $appId
-                DisplayName      = $displayName
-                FindingId        = $findingId
-                OwnerCount       = 0
-                HasOwner         = $false
-                IsSPN            = $true
-                ReadyForApproval = $true
-                PlanOnly         = $false
-                ReadinessStatus  = 'ReadyForOwnerApproval'
-                ReadinessReason  = 'Service principal has no owner. Owner assignment requires approval and new owner ObjectId in manifest.'
-            }
-        }
-        default {
-            return [PSCustomObject]@{
-                ApplicationId    = $objectId
-                AppId            = $appId
-                DisplayName      = $displayName
-                FindingId        = $findingId
-                OwnerCount       = $ownerCount
-                HasOwner         = $hasOwner
-                IsSPN            = $isSPN
-                ReadyForApproval = $false
-                PlanOnly         = $true
-                ReadinessStatus  = 'Deferred'
-                ReadinessReason  = 'FindingId not recognized for owner readiness. Manual review required.'
-            }
-        }
+    }
+
+    return [PSCustomObject]@{
+        ApplicationId    = $objectId
+        AppId            = $appId
+        DisplayName      = $displayName
+        FindingId        = $findingId
+        OwnerCount       = $ownerCount
+        HasOwner         = $hasOwner
+        IsSPN            = $false
+        ReadyForApproval = $false
+        PlanOnly         = $true
+        ReadinessStatus  = 'Deferred'
+        ReadinessReason  = 'FindingId not recognized for owner readiness. Manual review required.'
     }
 }
 
@@ -272,24 +268,17 @@ function Export-DecomApplicationGovernanceDashboardHtml {
 <meta charset="UTF-8">
 <title>Application Ownership Governance Dashboard — $client</title>
 <style>
-body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1a1a2e}
-.header{background:#1a1a2e;color:#fff;padding:24px 32px}
-.header h1{margin:0;font-size:1.5rem}
-.header p{margin:4px 0 0;font-size:.85rem;opacity:.8}
+$($script:_SharedAppGovCssRule)
 .cards{display:flex;flex-wrap:wrap;gap:16px;padding:24px 32px}
 .card{background:#fff;border-radius:8px;padding:20px 24px;min-width:160px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .card .num{font-size:2rem;font-weight:700;color:#1a1a2e}
 .card .lbl{font-size:.8rem;color:#666;margin-top:4px}
 .section{padding:0 32px 32px}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
-th{background:#1a1a2e;color:#fff;padding:10px 12px;text-align:left;font-size:.8rem}
 td{padding:10px 12px;border-bottom:1px solid #eee;font-size:.82rem;vertical-align:top}
-tr:last-child td{border-bottom:none}
 .badge{padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600}
 .badge-ready{background:#d4edda;color:#155724}
 .badge-plan{background:#fff3cd;color:#856404}
 .badge-blocked{background:#f8d7da;color:#721c24}
-footer{padding:16px 32px;font-size:.75rem;color:#888}
 </style>
 </head>
 <body>
@@ -496,18 +485,10 @@ function Export-DecomApplicationOwnerApprovalPacketHtml {
 <meta charset="UTF-8">
 <title>Application Owner Approval Packet — $client</title>
 <style>
-body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f4f6f9;color:#1a1a2e}
-.header{background:#1a1a2e;color:#fff;padding:24px 32px}
-.header h1{margin:0;font-size:1.4rem}
-.header p{margin:4px 0 0;font-size:.8rem;opacity:.8}
-.section{padding:24px 32px}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-bottom:24px}
-th{background:#1a1a2e;color:#fff;padding:10px 12px;text-align:left;font-size:.8rem}
-td{padding:10px 12px;border-bottom:1px solid #eee;font-size:.82rem}
-tr:last-child td{border-bottom:none}
+$($script:_SharedAppGovCssRule)
+table{margin-bottom:24px}
 .sig-box{background:#fff;border-radius:8px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .sig-line{border-bottom:1px solid #333;margin-bottom:24px;padding-bottom:4px}
-footer{padding:16px 32px;font-size:.75rem;color:#888}
 </style>
 </head>
 <body>
@@ -622,3 +603,15 @@ function Export-DecomApplicationGovernanceEvidenceAppendixMarkdown {
     $sb.ToString() | Out-File -FilePath $Path -Encoding UTF8
     Write-DecomOk "Application governance evidence appendix Markdown: $Path"
 }
+
+Export-ModuleMember -Function @(
+    'New-DecomApplicationGovernanceModel'
+    'Get-DecomApplicationOwnerReadiness'
+    'Export-DecomApplicationGovernanceDashboardHtml'
+    'Export-DecomApplicationOwnerReadinessJson'
+    'Export-DecomApplicationOwnerReadinessCsv'
+    'Export-DecomApplicationOwnerApprovalPacketMarkdown'
+    'Export-DecomApplicationOwnerApprovalPacketHtml'
+    'Export-DecomApplicationOwnershipExceptionRegisterCsv'
+    'Export-DecomApplicationGovernanceEvidenceAppendixMarkdown'
+)
