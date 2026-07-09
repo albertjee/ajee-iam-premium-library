@@ -292,3 +292,19 @@ git status --short
 ```
 
 Report these outputs verbatim. Do not summarize them.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues. External PRs are NOT a request surface — triage focuses on issues only. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Defaults: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. Skills look at `CONTEXT.md` (if present) and `docs/adr/` (if present) at the repo root. See `docs/agents/domain.md`.
