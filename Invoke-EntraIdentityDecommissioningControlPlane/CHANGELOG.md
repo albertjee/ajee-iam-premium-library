@@ -1,5 +1,32 @@
 # Changelog
 
+## Refactor 2026-07 - Utilities.psm1 Facade Decomposition
+
+### Summary
+Decomposed `Utilities.psm1` (793 lines, 0 functions, 0 tests, 25 frozen consumer modules) into a
+facade + 4 self-contained sub-modules. No behavior change. All 25 frozen consumers work unchanged.
+2412/2412 passing. Branch: `main` (direct commit).
+
+### Sub-modules
+| Module | Lines | Exports | Description |
+|---|---|---|---|
+| `NhiConsole.psm1` | 8 | 4 | Console output helpers: Write-DecomInfo, Write-DecomOk, Write-DecomWarn, Write-DecomError |
+| `CapabilityState.psm1` | 161 | 8 | Capability/running-state management: capability state, query unavailable result helpers |
+| `GraphUtility.psm1` | 112 | 6 | Graph helpers: property access, display name extraction, NHI identity normalization, tool/timestamp |
+| `NhiFinding.psm1` | 625 | 11 | Finding factory (40-param New-DecomFinding, 4 behavioral paths), trace context, platform identity catalog |
+
+### Architecture
+- `Utilities.psm1` facade uses `Import-Module` for sub-modules (cascade-free, sub-modules are self-contained with no Import-Module back to Utilities).
+- `CapabilityState.psm1` inlines `Write-DecomWarn` to break the dependency chain (no Import-Module of Utilities).
+- `NhiFinding.psm1` inlines `Get-DecomGraphPropertyValue` / `Get-DecomGraphNestedDisplayName` (also in GraphUtility) for standalone use.
+- Facade re-exports all 29 functions (26 active + 3 aliases for backward compat with inlined functions).
+- Export count confirmed: `Import-Module Utilities.psm1; (Get-Command -Module Utilities).Count` == 26.
+
+### Test Count
+- 2412 total, 2412 passing, 0 failed. No regression (facade decomposition does not change behavior).
+
+---
+
 ## Refactor 2026-07 - Entry-Point Decomposition (M1-M8)
 
 ### Summary
