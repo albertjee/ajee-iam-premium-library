@@ -66,7 +66,15 @@ Describe 'WriteReadiness.psm1 — Execution Scope Registry' {
     }
 
     It 'All registry write scopes are in the approved scope list' {
-        $allowed = @('GroupMember.ReadWrite.All','AppRoleAssignment.ReadWrite.All','RoleManagement.ReadWrite.Directory','EntitlementManagement.ReadWrite.All','Application.ReadWrite.All')
+        $allowed = @(
+            'GroupMember.ReadWrite.All'
+            'AppRoleAssignment.ReadWrite.All'
+            'RoleManagement.ReadWrite.Directory'
+            'EntitlementManagement.ReadWrite.All'
+            'Application.ReadWrite.All'
+            'Policy.Read.All'
+            'GroupMember.ReadWrite.All + Policy.Read.All'
+        )
         foreach ($entry in $script:registry) {
             $allowed | Should -Contain $entry.WriteScope
         }
