@@ -1,3 +1,10 @@
+Import-Module (Join-Path $PSScriptRoot 'NhiScopeCatalog.psm1') -Force -DisableNameChecking
+
+# Rev4.2 bug fix: this list was referenced in the OAuth grant loop but never defined,
+# so HighRiskOAuthGrantCount was always 0. Sourced from the canonical catalog
+# (Discovery delegated list - includes User.Read.All per P1-04A test semantics).
+$script:HighRiskDelegatedScopes = (Get-NhiScopeCatalog).DiscoveryHighRiskDelegatedScopes
+
 # NHI Classification Constants
 $script:NhiClassificationPatterns = @(
     @{ Pattern = 'serviceprincipaltype'; Value = 'ServiceIdentity'; Score = 50; Confidence = 'High'; Category = 'ServicePrincipalType = ServiceIdentity' },
