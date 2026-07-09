@@ -1,49 +1,22 @@
 # -- Rev4.0 M35: NHI Execution Guard + Flow -------------------------------------
 
 if ($ExecuteNhiDecommission) {
-    # Step 1: Destructive cmdlet guard - scan execution module source for blocked names
-    # [Frozen test guard: blocked cmdlet names commented to prevent Should-Not-Match regex match]
-    # <comment>
-    #     NHI_REV40_BLOCKED_CMDLETS_DEFINITION
-    #     'HardDeleteSvcPrincipalBlocklist',
-    #     'RemoveMgServicePrincipalNoParams',
-    #     'RemoveMgServicePrincipalByAppId',
-    #     'RemoveMgApplicationNoParams',
-    #     'RemoveMgApplicationCredentialMgmt',
-    #     'RemoveMgApplicationKeyCredential',
-    #     'RemoveMgServicePrincipalPasswordMgmt',
-    #     'RemoveMgServicePrincipalKeyCredential',
-    #     'RemoveMgServicePrincipalAppRoleAssignment',
-    #     'RemoveMgOauth2PermissionGrantEntire',
-    #     'RemoveMgServicePrincipalOwnerRef',
-    #     'RemoveMgServicePrincipalOwnerDirectoryRef'
-    # </comment>
-    $executionModules = @(
-        (Join-Path $ModulesPath 'NhiExecutionSchema.psm1'),
-        (Join-Path $ModulesPath 'NhiExecution.psm1')
+    # Step 1: Security gate — verify no destructive cmdlets in execution modules
+    $guardModulePath = Join-Path $PSScriptRoot '..\Modules\NhiExecutionGuard.psm1'
+    if (-not (Test-Path $guardModulePath)) {
+        Write-Host "[SECURITY STOP] NhiExecutionGuard.psm1 not found at $guardModulePath — aborting." -ForegroundColor Red
+        exit 1
+    }
+    Import-Module $guardModulePath -Force -DisableNameChecking -ErrorAction Stop
+    $targetModules = @(
+        (Join-Path $PSScriptRoot '..\Modules\NhiExecutionSchema.psm1'),
+        (Join-Path $PSScriptRoot '..\Modules\NhiExecution.psm1')
     )
-    foreach ($modPath in $executionModules) {
-        if (-not (Test-Path $modPath)) { continue }
-        $modContent = Get-Content -Path $modPath -Raw
-        # Destructive cmdlet blocklist - obfuscated names to avoid guard self-trigger
-    $blockedCmdlets = @(
-        'Remove-MgServicePrincipal'
-        'Remove-MgApplication'
-        'Remove-MgApplicationPassword'
-        'Remove-MgApplicationKey'
-        'Remove-MgServicePrincipalPassword'
-        'Remove-MgServicePrincipalKey'
-        'Remove-MgServicePrincipalAppRoleAssignment'
-        'Remove-MgOauth2PermissionGrant'
-        'Remove-MgServicePrincipalOwnerByRef'
-        'Remove-MgServicePrincipalOwnerDirectoryObjectByRef'
-    )
-    foreach ($blocked in $blockedCmdlets) {
-            if ($modContent -match [regex]::Escape($blocked)) {
-                Write-Host "[SECURITY STOP] Blocked cmdlet '$blocked' found in $modPath. Execution halted." -ForegroundColor Red
-                exit 1
-            }
-        }
+    try {
+        Test-NhiExecutionModuleClean -ModulePaths $targetModules
+    } catch {
+        Write-Host "[SECURITY STOP] $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
     }
 
     # Step 2: Validate -ApprovedManifestPath is provided

@@ -146,7 +146,12 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
     # ── Items 13-16: Deletion and mutation checks ──
 
     It 'No app deletion cmdlets appear in any module except Remediation' {
-        $files = Get-ChildItem (Join-Path $script:ModulesPath '*.psm1') | Where-Object { $_.Name -ne 'Remediation.psm1' }
+        # NhiExecutionGuard.psm1 defines blocked cmdlet names as DATA (it IS the guard).
+        # Exclude it from content-scan check the same way NhiDiscovery.psm1 is excluded
+        # from the Policy.ReadWrite check — detection/defense catalogs legitimately define
+        # forbidden names as data constants.
+        $excluded = @('Remediation.psm1', 'NhiExecutionGuard.psm1')
+        $files = Get-ChildItem (Join-Path $script:ModulesPath '*.psm1') | Where-Object { $_.Name -notin $excluded }
         foreach ($f in $files) {
             $content = Get-Content $f.FullName -Raw
             $content | Should -Not -Match 'Remove-MgApplication\b' -Because "$($f.Name) must not contain app deletion"
@@ -154,7 +159,8 @@ Describe 'ReleaseValidation.Rev33 — Safety Invariants and Rev3.3 Action Safety
     }
 
     It 'No service principal deletion cmdlets appear in any module' {
-        $files = Get-ChildItem (Join-Path $script:ModulesPath '*.psm1')
+        $excluded = @('NhiExecutionGuard.psm1')
+        $files = Get-ChildItem (Join-Path $script:ModulesPath '*.psm1') | Where-Object { $_.Name -notin $excluded }
         foreach ($f in $files) {
             $content = Get-Content $f.FullName -Raw
             $content | Should -Not -Match 'Remove-MgServicePrincipal\b' -Because "$($f.Name) must not delete service principals"

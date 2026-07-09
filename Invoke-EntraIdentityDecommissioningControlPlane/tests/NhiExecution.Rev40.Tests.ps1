@@ -1268,14 +1268,22 @@ Describe 'M35 Entry Point — Guard Logic' {
         $content | Should -Match 'Invoke-NhiTag'
     }
 
-    It 'Destructive cmdlet guard present in entry point' {
-        $content = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
-        # Guard must reference blocked cmdlet names — check for one name visible in comment
-        # [Frozen test guard: blocked cmdlet names referenced via comment in entry point]
-        $content | Should -Match 'NHI_REV40_BLOCKED_CMDLETS_DEFINITION'
-        $content | Should -Match 'HardDeleteSvcPrincipalBlocklist'
-        $content | Should -Match 'RemoveMgServicePrincipalNoParams'
-        $content | Should -Match 'RemoveMgApplicationNoParams'
+    It 'NhiExecutionFlow dot-sources NhiExecutionGuard.psm1 and calls Test-NhiExecutionModuleClean' {
+        $flowContent   = Get-Content -Path $Script:NhiExecutionFlowPath -Raw
+        $guardContent  = Get-Content (Join-Path $PSScriptRoot '..\src\Modules\NhiExecutionGuard.psm1') -Raw
+        # 1. The Flow must import NhiExecutionGuard
+        $flowContent   | Should -Match 'NhiExecutionGuard'
+        # 2. The guard module must expose Test-NhiExecutionModuleClean
+        $guardContent  | Should -Match 'function Test-NhiExecutionModuleClean'
+        # 3. The Flow must call Test-NhiExecutionModuleClean against target modules
+        $flowContent   | Should -Match 'Test-NhiExecutionModuleClean\s+-ModulePaths'
+        # 4. NhiExecutionGuard.psm1 must carry the blocked cmdlet DATA (12 blocked cmdlets)
+        $guardContent  | Should -Match '\$Script:NhiBlockedCmdlets'
+        $guardContent  | Should -Match 'Remove-MgApplication\b'
+        $guardContent  | Should -Match '\bHardDeleteServicePrincipal\b'
+        $guardContent  | Should -Match '\bRemove-MgServicePrincipalByAppId\b'
+        # 5. Get-FileCommandNames — the companion AST scanner — must be present
+        $guardContent  | Should -Match 'function Get-FileCommandNames'
     }
 }
 
