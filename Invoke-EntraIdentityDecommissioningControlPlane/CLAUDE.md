@@ -187,20 +187,16 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
   - 14 new tests in NhiScopeCatalog.Rev42.Tests.ps1
   - ReleaseValidation.Rev33 Policy.ReadWrite exclusion updated (adds NhiScopeCatalog.psm1,
     drops NhiDiscovery.psm1/NhiPermission.psm1 - net tightening)
-- **Rev4.2 fix test count (2026-07-09):** 2448 total tests, 2448 passing, 0 failed
-  - NhiAnalysis high-risk OAuth grant counting fix, branch `fix/nhi-analysis-highrisk-scopes`
-  - 7 new tests in NhiAnalysisOAuth.Rev42.Tests.ps1 (TDD red-first)
-  - Behavior change (approved): HighRiskOAuthGrantCount now counts, +8 classification signal live
-- **Current baseline (2026-07-05, after all entry-point decomposition milestones):**
-  2412 total tests, 2412 passing, 0 failed (main `94ebd16`, PR #23). Pre-refactor baseline
-  was 2408 (`89135d3`, PR #19). Entry-point decomposition (PR #22) added 5 new closed-set
-  safety tests in M8; no test count regressions. Full milestone history:
-  `docs/entrypoint-decomposition-plan.md` section 4.
+- **Rev4.2 combined test count (2026-07-09):** 2459 total tests, 2459 passing, 0 failed
+  - PR #26 (NhiScopeCatalog consolidation): 2441/2441
+  - PR #27 (NhiAnalysis OAuth fix, approved behavior change): +7 in NhiAnalysisOAuth.Rev42.Tests.ps1
+  - PR #28 (NhiGovernance data-driven refactor, target I-b): +11 in NhiGovernanceDataDriven.Rev42.Tests.ps1
+    - NhiGovernance.psm1: 548 -> 305 lines, 13 -> 2 New-DecomFinding call sites
 - **Gate 3 command:**
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Minimal
   ```
-- Must show 0 failures, >= 2441 tests passing.
+- Must show 0 failures, >= 2452 tests passing.
 
 ---
 
@@ -210,7 +206,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 2441 tests passing |
+| Tests | 0 failures, ≥ 2459 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 

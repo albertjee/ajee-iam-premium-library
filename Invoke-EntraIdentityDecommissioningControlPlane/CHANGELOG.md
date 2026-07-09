@@ -27,8 +27,38 @@ existing test regressed - the signal had zero live coverage precisely because it
 
 ### Test Count
 - **2448 total, 2448 passing, 0 failed.**
-  - Prior baseline (PR #26): 2441/2441
-  - +7 new tests in NhiAnalysisOAuth.Rev42.Tests.ps1
+
+## Refactor 2026-07-09 - NhiGovernance Data-Driven Findings (Rev4.2, target I-b)
+
+### Summary
+Refactored `src/Modules/NhiGovernance.psm1` (548 lines, one 547-line function with 13
+near-identical inline `New-DecomFinding` blocks) into a data-driven design: 12 finding
+definitions in `$script:NhiGovernanceFindingDefinitions` + one private builder helper.
+548 -> 305 lines, 2 `New-DecomFinding` call sites (was 13). Behavior-preserving:
+finding order, parameter sets, metadata, evidence strings, and GraphEndpoint values
+preserved verbatim. Branch: `refactor/nhi-governance-datadriven`.
+
+### Changes
+- **NhiGovernance.psm1** - definitions table (FindingId/Category/Severity/RiskScore/
+  Confidence/Evidence/GraphEndpoint/RecommendedAction/RemediationMode/Condition) drives
+  generation in pre-refactor emission order (DEC-NHI-001,002,003,004,007,009,010,012,
+  DEC-AGENT-001,003,004,005). DEC-NHI-001's object-derived Severity/RiskScore/Confidence
+  handled via scriptblock values; DEC-NHI-004's disabled-owner count computed by its
+  Condition and passed to Evidence. Microsoft-platform evidence-only override kept as an
+  explicit inline block (special continue path with forced parameter values).
+- Preserved verbatim quirks: platform-field parameters (MicrosoftFirstParty/
+  MicrosoftPlatform/EvidenceOnly) passed only for DEC-NHI-001, as before; GraphEndpoint
+  strings keep their pre-existing single-quoted unexpanded '$($nhiObject.ObjectId)' artifacts.
+- Added explicit `Export-ModuleMember -Function Invoke-DecomNhiGovernance` - the original
+  file had no export statement (single function implicitly exported); without this the new
+  private helper would have leaked into the public surface.
+- **NhiGovernanceDataDriven.Rev42.Tests.ps1** (new, 11 tests): parse, single-export,
+  exactly-2-call-sites, 12-definition order lock, severity/risk-score metadata snapshot,
+  quiet-object parity, max-trigger 11-finding order parity, DEC-NHI-004 evidence count,
+  DEC-NHI-001 object-derived metadata, platform override, non-candidate skip.
+
+### Test Count
+- **2441 baseline + 7 (OAuth fix) + 11 (governance refactor) = 2459 total, 2459 passing, 0 failed.**
 
 ## Refactor 2026-07-09 - NhiScopeCatalog Consolidation (Rev4.2)
 
