@@ -1,5 +1,35 @@
 # Changelog
 
+## Fix 2026-07-09 - NhiAnalysis High-Risk OAuth Grant Counting (Rev4.2)
+
+### Summary
+Fixed a latent bug in `src/Modules/NhiAnalysis.psm1`: the OAuth grant loop referenced
+`$script:HighRiskDelegatedScopes` which was never defined in the module, so the list was
+always `$null` and `HighRiskOAuthGrantCount` was always 0 for every analyzed object. The
+"+8 classification score for high-risk delegated OAuth grant" signal (P1-04A) was dead code
+end to end. Found during the Rev4.2 NhiScopeCatalog consolidation; fix approved by Albert
+as a deliberate behavior change. Branch: `fix/nhi-analysis-highrisk-scopes`.
+
+### Changes
+- **NhiAnalysis.psm1** - imports NhiScopeCatalog.psm1 and defines
+  `$script:HighRiskDelegatedScopes` from the catalog's Discovery delegated list. Discovery
+  list chosen (not Permission list) because the existing P1-04A test semantics treat
+  `User.Read.All` as high-risk, which only the Discovery list contains.
+- **NhiAnalysisOAuth.Rev42.Tests.ps1** (new, 7 tests, TDD red-first): wiring assertion,
+  single high-risk grant counted, User.Read.All counted, low-risk-only grants not counted,
+  one-count-per-grant with multiple high-risk scopes, multiple grants counted independently,
+  +8 classification score delta via the live analysis pipeline.
+
+### Behavior change
+Objects with OAuth grants containing high-risk delegated scopes now get
+`HighRiskOAuthGrantCount > 0` and +8 classification score (was silently 0 / +0). No
+existing test regressed - the signal had zero live coverage precisely because it never fired.
+
+### Test Count
+- **2448 total, 2448 passing, 0 failed.**
+  - Prior baseline (PR #26): 2441/2441
+  - +7 new tests in NhiAnalysisOAuth.Rev42.Tests.ps1
+
 ## Refactor 2026-07-09 - NhiScopeCatalog Consolidation (Rev4.2)
 
 ### Summary
