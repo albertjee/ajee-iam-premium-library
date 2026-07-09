@@ -1,5 +1,46 @@
 # Changelog
 
+## Refactor 2026-07-09 - NhiScopeCatalog Consolidation (Rev4.2)
+
+### Summary
+Consolidated duplicated high-risk Graph scope/permission classification lists into a single
+canonical data module `src/Modules/NhiScopeCatalog.psm1` (target I of docs/refactoring-plan.md,
+"scope array drift"). Behavior-preserving: all four lists moved verbatim; known drift between
+the Discovery and Permission lists is documented and preserved, not merged. Branch:
+`refactor/nhi-consts`.
+
+### Changes
+- **NhiScopeCatalog.psm1** (new, data-only): four named lists preserved verbatim -
+  `DiscoveryHighRiskAppPermissions` (14), `DiscoveryHighRiskDelegatedScopes` (12),
+  `PermissionHighRiskAppRoles` (12), `PermissionHighRiskDelegatedScopes` (8); single export
+  `Get-NhiScopeCatalog` returning a hashtable. No Graph calls, no scope requests - scope names
+  are DETECTION data only.
+- **NhiDiscovery.psm1** - inline `$script:HighRiskAppPermissions` / `$script:HighRiskDelegatedScopes`
+  arrays replaced with catalog import; internal references unchanged.
+- **NhiPermission.psm1** - inline `$script:HighRiskAppRoles` / `$script:HighRiskDelegatedScopes`
+  arrays replaced with catalog import; internal references and override parameters unchanged.
+- **ReleaseValidation.Rev33.Tests.ps1** - Policy.ReadWrite exclusion list updated: adds
+  `NhiScopeCatalog.psm1` (defines Policy.ReadWrite.All as detection data), removes
+  `NhiDiscovery.psm1` and `NhiPermission.psm1` (no longer contain the string - net tightening).
+- **NhiScopeCatalog.Rev42.Tests.ps1** (new, 14 tests): module contract (parse, single export,
+  four keys, data-only), verbatim list snapshots, documented-drift assertions, consumer wiring
+  (imports present, inline arrays gone, silent import, behavioral NHI-PERM-004 check).
+
+### Known drift (documented, deliberately not merged)
+`PrivilegedAccess.ReadWrite.AzureAD`, `AuditLog.Read.All`, `Policy.ReadWrite.All` exist in the
+Discovery app-permission list but not the Permission app-role list. Unification is a future
+deliberate decision, tracked in the module header.
+
+### Pre-existing bug found (NOT fixed - behavior change requires approval)
+`NhiAnalysis.psm1` line ~288 references `$script:HighRiskDelegatedScopes` which is never defined
+in that module - always `$null`, so `HighRiskOAuthGrantCount` is always 0. Left untouched in this
+PR; fixing it (wiring the catalog in) changes scoring behavior.
+
+### Test Count
+- **2441 total, 2441 passing, 0 failed.**
+  - Prior baseline (PR #25): 2427/2427
+  - +14 new tests in NhiScopeCatalog.Rev42.Tests.ps1
+
 ## Refactor 2026-07-09 - NhiExecutionGuard Extraction (Rev4.1)
 
 ### Summary

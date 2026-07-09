@@ -182,6 +182,11 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
   - 15 new tests in NhiExecutionGuard.Rev41.Tests.ps1
   - Fixes: ReleaseValidation.Rev33 false positives (NhiExecutionGuard.psm1 data exclusion),
     NhiExecution.Rev40 guard test (updated to test modular architecture)
+- **Rev4.2 test count (2026-07-09):** 2441 total tests, 2441 passing, 0 failed
+  - NhiScopeCatalog consolidation branch `refactor/nhi-consts` (refactoring-plan target I)
+  - 14 new tests in NhiScopeCatalog.Rev42.Tests.ps1
+  - ReleaseValidation.Rev33 Policy.ReadWrite exclusion updated (adds NhiScopeCatalog.psm1,
+    drops NhiDiscovery.psm1/NhiPermission.psm1 - net tightening)
 - **Current baseline (2026-07-05, after all entry-point decomposition milestones):**
   2412 total tests, 2412 passing, 0 failed (main `94ebd16`, PR #23). Pre-refactor baseline
   was 2408 (`89135d3`, PR #19). Entry-point decomposition (PR #22) added 5 new closed-set
@@ -191,7 +196,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
   ```powershell
   Invoke-Pester -Path .\tests\ -Output Minimal
   ```
-- Must show 0 failures, >= 2427 tests passing.
+- Must show 0 failures, >= 2441 tests passing.
 
 ---
 
@@ -201,7 +206,7 @@ CHANGELOG.md                    ← APPEND only — never rewrite history
 |---|---|
 | Syntax | 0 parse errors on every new .ps1 and .psm1 |
 | Load | Silent import, no warnings on all new modules |
-| Tests | 0 failures, ≥ 2412 tests passing |
+| Tests | 0 failures, ≥ 2441 tests passing |
 | Git | Only files explicitly authorized in the task allowlist may appear in git diff; frozen files untouched |
 | Demo mode | `.\Invoke-EntraIdentityDecommissioningControlPlane.ps1 -DemoMode` runs clean, exports all 5 outputs, HTML opens in browser |
 

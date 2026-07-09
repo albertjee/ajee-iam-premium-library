@@ -1,30 +1,11 @@
 Import-Module (Join-Path $PSScriptRoot 'Utilities.psm1') -Force -DisableNameChecking
 
-$script:HighRiskAppRoles = @(
-    'Directory.ReadWrite.All',
-    'User.ReadWrite.All',
-    'Group.ReadWrite.All',
-    'Mail.ReadWrite',
-    'Mail.Send',
-    'Files.ReadWrite.All',
-    'Sites.FullControl.All',
-    'RoleManagement.ReadWrite.Directory',
-    'Application.ReadWrite.All',
-    'AppRoleAssignment.ReadWrite.All',
-    'Directory.AccessAsUser.All',
-    'EntitlementManagement.ReadWrite.All'
-)
+Import-Module (Join-Path $PSScriptRoot 'NhiScopeCatalog.psm1') -Force -DisableNameChecking
 
-$script:HighRiskDelegatedScopes = @(
-    'Directory.ReadWrite.All',
-    'User.ReadWrite.All',
-    'Mail.ReadWrite',
-    'Mail.Send',
-    'Files.ReadWrite.All',
-    'Sites.FullControl.All',
-    'RoleManagement.ReadWrite.Directory',
-    'Directory.AccessAsUser.All'
-)
+# High-risk lists sourced from the canonical catalog (NhiScopeCatalog.psm1).
+$script:NhiScopeCatalog = Get-NhiScopeCatalog
+$script:HighRiskAppRoles = $script:NhiScopeCatalog.PermissionHighRiskAppRoles
+$script:HighRiskDelegatedScopes = $script:NhiScopeCatalog.PermissionHighRiskDelegatedScopes
 
 function Invoke-NhiPermissionScan {
     [CmdletBinding()]

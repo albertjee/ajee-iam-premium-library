@@ -1,16 +1,9 @@
-$script:HighRiskAppPermissions = @(
-    'Directory.ReadWrite.All', 'Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All',
-    'RoleManagement.ReadWrite.Directory', 'PrivilegedAccess.ReadWrite.AzureAD',
-    'Group.ReadWrite.All', 'User.ReadWrite.All', 'Mail.ReadWrite', 'Mail.Send',
-    'Files.ReadWrite.All', 'Sites.FullControl.All', 'AuditLog.Read.All',
-    'Policy.ReadWrite.All', 'EntitlementManagement.ReadWrite.All'
-)
+Import-Module (Join-Path $PSScriptRoot 'NhiScopeCatalog.psm1') -Force -DisableNameChecking
 
-$script:HighRiskDelegatedScopes = @(
-    'Directory.AccessAsUser.All', 'Directory.ReadWrite.All', 'Application.ReadWrite.All',
-    'AppRoleAssignment.ReadWrite.All', 'User.Read.All', 'User.ReadWrite.All', 'Group.ReadWrite.All',
-    'Mail.ReadWrite', 'Mail.Send', 'Files.ReadWrite.All', 'Sites.FullControl.All', 'offline_access'
-)
+# High-risk lists sourced from the canonical catalog (NhiScopeCatalog.psm1).
+$script:NhiScopeCatalog = Get-NhiScopeCatalog
+$script:HighRiskAppPermissions = $script:NhiScopeCatalog.DiscoveryHighRiskAppPermissions
+$script:HighRiskDelegatedScopes = $script:NhiScopeCatalog.DiscoveryHighRiskDelegatedScopes
 
 function Get-DecomNhiServicePrincipals {
     param([pscustomobject]$Context)
