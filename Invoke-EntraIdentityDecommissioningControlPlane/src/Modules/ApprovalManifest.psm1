@@ -1416,6 +1416,7 @@ function Test-DecomApprovalManifest {
             # No duplicate CA exclusion operations
             $caOpKeys = [System.Collections.Generic.HashSet[string]]::new()
             foreach ($ca in $rev33CAActions) {
+                $caExcl      = $ca.CAExclusion
                 $groupId     = if ($caExcl -and $caExcl.ExclusionGroupId) { [string]$caExcl.ExclusionGroupId } else { [string](@($ca.TargetObjectIds)[0]) }
                 $principalId = if ($caExcl -and $caExcl.ExcludedPrincipalId) { [string]$caExcl.ExcludedPrincipalId } else { [string]$ca.ObjectId }
                 $caKey = "RemoveCAExclusionGroupMember|$principalId|$groupId"
