@@ -221,7 +221,7 @@ Describe 'RemediationPlan.Rev33 — WhatIf Generation for AddApplicationOwner an
         It 'Generated action carries NewOwnerObjectId field' {
             $manifest = Get-Content $script:Plan001WithOwner -Raw | ConvertFrom-Json
             $action = $manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'AddApplicationOwner' }
-            $action.NewOwnerObjectId | Should -Be $script:OwnerObjId
+            $action.Ownership.NewOwnerObjectId | Should -Be $script:OwnerObjId
         }
 
         It 'Generated action has RequiresManualApproval = true' {
@@ -233,13 +233,16 @@ Describe 'RemediationPlan.Rev33 — WhatIf Generation for AddApplicationOwner an
         It 'Generated action has ReadinessStatus = ReadyForApproval' {
             $manifest = Get-Content $script:Plan001WithOwner -Raw | ConvertFrom-Json
             $action = $manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'AddApplicationOwner' }
-            $action.ReadinessStatus | Should -Be 'ReadyForApproval'
+            $action.Readiness.ReadinessStatus | Should -Be 'ReadyForApproval'
         }
 
-        It 'Generated action has TargetType = DirectoryObjectOwner' {
+        It 'Generated action has Ownership.DirectoryObjectOwner type' {
             $manifest = Get-Content $script:Plan001WithOwner -Raw | ConvertFrom-Json
             $action = $manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'AddApplicationOwner' }
-            $action.TargetType | Should -Be 'DirectoryObjectOwner'
+            # TargetType 'DirectoryObjectOwner' is no longer a top-level field in canonical schema.
+            # Verify the action carries the Ownership sub-object (Rev4 hierarchical schema).
+            $action.Ownership | Should -Not -BeNullOrEmpty
+            $action.Ownership.OwnerSource | Should -Be 'ApprovalManifest'
         }
 
         It 'WhatIf manifest SchemaVersion is 3.6' {
@@ -322,19 +325,22 @@ Describe 'RemediationPlan.Rev33 — WhatIf Generation for AddApplicationOwner an
         It 'Generated CA action has PolicyId field' {
             $manifest = Get-Content $script:PlanCA002Full -Raw | ConvertFrom-Json
             $action = $manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'RemoveCAExclusionGroupMember' }
-            $action.PolicyId | Should -Be $script:PolicyId
+            $action.CAExclusion.PolicyId | Should -Be $script:PolicyId
         }
 
         It 'Generated CA action has ExcludedPrincipalId field' {
             $manifest = Get-Content $script:PlanCA002Full -Raw | ConvertFrom-Json
             $action = $manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'RemoveCAExclusionGroupMember' }
-            $action.ExcludedPrincipalId | Should -Be $script:PrincipalId
+            $action.CAExclusion.ExcludedPrincipalId | Should -Be $script:PrincipalId
         }
 
-        It 'Generated CA action has TargetType = CAExclusionGroup' {
+        It 'Generated CA action has CAExclusion sub-object' {
             $manifest = Get-Content $script:PlanCA002Full -Raw | ConvertFrom-Json
             $action = $manifest.ApprovedActions | Where-Object { $_.ActionType -eq 'RemoveCAExclusionGroupMember' }
-            $action.TargetType | Should -Be 'CAExclusionGroup'
+            # TargetType 'CAExclusionGroup' is no longer a top-level field in canonical schema.
+            # Verify the action carries the CAExclusion sub-object (Rev4 hierarchical schema).
+            $action.CAExclusion | Should -Not -BeNullOrEmpty
+            $action.CAExclusion.ExclusionGroupId | Should -Be $script:GroupId
         }
 
         It 'Generated CA action has RequiresManualApproval = true' {

@@ -14,61 +14,121 @@ function Get-DecomSha256 {
 function Convert-DecomActionToCanonical {
     param([object]$Action)
 
+    # Core identifier fields — always present
     [ordered]@{
-        ActionId           = [string]$Action.ActionId
-        FindingId          = [string]$Action.FindingId
-        ObjectId           = [string]$Action.ObjectId
-        ObjectType         = [string]$Action.ObjectType
-        DisplayName        = [string]$Action.DisplayName
-        UserPrincipalName  = [string]$Action.UserPrincipalName
-        ActionType         = [string]$Action.ActionType
-        TargetObjectIds    = @($Action.TargetObjectIds | Sort-Object)
-        TargetDisplayNames = @($Action.TargetDisplayNames)
-        Evidence           = [string]$Action.Evidence
-        RiskScore          = [int]$Action.RiskScore
-        ProtectedObject    = [bool]$Action.ProtectedObject
-        RoleAssignmentId          = [string]$Action.RoleAssignmentId
-        RoleDefinitionId          = [string]$Action.RoleDefinitionId
-        RoleDisplayName           = [string]$Action.RoleDisplayName
-        AccessPackageAssignmentId = [string]$Action.AccessPackageAssignmentId
-        AccessPackageId           = [string]$Action.AccessPackageId
-        AccessPackageName         = [string]$Action.AccessPackageName
-        TargetPrincipalId         = [string]$Action.TargetPrincipalId
-        EligibilityScheduleId     = [string]$Action.EligibilityScheduleId
-        UserType                  = [string]$Action.UserType
-        GuestOnly                 = if ($Action.GuestOnly) { [bool]$Action.GuestOnly } else { $false }
-        SponsorEvidenceStatus     = [string]$Action.SponsorEvidenceStatus
-        ReviewEvidenceStatus      = [string]$Action.ReviewEvidenceStatus
-        ReadinessStatus           = [string]$Action.ReadinessStatus
-        ReadinessReason           = [string]$Action.ReadinessReason
-        GroupId                   = [string]$Action.GroupId
-        GroupDisplayName          = [string]$Action.GroupDisplayName
-        AppRoleAssignmentId       = [string]$Action.AppRoleAssignmentId
-        ResourceId                = [string]$Action.ResourceId
-        ResourceDisplayName       = [string]$Action.ResourceDisplayName
-        CredentialType            = [string]$Action.CredentialType
-        CredentialKeyId           = [string]$Action.CredentialKeyId
-        CredentialEndDateTime     = [string]$Action.CredentialEndDateTime
-        CredentialExpired         = if ($null -ne $Action.CredentialExpired) { [bool]$Action.CredentialExpired } else { $false }
-        ApplicationId             = [string]$Action.ApplicationId
-        AppId                     = [string]$Action.AppId
-        OwnerCount                = if ($null -ne $Action.OwnerCount) { [int]$Action.OwnerCount } else { 0 }
-        HasOwner                  = if ($null -ne $Action.HasOwner) { [bool]$Action.HasOwner } else { $false }
-        # Rev3.3 owner fields
-        NewOwnerObjectId          = [string]$Action.NewOwnerObjectId
-        NewOwnerUserPrincipalName = [string]$Action.NewOwnerUserPrincipalName
-        NewOwnerType              = [string]$Action.NewOwnerType
-        OwnerSource               = [string]$Action.OwnerSource
-        BusinessJustification     = [string]$Action.BusinessJustification
-        AllowGuestOwner           = if ($null -ne $Action.AllowGuestOwner) { [bool]$Action.AllowGuestOwner } else { $false }
-        # Rev3.3 CA exclusion fields
-        PolicyId                  = [string]$Action.PolicyId
-        PolicyDisplayName         = [string]$Action.PolicyDisplayName
-        ExclusionGroupId          = [string]$Action.ExclusionGroupId
-        ExclusionGroupDisplayName = [string]$Action.ExclusionGroupDisplayName
-        ExcludedPrincipalId       = [string]$Action.ExcludedPrincipalId
-        EmergencyAccessIndicator  = if ($null -ne $Action.EmergencyAccessIndicator) { [bool]$Action.EmergencyAccessIndicator } else { $false }
-        BreakGlassIndicator       = if ($null -ne $Action.BreakGlassIndicator) { [bool]$Action.BreakGlassIndicator } else { $false }
+        ActionId          = [string]$Action.ActionId
+        FindingId         = [string]$Action.FindingId
+        ObjectId          = [string]$Action.ObjectId
+        ObjectType        = [string]$Action.ObjectType
+        DisplayName       = [string]$Action.DisplayName
+        UserPrincipalName = [string]$Action.UserPrincipalName
+        ActionType        = [string]$Action.ActionType
+        TargetObjectIds   = @($Action.TargetObjectIds | Sort-Object)
+        TargetDisplayNames= @($Action.TargetDisplayNames)
+        Evidence          = [string]$Action.Evidence
+        RiskScore         = [int]$Action.RiskScore
+        ProtectedObject   = [bool]$Action.ProtectedObject
+
+        # Typed sub-objects — only populated when relevant
+        # PIM / Directory Role Assignment
+        RoleAssignment = if ($Action.RoleAssignmentId -or $Action.RoleDefinitionId -or $Action.RoleDisplayName) {
+            [ordered]@{
+                RoleAssignmentId = [string]$Action.RoleAssignmentId
+                RoleDefinitionId = [string]$Action.RoleDefinitionId
+                RoleDisplayName  = [string]$Action.RoleDisplayName
+            }
+        } else { $null }
+
+        # Access Package Assignment
+        AccessPackage = if ($Action.AccessPackageAssignmentId -or $Action.AccessPackageId -or $Action.AccessPackageName) {
+            [ordered]@{
+                AccessPackageAssignmentId = [string]$Action.AccessPackageAssignmentId
+                AccessPackageId           = [string]$Action.AccessPackageId
+                AccessPackageName         = [string]$Action.AccessPackageName
+                TargetPrincipalId         = [string]$Action.TargetPrincipalId
+                EligibilityScheduleId     = [string]$Action.EligibilityScheduleId
+            }
+        } else { $null }
+
+        # Guest user metadata
+        # Guest user metadata (populated for guest users and dual-action guests)
+        GuestMetadata = if ($Action.UserType -or $null -ne $Action.GuestOnly) {
+            [ordered]@{
+                UserType  = [string]$Action.UserType
+                GuestOnly = if ($null -ne $Action.GuestOnly) { [bool]$Action.GuestOnly } else { $false }
+            }
+        } else { $null }
+
+        # Readiness / evidence status
+        Readiness = if ($Action.ReadinessStatus -or $Action.ReadinessReason -or $Action.SponsorEvidenceStatus -or $Action.ReviewEvidenceStatus) {
+            [ordered]@{
+                ReadinessStatus      = [string]$Action.ReadinessStatus
+                ReadinessReason      = [string]$Action.ReadinessReason
+                SponsorEvidenceStatus= [string]$Action.SponsorEvidenceStatus
+                ReviewEvidenceStatus = [string]$Action.ReviewEvidenceStatus
+            }
+        } else { $null }
+
+        # Group membership
+        GroupMembership = if ($Action.GroupId -or $Action.GroupDisplayName -or $Action.AppRoleAssignmentId) {
+            [ordered]@{
+                GroupId          = [string]$Action.GroupId
+                GroupDisplayName = [string]$Action.GroupDisplayName
+                AppRoleAssignmentId = [string]$Action.AppRoleAssignmentId
+                ResourceId       = [string]$Action.ResourceId
+                ResourceDisplayName = [string]$Action.ResourceDisplayName
+            }
+        } else { $null }
+
+        # Application credential
+        Credential = if ($Action.CredentialType -or $Action.CredentialKeyId -or $Action.CredentialEndDateTime) {
+            [ordered]@{
+                CredentialType     = [string]$Action.CredentialType
+                CredentialKeyId    = [string]$Action.CredentialKeyId
+                CredentialEndDateTime = [string]$Action.CredentialEndDateTime
+                CredentialExpired  = if ($null -ne $Action.CredentialExpired) { [bool]$Action.CredentialExpired } else { $false }
+            }
+        } else { $null }
+
+        # Application / service principal ownership
+        Ownership = if ($Action.NewOwnerObjectId -or $Action.OwnerSource -or $Action.BusinessJustification -or
+                         $null -ne $Action.OwnerCount -or $null -ne $Action.HasOwner -or $null -ne $Action.AllowGuestOwner) {
+            [ordered]@{
+                OwnerCount                = if ($null -ne $Action.OwnerCount) { [int]$Action.OwnerCount } else { 0 }
+                HasOwner                  = if ($null -ne $Action.HasOwner) { [bool]$Action.HasOwner } else { $false }
+                NewOwnerObjectId           = [string]$Action.NewOwnerObjectId
+                NewOwnerUserPrincipalName = [string]$Action.NewOwnerUserPrincipalName
+                NewOwnerType             = [string]$Action.NewOwnerType
+                OwnerSource              = [string]$Action.OwnerSource
+                BusinessJustification    = [string]$Action.BusinessJustification
+                AllowGuestOwner          = if ($null -ne $Action.AllowGuestOwner) { [bool]$Action.AllowGuestOwner } else { $false }
+            }
+        } else { $null }
+
+        # Application metadata
+        Application = if ($Action.ApplicationId -or $Action.AppId -or $Action.OwnerCount) {
+            [ordered]@{
+                ApplicationId = [string]$Action.ApplicationId
+                AppId         = [string]$Action.AppId
+                OwnerCount    = if ($null -ne $Action.OwnerCount) { [int]$Action.OwnerCount } else { 0 }
+                HasOwner      = if ($null -ne $Action.HasOwner) { [bool]$Action.HasOwner } else { $false }
+            }
+        } elseif ($Action.ApplicationId -or $Action.AppId) {
+            [ordered]@{ ApplicationId = [string]$Action.ApplicationId; AppId = [string]$Action.AppId; OwnerCount = 0; HasOwner = $false }
+        } else { $null }
+
+        # Conditional Access exclusion group member
+        CAExclusion = if ($Action.PolicyId -or $Action.ExclusionGroupId -or $Action.ExcludedPrincipalId) {
+            [ordered]@{
+                PolicyId                  = [string]$Action.PolicyId
+                PolicyDisplayName         = [string]$Action.PolicyDisplayName
+                ExclusionGroupId          = [string]$Action.ExclusionGroupId
+                ExclusionGroupDisplayName = [string]$Action.ExclusionGroupDisplayName
+                ExcludedPrincipalId       = [string]$Action.ExcludedPrincipalId
+                EmergencyAccessIndicator  = if ($null -ne $Action.EmergencyAccessIndicator) { [bool]$Action.EmergencyAccessIndicator } else { $false }
+                BreakGlassIndicator       = if ($null -ne $Action.BreakGlassIndicator) { [bool]$Action.BreakGlassIndicator } else { $false }
+            }
+        } else { $null }
     }
 }
 
@@ -656,9 +716,11 @@ function New-DecomWhatIfActionPlan {
                     Evidence = $finding.Evidence
                     RiskScore = $finding.RiskScore
                     ProtectedObject = $finding.ProtectedObject
-                    RoleAssignmentId = $target.RoleAssignmentId
-                    RoleDefinitionId = $target.RoleDefinitionId
-                    RoleDisplayName = $target.RoleDisplayName
+                    RoleAssignment = [ordered]@{
+                        RoleAssignmentId = $target.RoleAssignmentId
+                        RoleDefinitionId = $target.RoleDefinitionId
+                        RoleDisplayName  = $target.RoleDisplayName
+                    }
                 }
 
                 $actions.Add($action)
@@ -711,26 +773,33 @@ function New-DecomWhatIfActionPlan {
                     ObjectType             = $finding.ObjectType
                     DisplayName            = $finding.DisplayName
                     UserPrincipalName      = $finding.UserPrincipalName
-                    UserType               = if ($finding.UserType) { [string]$finding.UserType } else { 'Guest' }
                     ActionType             = $groupActionType
                     TargetObjectIds        = @($effectiveTargets | ForEach-Object { $_.TargetObjectId })
                     TargetDisplayNames     = @($effectiveTargets | ForEach-Object { $_.TargetDisplayName })
-                    TargetType             = $targetType
                     Evidence               = $finding.Evidence
                     RiskScore              = $finding.RiskScore
                     ProtectedObject        = $finding.ProtectedObject
-                    RequiresManualApproval = $true
-                    GuestOnly              = $true
-                    RollbackGuidance       = $rollback
-                    PostWriteEvidenceRequired = $true
-                    SponsorEvidenceStatus  = $sponsorStatus
-                    ReviewEvidenceStatus   = $reviewStatus
-                    ReadinessStatus        = 'ReadyForApproval'
-                    ReadinessReason        = 'Exact target IDs present and guest identity validated'
-                    PreflightChecks        = @('TargetObjectIdsPresent', 'GuestIdentityValidated', 'ProtectedObjectNotSet')
-                    RoleAssignmentId       = ''
-                    RoleDefinitionId       = ''
-                    RoleDisplayName        = ''
+                    RequiresManualApproval  = $true
+                    GuestMetadata = [ordered]@{
+                        UserType  = if ($finding.UserType) { [string]$finding.UserType } else { 'Guest' }
+                        GuestOnly = $true
+                    }
+                    GroupMembership = [ordered]@{
+                        GroupId = ''
+                        GroupDisplayName = ''
+                        AppRoleAssignmentId = ''
+                        ResourceId = ''
+                        ResourceDisplayName = ''
+                    }
+                    Readiness = [ordered]@{
+                        ReadinessStatus       = 'ReadyForApproval'
+                        ReadinessReason       = 'Exact target IDs present and guest identity validated'
+                        SponsorEvidenceStatus = $sponsorStatus
+                        ReviewEvidenceStatus  = $reviewStatus
+                    }
+                    RollbackGuidance           = $rollback
+                    PostWriteEvidenceRequired  = $true
+                    PreflightChecks            = @('TargetObjectIdsPresent', 'GuestIdentityValidated', 'ProtectedObjectNotSet')
                 }
 
                 $actions.Add($action)
@@ -770,27 +839,29 @@ function New-DecomWhatIfActionPlan {
                     ActionType             = 'RemoveExpiredApplicationCredential'
                     TargetObjectIds        = @($credKeyId)
                     TargetDisplayNames     = @($credKeyId)
-                    TargetType             = 'ApplicationCredential'
                     Evidence               = [string]$finding.Evidence
                     RiskScore              = $finding.RiskScore
                     ProtectedObject        = $finding.ProtectedObject
-                    RequiresManualApproval = $true
-                    CredentialType         = $credType
-                    CredentialKeyId        = $credKeyId
-                    CredentialEndDateTime  = $credEndDate
-                    CredentialExpired      = $true
-                    ApplicationId          = [string]$finding.ApplicationId
-                    AppId                  = [string]$finding.AppId
-                    OwnerCount             = if ($null -ne $finding.OwnerCount) { [int]$finding.OwnerCount } else { 0 }
-                    HasOwner               = if ($null -ne $finding.HasOwner) { [bool]$finding.HasOwner } else { $false }
-                    ReadinessStatus        = 'ReadyForApproval'
-                    ReadinessReason        = 'Exact expired credential KeyId present and credential expired at WhatIf time'
-                    RollbackGuidance       = 'Rollback requires creating a new application credential through the application owner or platform engineering process. Rev3.2 does not auto-rollback credential removal because secret material cannot be recovered after deletion.'
-                    PostWriteEvidenceRequired = $true
-                    PreflightChecks        = @('ExactCredentialKeyIdPresent','CredentialExpiredAtExecutionTime','ProtectedObjectNotSet','ApplicationReadSucceeds')
-                    RoleAssignmentId       = ''
-                    RoleDefinitionId       = ''
-                    RoleDisplayName        = ''
+                    RequiresManualApproval  = $true
+                    Credential = [ordered]@{
+                        CredentialType      = $credType
+                        CredentialKeyId     = $credKeyId
+                        CredentialEndDateTime = $credEndDate
+                        CredentialExpired   = $true
+                    }
+                    Application = [ordered]@{
+                        ApplicationId = [string]$finding.ApplicationId
+                        AppId        = [string]$finding.AppId
+                        OwnerCount   = if ($null -ne $finding.OwnerCount) { [int]$finding.OwnerCount } else { 0 }
+                        HasOwner     = if ($null -ne $finding.HasOwner) { [bool]$finding.HasOwner } else { $false }
+                    }
+                    Readiness = [ordered]@{
+                        ReadinessStatus = 'ReadyForApproval'
+                        ReadinessReason = 'Exact expired credential KeyId present and credential expired at WhatIf time'
+                    }
+                    RollbackGuidance            = 'Rollback requires creating a new application credential through the application owner or platform engineering process. Rev3.2 does not auto-rollback credential removal because secret material cannot be recovered after deletion.'
+                    PostWriteEvidenceRequired  = $true
+                    PreflightChecks            = @('ExactCredentialKeyIdPresent','CredentialExpiredAtExecutionTime','ProtectedObjectNotSet','ApplicationReadSucceeds')
                 }
 
                 $actions.Add($action)
@@ -833,25 +904,25 @@ function New-DecomWhatIfActionPlan {
                     ActionType             = 'AddApplicationOwner'
                     TargetObjectIds        = @($newOwnerObjId)
                     TargetDisplayNames     = @($newOwnerObjId)
-                    TargetType             = 'DirectoryObjectOwner'
                     Evidence               = [string]$finding.Evidence
                     RiskScore              = $finding.RiskScore
                     ProtectedObject        = $finding.ProtectedObject
                     RequiresManualApproval = $true
-                    NewOwnerObjectId       = $newOwnerObjId
-                    NewOwnerUserPrincipalName = $ownerUpn
-                    NewOwnerType           = $ownerType
-                    OwnerSource            = $ownerSource
-                    BusinessJustification  = $bizJust
-                    AllowGuestOwner        = if ($null -ne $finding.AllowGuestOwner) { [bool]$finding.AllowGuestOwner } else { $false }
-                    RollbackGuidance       = 'Rollback requires manually removing the added owner via the application ownership management interface. Rev3.3 does not auto-rollback owner additions.'
-                    PostWriteEvidenceRequired = $true
-                    PreflightChecks        = @('ExactNewOwnerObjectIdPresent','TargetApplicationOrServicePrincipalReadable','NewOwnerObjectReadable','NewOwnerNotDisabled','NewOwnerGuestCheckPassed','ProtectedObjectNotSet')
-                    ReadinessStatus        = 'ReadyForApproval'
-                    ReadinessReason        = 'Exact NewOwnerObjectId present in approval manifest'
-                    RoleAssignmentId       = ''
-                    RoleDefinitionId       = ''
-                    RoleDisplayName        = ''
+                    Ownership = [ordered]@{
+                        NewOwnerObjectId           = $newOwnerObjId
+                        NewOwnerUserPrincipalName = $ownerUpn
+                        NewOwnerType               = $ownerType
+                        OwnerSource                = $ownerSource
+                        BusinessJustification      = $bizJust
+                        AllowGuestOwner            = if ($null -ne $finding.AllowGuestOwner) { [bool]$finding.AllowGuestOwner } else { $false }
+                    }
+                    RollbackGuidance           = 'Rollback requires manually removing the added owner via the application ownership management interface. Rev3.3 does not auto-rollback owner additions.'
+                    PostWriteEvidenceRequired  = $true
+                    PreflightChecks            = @('ExactNewOwnerObjectIdPresent','TargetApplicationOrServicePrincipalReadable','NewOwnerObjectReadable','NewOwnerNotDisabled','NewOwnerGuestCheckPassed','ProtectedObjectNotSet')
+                    Readiness = [ordered]@{
+                        ReadinessStatus = 'ReadyForApproval'
+                        ReadinessReason = 'Exact NewOwnerObjectId present in approval manifest'
+                    }
                 }
 
                 $actions.Add($action)
@@ -894,27 +965,27 @@ function New-DecomWhatIfActionPlan {
                     ActionType             = 'RemoveCAExclusionGroupMember'
                     TargetObjectIds        = @($groupId)
                     TargetDisplayNames     = @($tgt.TargetDisplayName)
-                    TargetType             = 'CAExclusionGroup'
                     Evidence               = [string]$finding.Evidence
                     RiskScore              = $finding.RiskScore
                     ProtectedObject        = $finding.ProtectedObject
-                    RequiresManualApproval = $true
-                    PolicyId               = $policyId
-                    PolicyDisplayName      = if ($finding.PolicyDisplayName) { [string]$finding.PolicyDisplayName } else { '' }
-                    ExclusionGroupId       = $groupId
-                    ExclusionGroupDisplayName = if ($finding.ExclusionGroupDisplayName) { [string]$finding.ExclusionGroupDisplayName } else { $groupId }
-                    ExcludedPrincipalId    = $principalId
-                    EmergencyAccessIndicator = $isEmergency
-                    BreakGlassIndicator    = $isBreakGlass
-                    ReviewEvidenceStatus   = $reviewStatus
-                    RollbackGuidance       = 'Rollback requires re-adding the principal to the exclusion group via group membership management. Rev3.3 does not auto-rollback CA exclusion group membership changes.'
-                    PostWriteEvidenceRequired = $true
-                    PreflightChecks        = @('ExactExclusionGroupIdPresent','ExactExcludedPrincipalIdPresent','ExactPolicyIdPresent','PolicyStillExcludesGroup','PrincipalIsMember','PrincipalNotProtected','PrincipalNotEmergencyAccess','ProtectedObjectNotSet')
-                    ReadinessStatus        = 'ReadyForApproval'
-                    ReadinessReason        = 'Exact PolicyId, ExclusionGroupId, and ExcludedPrincipalId present'
-                    RoleAssignmentId       = ''
-                    RoleDefinitionId       = ''
-                    RoleDisplayName        = ''
+                    RequiresManualApproval  = $true
+                    CAExclusion = [ordered]@{
+                        PolicyId                  = $policyId
+                        PolicyDisplayName         = if ($finding.PolicyDisplayName) { [string]$finding.PolicyDisplayName } else { '' }
+                        ExclusionGroupId          = $groupId
+                        ExclusionGroupDisplayName = if ($finding.ExclusionGroupDisplayName) { [string]$finding.ExclusionGroupDisplayName } else { $groupId }
+                        ExcludedPrincipalId       = $principalId
+                        EmergencyAccessIndicator  = $isEmergency
+                        BreakGlassIndicator       = $isBreakGlass
+                    }
+                    Readiness = [ordered]@{
+                        ReadinessStatus      = 'ReadyForApproval'
+                        ReadinessReason      = 'Exact PolicyId, ExclusionGroupId, and ExcludedPrincipalId present'
+                        ReviewEvidenceStatus = $reviewStatus
+                    }
+                    RollbackGuidance           = 'Rollback requires re-adding the principal to the exclusion group via group membership management. Rev3.3 does not auto-rollback CA exclusion group membership changes.'
+                    PostWriteEvidenceRequired  = $true
+                    PreflightChecks            = @('ExactExclusionGroupIdPresent','ExactExcludedPrincipalIdPresent','ExactPolicyIdPresent','PolicyStillExcludesGroup','PrincipalIsMember','PrincipalNotProtected','PrincipalNotEmergencyAccess','ProtectedObjectNotSet')
                 }
 
                 $actions.Add($action)
@@ -966,9 +1037,6 @@ function New-DecomWhatIfActionPlan {
             Evidence = $finding.Evidence
             RiskScore = $finding.RiskScore
             ProtectedObject = $finding.ProtectedObject
-            RoleAssignmentId = ''
-            RoleDefinitionId = ''
-            RoleDisplayName = ''
         }
 
         $actions.Add($action)
@@ -1233,6 +1301,14 @@ function Test-DecomApprovalManifest {
                 if ($ca.ProtectedObject -eq $true) {
                     $errors += "ProtectedObject action cannot be approved for credential removal"
                 }
+                # Credential sub-object
+                if ($ca.Credential) {
+                    if ($ca.Credential.CredentialExpired -ne $true) {
+                        $errors += "RemoveExpiredApplicationCredential Credential must be marked expired at approval time"
+                    }
+                } else {
+                    $errors += "RemoveExpiredApplicationCredential: Credential sub-object is required"
+                }
             }
             # No duplicate credential removal operations (same ObjectId + same KeyId)
             $credOpKeys = [System.Collections.Generic.HashSet[string]]::new()
@@ -1261,24 +1337,28 @@ function Test-DecomApprovalManifest {
                 if ($oa.FindingId -notin @('DEC-APP-001','DEC-APP-002','DEC-APP-003','DEC-SPN-001')) {
                     $errors += "AddApplicationOwner FindingId must be DEC-APP-001, DEC-APP-002, DEC-APP-003, or DEC-SPN-001 (found: $($oa.FindingId))"
                 }
-                if (-not $oa.NewOwnerObjectId -or [string]$oa.NewOwnerObjectId -eq '') {
-                    $errors += "AddApplicationOwner requires NewOwnerObjectId"
+                if (-not $oa.Ownership -or -not $oa.Ownership.NewOwnerObjectId -or [string]$oa.Ownership.NewOwnerObjectId -eq '') {
+                    $errors += "AddApplicationOwner requires NewOwnerObjectId (Ownership.NewOwnerObjectId)"
                 }
-                if (-not $oa.BusinessJustification -or [string]$oa.BusinessJustification -eq '') {
-                    $errors += "AddApplicationOwner requires BusinessJustification"
+                if (-not $oa.Ownership -or -not $oa.Ownership.BusinessJustification -or [string]$oa.Ownership.BusinessJustification -eq '') {
+                    $errors += "AddApplicationOwner requires BusinessJustification (Ownership.BusinessJustification)"
                 }
                 if ($oa.ProtectedObject -eq $true) {
                     $errors += "ProtectedObject action cannot be approved for owner addition"
                 }
+                # Ownership sub-object must have required fields
+                if (-not $oa.Ownership) {
+                    $errors += "AddApplicationOwner: Ownership sub-object is required"
+                }
                 $targetIds = @($oa.TargetObjectIds | ForEach-Object { [string]$_ })
-                if ($targetIds -notcontains [string]$oa.NewOwnerObjectId) {
+                if ($targetIds -notcontains [string]$oa.Ownership.NewOwnerObjectId) {
                     $errors += "AddApplicationOwner NewOwnerObjectId must be present in TargetObjectIds"
                 }
             }
             # No duplicate owner-add operations
             $ownerOpKeys = [System.Collections.Generic.HashSet[string]]::new()
             foreach ($oa in $rev33OwnerActions) {
-                $ownerKey = "AddApplicationOwner|$($oa.ObjectId)|$($oa.NewOwnerObjectId)"
+                $ownerKey = "AddApplicationOwner|$($oa.ObjectId)|$(if ($oa.Ownership) { $oa.Ownership.NewOwnerObjectId } else { '' })"
                 if ($ownerOpKeys.Contains($ownerKey)) {
                     $errors += "Duplicate owner-add operation: $ownerKey"
                     break
@@ -1300,43 +1380,44 @@ function Test-DecomApprovalManifest {
                 if ($ca.FindingId -notin @('DEC-CA-002','DEC-CA-003','DEC-CA-004')) {
                     $errors += "RemoveCAExclusionGroupMember FindingId must be DEC-CA-002, DEC-CA-003, or DEC-CA-004 (found: $($ca.FindingId))"
                 }
-                if (-not $ca.PolicyId -or [string]$ca.PolicyId -eq '') {
-                    $errors += "RemoveCAExclusionGroupMember requires PolicyId"
+                if (-not $ca.CAExclusion -or -not $ca.CAExclusion.PolicyId -or [string]$ca.CAExclusion.PolicyId -eq '') {
+                    $errors += "RemoveCAExclusionGroupMember requires PolicyId (CAExclusion.PolicyId)"
                 }
-                if (-not $ca.ExclusionGroupId -and (-not $ca.TargetObjectIds -or $ca.TargetObjectIds.Count -eq 0)) {
-                    $errors += "RemoveCAExclusionGroupMember requires ExclusionGroupId"
+                $caExcl = $ca.CAExclusion
+                if (-not $caExcl -or -not $caExcl.ExclusionGroupId -and (-not $ca.TargetObjectIds -or $ca.TargetObjectIds.Count -eq 0)) {
+                    $errors += "RemoveCAExclusionGroupMember requires ExclusionGroupId (CAExclusion.ExclusionGroupId)"
                 }
                 if ($ca.ProtectedObject -eq $true) {
                     $errors += "ProtectedObject action cannot be approved for CA exclusion group removal"
                 }
-                if ($ca.EmergencyAccessIndicator -eq $true) {
+                if ($caExcl -and $caExcl.EmergencyAccessIndicator -eq $true) {
                     $errors += "EmergencyAccessIndicator action cannot be approved for CA exclusion group removal"
                 }
-                if ($ca.BreakGlassIndicator -eq $true) {
+                if ($caExcl -and $caExcl.BreakGlassIndicator -eq $true) {
                     $errors += "BreakGlassIndicator action cannot be approved for CA exclusion group removal"
                 }
 
                 # ExcludedPrincipalId required
-                if (-not $ca.ExcludedPrincipalId -or [string]$ca.ExcludedPrincipalId -eq '') {
-                    $errors += "RemoveCAExclusionGroupMember requires ExcludedPrincipalId"
+                if (-not $caExcl -or -not $caExcl.ExcludedPrincipalId -or [string]$caExcl.ExcludedPrincipalId -eq '') {
+                    $errors += "RemoveCAExclusionGroupMember requires ExcludedPrincipalId (CAExclusion.ExcludedPrincipalId)"
                 }
 
                 # ObjectId must equal ExcludedPrincipalId
-                if ($ca.ExcludedPrincipalId -and ([string]$ca.ObjectId -ne [string]$ca.ExcludedPrincipalId)) {
+                if ($caExcl -and $caExcl.ExcludedPrincipalId -and ([string]$ca.ObjectId -ne [string]$caExcl.ExcludedPrincipalId)) {
                     $errors += "RemoveCAExclusionGroupMember ObjectId must equal ExcludedPrincipalId"
                 }
 
                 # ExclusionGroupId must be in TargetObjectIds
                 $targetIds = @($ca.TargetObjectIds | ForEach-Object { [string]$_ })
-                if ($ca.ExclusionGroupId -and ($targetIds -notcontains [string]$ca.ExclusionGroupId)) {
+                if ($caExcl -and $caExcl.ExclusionGroupId -and ($targetIds -notcontains [string]$caExcl.ExclusionGroupId)) {
                     $errors += "RemoveCAExclusionGroupMember ExclusionGroupId must be present in TargetObjectIds"
                 }
             }
             # No duplicate CA exclusion operations
             $caOpKeys = [System.Collections.Generic.HashSet[string]]::new()
             foreach ($ca in $rev33CAActions) {
-                $groupId     = if ($ca.ExclusionGroupId) { [string]$ca.ExclusionGroupId } else { [string](@($ca.TargetObjectIds)[0]) }
-                $principalId = if ($ca.ExcludedPrincipalId) { [string]$ca.ExcludedPrincipalId } else { [string]$ca.ObjectId }
+                $groupId     = if ($caExcl -and $caExcl.ExclusionGroupId) { [string]$caExcl.ExclusionGroupId } else { [string](@($ca.TargetObjectIds)[0]) }
+                $principalId = if ($caExcl -and $caExcl.ExcludedPrincipalId) { [string]$caExcl.ExcludedPrincipalId } else { [string]$ca.ObjectId }
                 $caKey = "RemoveCAExclusionGroupMember|$principalId|$groupId"
                 if ($caOpKeys.Contains($caKey)) {
                     $errors += "Duplicate CA exclusion group member removal operation: $caKey"
@@ -1387,7 +1468,8 @@ function Test-DecomApprovalManifest {
                     break
                 }
                 # RoleAssignmentId is present and equals TargetObjectIds[0]
-                if (-not $action.RoleAssignmentId -or $action.RoleAssignmentId -ne $action.TargetObjectIds[0]) {
+                if (-not $action.RoleAssignment -or -not $action.RoleAssignment.RoleAssignmentId -or
+                    $action.RoleAssignment.RoleAssignmentId -ne $action.TargetObjectIds[0]) {
                     $errors += "RoleAssignmentId is present and equals TargetObjectIds[0]"
                     break
                 }
