@@ -50,7 +50,6 @@ function Convert-DecomActionToCanonical {
             }
         } else { $null }
 
-        # Guest user metadata
         # Guest user metadata (populated for guest users and dual-action guests)
         GuestMetadata = if ($Action.UserType -or $null -ne $Action.GuestOnly) {
             [ordered]@{
@@ -113,8 +112,6 @@ function Convert-DecomActionToCanonical {
                 OwnerCount    = if ($null -ne $Action.OwnerCount) { [int]$Action.OwnerCount } else { 0 }
                 HasOwner      = if ($null -ne $Action.HasOwner) { [bool]$Action.HasOwner } else { $false }
             }
-        } elseif ($Action.ApplicationId -or $Action.AppId) {
-            [ordered]@{ ApplicationId = [string]$Action.ApplicationId; AppId = [string]$Action.AppId; OwnerCount = 0; HasOwner = $false }
         } else { $null }
 
         # Conditional Access exclusion group member
