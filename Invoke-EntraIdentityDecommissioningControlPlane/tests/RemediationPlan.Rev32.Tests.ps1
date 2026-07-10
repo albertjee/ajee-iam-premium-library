@@ -194,14 +194,14 @@ Describe 'RemediationPlan.Rev32 — WhatIf Generation for Expired Application Cr
         $plan = Get-Content $script:PwdPlan -Raw | ConvertFrom-Json
         $action = $plan.ApprovedActions | Where-Object { $_.ActionType -eq 'RemoveExpiredApplicationCredential' } |
             Select-Object -First 1
-        $action.PSObject.Properties.Name | Should -Contain 'ReadinessStatus'
+        $action.Readiness.ReadinessStatus | Should -Be 'ReadyForApproval'
     }
 
     It 'WhatIf credential action contains CredentialExpired = true' {
         $plan = Get-Content $script:PwdPlan -Raw | ConvertFrom-Json
         $action = $plan.ApprovedActions | Where-Object { $_.ActionType -eq 'RemoveExpiredApplicationCredential' } |
             Select-Object -First 1
-        $action.CredentialExpired | Should -Be $true
+        $action.Credential.CredentialExpired | Should -Be $true
     }
 
     It 'WhatIf credential action FindingId is DEC-APP-005' {

@@ -177,6 +177,6 @@ Describe 'ApprovalManifest.psm1 — Rev3.1 WhatIf Remediation Readiness Status' 
 
         $plan = Get-Content $planPath -Raw | ConvertFrom-Json
         $guestAction = $plan.ApprovedActions | Where-Object { $_.FindingId -eq 'DEC-GUEST-001' }
-        $guestAction.ReviewEvidenceStatus | Should -Be 'Unknown'
+        $guestAction.Readiness.ReviewEvidenceStatus | Should -Be 'Unknown'
     }
 }

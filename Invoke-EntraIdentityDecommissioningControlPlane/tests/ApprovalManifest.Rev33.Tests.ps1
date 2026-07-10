@@ -30,13 +30,15 @@ Describe 'ApprovalManifest.Rev33 — Rev3.3 Action Type Validation' {
                 DisplayName = 'Test App'
                 ActionType = 'AddApplicationOwner'
                 TargetObjectIds = @($script:ownerObjId)
-                NewOwnerObjectId = $script:ownerObjId
-                NewOwnerUserPrincipalName = 'owner@contoso.com'
-                NewOwnerType = 'User'
-                OwnerSource = 'ApprovalManifest'
-                BusinessJustification = 'Application requires active owner'
                 ProtectedObject = $false
-                AllowGuestOwner = $false
+                Ownership = [ordered]@{
+                    NewOwnerObjectId           = $script:ownerObjId
+                    NewOwnerUserPrincipalName = 'owner@contoso.com'
+                    NewOwnerType               = 'User'
+                    OwnerSource                = 'ApprovalManifest'
+                    BusinessJustification     = 'Application requires active owner'
+                    AllowGuestOwner           = $false
+                }
             })
             $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actions
             $manifest = [ordered]@{
@@ -290,14 +292,32 @@ Describe 'ApprovalManifest.Rev33 — Rev3.3 Action Type Validation' {
         function Build-CAManifest {
             param([hashtable]$Override = @{}, [hashtable]$ActionOverride = @{})
             $baseAction = @{
-                ActionId='ACT-001'; FindingId='DEC-CA-002'; ObjectId=$script:principalId
-                ObjectType='User'; ActionType='RemoveCAExclusionGroupMember'
-                TargetObjectIds=@($script:groupId)
-                PolicyId=$script:policyId; ExclusionGroupId=$script:groupId
-                ExcludedPrincipalId=$script:principalId; ProtectedObject=$false
-                EmergencyAccessIndicator=$false; BreakGlassIndicator=$false
+                ActionId    = 'ACT-001'
+                FindingId   = 'DEC-CA-002'
+                ObjectId    = $script:principalId
+                ObjectType  = 'User'
+                ActionType  = 'RemoveCAExclusionGroupMember'
+                TargetObjectIds = @($script:groupId)
+                ProtectedObject = $false
+                CAExclusion = [ordered]@{
+                    PolicyId                 = $script:policyId
+                    ExclusionGroupId         = $script:groupId
+                    ExcludedPrincipalId      = $script:principalId
+                    EmergencyAccessIndicator = $false
+                    BreakGlassIndicator      = $false
+                }
             }
-            foreach ($k in $ActionOverride.Keys) { $baseAction[$k] = $ActionOverride[$k] }
+            # Apply top-level overrides; also propagate CAExclusion field overrides so that
+            # e.g. ActionOverride @{ PolicyId = '' } updates CAExclusion.PolicyId.
+            $caExclKeys = @('PolicyId','ExclusionGroupId','ExcludedPrincipalId',
+                            'EmergencyAccessIndicator','BreakGlassIndicator')
+            foreach ($k in $ActionOverride.Keys) {
+                if ($caExclKeys -contains $k) {
+                    $baseAction.CAExclusion[$k] = $ActionOverride[$k]
+                } else {
+                    $baseAction[$k] = $ActionOverride[$k]
+                }
+            }
             $actions = @([PSCustomObject]$baseAction)
             $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actions
             $manifest = [ordered]@{
@@ -421,16 +441,38 @@ Describe 'ApprovalManifest.Rev33 — Rev3.3 Action Type Validation' {
 
         It 'Duplicate CA exclusion removal operation fails' {
             $actions = @(
-                [PSCustomObject]@{ ActionId='ACT-001'; FindingId='DEC-CA-002'; ObjectId=$script:principalId
-                    ObjectType='User'; ActionType='RemoveCAExclusionGroupMember'
-                    TargetObjectIds=@($script:groupId); PolicyId=$script:policyId
-                    ExclusionGroupId=$script:groupId; ExcludedPrincipalId=$script:principalId
-                    ProtectedObject=$false; EmergencyAccessIndicator=$false; BreakGlassIndicator=$false },
-                [PSCustomObject]@{ ActionId='ACT-002'; FindingId='DEC-CA-003'; ObjectId=$script:principalId
-                    ObjectType='User'; ActionType='RemoveCAExclusionGroupMember'
-                    TargetObjectIds=@($script:groupId); PolicyId=$script:policyId
-                    ExclusionGroupId=$script:groupId; ExcludedPrincipalId=$script:principalId
-                    ProtectedObject=$false; EmergencyAccessIndicator=$false; BreakGlassIndicator=$false }
+                [PSCustomObject]@{
+                    ActionId    = 'ACT-001'
+                    FindingId   = 'DEC-CA-002'
+                    ObjectId    = $script:principalId
+                    ObjectType  = 'User'
+                    ActionType  = 'RemoveCAExclusionGroupMember'
+                    TargetObjectIds = @($script:groupId)
+                    ProtectedObject = $false
+                    CAExclusion = [ordered]@{
+                        PolicyId                 = $script:policyId
+                        ExclusionGroupId          = $script:groupId
+                        ExcludedPrincipalId       = $script:principalId
+                        EmergencyAccessIndicator  = $false
+                        BreakGlassIndicator       = $false
+                    }
+                },
+                [PSCustomObject]@{
+                    ActionId    = 'ACT-002'
+                    FindingId   = 'DEC-CA-003'
+                    ObjectId    = $script:principalId
+                    ObjectType  = 'User'
+                    ActionType  = 'RemoveCAExclusionGroupMember'
+                    TargetObjectIds = @($script:groupId)
+                    ProtectedObject = $false
+                    CAExclusion = [ordered]@{
+                        PolicyId                 = $script:policyId
+                        ExclusionGroupId          = $script:groupId
+                        ExcludedPrincipalId       = $script:principalId
+                        EmergencyAccessIndicator  = $false
+                        BreakGlassIndicator       = $false
+                    }
+                }
             )
             $actionsHash = Get-DecomApprovedActionsHash -ApprovedActions $actions
             $path = Join-Path $script:testOutputDir "manifest-dup-ca-$([guid]::NewGuid().Guid).json"

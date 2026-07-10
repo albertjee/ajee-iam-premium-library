@@ -1,10 +1,9 @@
 # Refactoring Plan - Entra Identity Decommissioning Control Plane
 
-> **Status:** Proposed - awaiting approval before execution
+> **Status:** COMPLETED
 > **Scope:** Premium repo ONLY - `src/Modules/` (65 modules, 34,433 lines). `src/LiteModules/` is deprecated and excluded.
 > **PowerShell target:** v7+ only - 5.1 is not supported
-> **Canonical test count:** Must equal or exceed baseline before and after every phase (baseline: 2,430 tests)
-> **Steam ON rule:** Do not begin code changes until explicit approval is given
+> **Canonical test count:** 2,459 passing (main HEAD after PRs #26-30; baseline 2,459)
 
 ---
 
@@ -72,16 +71,16 @@ The `#Requires` declaration is present on this file. Function names show duplica
 
 | Target | Smell | Impact |
 |---|---|---|
-| Discovery.psm1 (Premium) | SRP violation - 2,530 lines in 4 functions; `Invoke-DecomAssessmentDiscovery` orchestrating too much inline | Difficult to unit-test individual discovery sub-paths |
-| NhiActivityLog analysis | Monolithic compute + score + timeline in one function | Cannot test risk scoring logic independently |
-| NhiGraphApiAudit analysis | Same monolithic pattern as NhiActivityLog | Same |
-| Pattern array duplication | Same arrays copy-pasted in two modules | Maintenance hazard; update one, forget the other |
-| Evidence emission boilerplate | LiteModules-only target (OUT OF SCOPE) | N/A |
-| Phase 1 targets (State, Execution, Guardrails) | LiteModules/only targets (OUT OF SCOPE) | N/A |
-| Evidence.psm1 global state | LiteModules-only target (OUT OF SCOPE) | N/A |
-| NHI constants drift | NhiReporting, EvidenceBundle, NhiGovernance define permission/scope arrays inline with no canonical source | Silent drift across NHI subsystem as arrays are updated independently |
-| Reporting.psm1 HTML | Single here-string with inline CSS | Hard to modify report styling without touching PowerShell logic |
-| NhiControlledDecommission.psm1 | 5,915 lines / 65 functions in one file; multiple subsystems co-located | Git history meaningless per-line; cross-subsystem regression risk; paste-duplicated function names |
+| Discovery.psm1 (Premium) | SRP violation - 2,530 lines in 4 functions; `Invoke-DecomAssessmentDiscovery` orchestrating too much inline | Difficult to unit-test individual discovery sub-paths | **COMPLETED** (Phase 2, commits e761f8a+7204f3c — 2530L -> 139L, 7 dot-sourced companions) |
+| NhiActivityLog analysis | Monolithic compute + score + timeline in one function | Cannot test risk scoring logic independently | **COMPLETED** (Phase 3, commit 58dca9e — 9 private helpers extracted) |
+| NhiGraphApiAudit analysis | Same monolithic pattern as NhiActivityLog | Same | **COMPLETED** (Phase 3, commit 58dca9e — shared pattern extraction + data-driven findings) |
+| Pattern array duplication | Same arrays copy-pasted in two modules | Maintenance hazard; update one, forget the other | **COMPLETED** (Phase 3, NhiPatterns.psm1 created, commit 096f2cd) |
+| Evidence emission boilerplate | LiteModules-only target (OUT OF SCOPE) | N/A | N/A |
+| Phase 1 targets (State, Execution, Guardrails) | LiteModules-only targets (OUT OF SCOPE) | N/A | N/A |
+| Evidence.psm1 global state | LiteModules-only target (OUT OF SCOPE) | N/A | N/A |
+| NHI constants drift | NhiReporting, EvidenceBundle, NhiGovernance define permission/scope arrays inline with no canonical source | Silent drift across NHI subsystem as arrays are updated independently | **COMPLETED** (PR #26, NhiScopeCatalog.psm1; PR #28 I-b data-driven NhiGovernance) |
+| Reporting.psm1 HTML | Single here-string with inline CSS | Hard to modify report styling without touching PowerShell logic | **COMPLETED** (Target J, PR #30 — Reporting.Templates.ps1, 2459/2459) |
+| NhiControlledDecommission.psm1 | 5,915 lines / 65 functions in one file; multiple subsystems co-located | Git history meaningless per-line; cross-subsystem regression risk; paste-duplicated function names | **COMPLETED** (Phase 5, commit fe4c7c0 — 5915L -> 66L, 6 dot-sourced companions) |
 
 ---
 
