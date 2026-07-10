@@ -71,16 +71,16 @@ The `#Requires` declaration is present on this file. Function names show duplica
 
 | Target | Smell | Impact |
 |---|---|---|
-| Discovery.psm1 (Premium) | SRP violation - 2,530 lines in 4 functions; `Invoke-DecomAssessmentDiscovery` orchestrating too much inline | Difficult to unit-test individual discovery sub-paths | **COMPLETED** (Phase 2, commits e761f8a+7204f3c — 2530L -> 139L, 7 dot-sourced companions) |
-| NhiActivityLog analysis | Monolithic compute + score + timeline in one function | Cannot test risk scoring logic independently | **COMPLETED** (Phase 3, commit 58dca9e — 9 private helpers extracted) |
-| NhiGraphApiAudit analysis | Same monolithic pattern as NhiActivityLog | Same | **COMPLETED** (Phase 3, commit 58dca9e — shared pattern extraction + data-driven findings) |
+| Discovery.psm1 (Premium) | SRP violation - 2,530 lines in 4 functions; `Invoke-DecomAssessmentDiscovery` orchestrating too much inline | Difficult to unit-test individual discovery sub-paths | **COMPLETED** (Phase 2, commits e761f8a+7204f3c -- 2530L -> 139L, 7 dot-sourced companions) |
+| NhiActivityLog analysis | Monolithic compute + score + timeline in one function | Cannot test risk scoring logic independently | **COMPLETED** (Phase 3, commit 58dca9e -- 9 private helpers extracted) |
+| NhiGraphApiAudit analysis | Same monolithic pattern as NhiActivityLog | Same | **COMPLETED** (Phase 3, commit 58dca9e -- shared pattern extraction + data-driven findings) |
 | Pattern array duplication | Same arrays copy-pasted in two modules | Maintenance hazard; update one, forget the other | **COMPLETED** (Phase 3, NhiPatterns.psm1 created, commit 096f2cd) |
 | Evidence emission boilerplate | LiteModules-only target (OUT OF SCOPE) | N/A | N/A |
 | Phase 1 targets (State, Execution, Guardrails) | LiteModules-only targets (OUT OF SCOPE) | N/A | N/A |
 | Evidence.psm1 global state | LiteModules-only target (OUT OF SCOPE) | N/A | N/A |
 | NHI constants drift | NhiReporting, EvidenceBundle, NhiGovernance define permission/scope arrays inline with no canonical source | Silent drift across NHI subsystem as arrays are updated independently | **COMPLETED** (PR #26, NhiScopeCatalog.psm1; PR #28 I-b data-driven NhiGovernance) |
-| Reporting.psm1 HTML | Single here-string with inline CSS | Hard to modify report styling without touching PowerShell logic | **COMPLETED** (Target J, PR #30 — Reporting.Templates.ps1, 2459/2459) |
-| NhiControlledDecommission.psm1 | 5,915 lines / 65 functions in one file; multiple subsystems co-located | Git history meaningless per-line; cross-subsystem regression risk; paste-duplicated function names | **COMPLETED** (Phase 5, commit fe4c7c0 — 5915L -> 66L, 6 dot-sourced companions) |
+| Reporting.psm1 HTML | Single here-string with inline CSS | Hard to modify report styling without touching PowerShell logic | **COMPLETED** (Target J, PR #30 -- Reporting.Templates.ps1, 2459/2459) |
+| NhiControlledDecommission.psm1 | 5,915 lines / 65 functions in one file; multiple subsystems co-located | Git history meaningless per-line; cross-subsystem regression risk; paste-duplicated function names | **COMPLETED** (Phase 5, commit fe4c7c0 -- 5915L -> 66L, 6 dot-sourced companions) |
 
 ---
 
@@ -177,7 +177,7 @@ All phases follow Gate 1 (parse), Gate 2 (load), Gate 3 (Pester) verification af
 
 ---
 
-## 5. Session Summary — Refactor/Phase1-Cleanup Branch
+## 5. Session Summary -- Refactor/Phase1-Cleanup Branch
 
 **Branch:** `refactor/phase1-cleanup`
 **Session date:** 2026-07-04
@@ -186,18 +186,18 @@ All phases follow Gate 1 (parse), Gate 2 (load), Gate 3 (Pester) verification af
 
 ---
 
-### 5.1 Scope Correction — Plan vs. Reality
+### 5.1 Scope Correction -- Plan vs. Reality
 
 The original plan text listed Phase 1 targets (`State.psm1`, `Execution.psm1`, `Guardrails.psm1`) and Phase 4 targets (`Evidence.psm1`) in `src/Modules/`. Full path audit revealed:
 
 | Item in original plan | Plan said | Actual location | Resolution |
 |---|---|---|---|
-| State.psm1 expand | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCOPE` in plan |
-| Execution.psm1 circular import | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCOPE` in plan |
-| Guardrails.psm1 missing export | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCOPE` in plan |
-| Evidence.psm1 file locking | `src/Modules/` | Only `src/LiteModules/` — excluded from scope | Marked `OUT OF SCCOPE` in plan |
-| NhiActivityLog.psm1 `#Requires` | `src/Modules/` | EXISTS | **Completed — Gate 1+2 passed** |
-| NhiGraphApiAudit.psm1 `#Requires` | `src/Modules/` | EXISTS | **Completed — Gate 1+2 passed** |
+| State.psm1 expand | `src/Modules/` | Only `src/LiteModules/` -- excluded from scope | Marked `OUT OF SCOPE` in plan |
+| Execution.psm1 circular import | `src/Modules/` | Only `src/LiteModules/` -- excluded from scope | Marked `OUT OF SCOPE` in plan |
+| Guardrails.psm1 missing export | `src/Modules/` | Only `src/LiteModules/` -- excluded from scope | Marked `OUT OF SCOPE` in plan |
+| Evidence.psm1 file locking | `src/Modules/` | Only `src/LiteModules/` -- excluded from scope | Marked `OUT OF SCCOPE` in plan |
+| NhiActivityLog.psm1 `#Requires` | `src/Modules/` | EXISTS | **Completed -- Gate 1+2 passed** |
+| NhiGraphApiAudit.psm1 `#Requires` | `src/Modules/` | EXISTS | **Completed -- Gate 1+2 passed** |
 
 **Why these were wrong:** The plan's scope statement explicitly excluded `src/LiteModules/` ("deprecated and excluded") but listed its files as targets. All plan targets were assumed to be in `src/Modules/` (Premium, 65 modules, 34,433 lines). Only NhiActivityLog.psm1 and NhiGraphApiAudit.psm1 were confirmed to actually exist in the Premium modules directory.
 
@@ -205,15 +205,15 @@ The original plan text listed Phase 1 targets (`State.psm1`, `Execution.psm1`, `
 
 ### 5.2 UTF-8/Unicode Sanitization
 
-**What:** All Unicode em-dashes (U+2014 `—`), en-dashes (U+2013 `–`), superscript 2 (U+00B2 `²`), and other non-ASCII characters in `docs/refactoring-plan.md` were replaced with their ASCII equivalents.
+**What:** All Unicode em-dashes (U+2014 `--`), en-dashes (U+2013 `-`), superscript 2 (U+00B2 `²`), and other non-ASCII characters in `docs/refactoring-plan.md` were replaced with their ASCII equivalents.
 
-**Why:** CLAUDE.md section 13 prohibits non-ASCII characters in Any executable source, including documentation embedded in the repo. The `—` and `–` characters in the plan document were introduced by an LLM writing the document and are not valid for this repo's UTF-8 standard.
+**Why:** CLAUDE.md section 13 prohibits non-ASCII characters in Any executable source, including documentation embedded in the repo. The `--` and `-` characters in the plan document were introduced by an LLM writing the document and are not valid for this repo's UTF-8 standard.
 
 **Files changed:** `docs/refactoring-plan.md`
 
 ---
 
-### 5.3 Phase 1 Complete — Verified
+### 5.3 Phase 1 Complete -- Verified
 
 #### `#Requires -Version 5.1` removed from NhiActivityLog.psm1
 
@@ -233,17 +233,17 @@ The original plan text listed Phase 1 targets (`State.psm1`, `Execution.psm1`, `
 
 ---
 
-### 5.4 Invalid Phase 1 Items (Marked N/A — LiteModules Only)
+### 5.4 Invalid Phase 1 Items (Marked N/A -- LiteModules Only)
 
 The following Phase 1 items from the original plan were confirmed to target `src/LiteModules/` files only (excluded from scope per the plan's own scope statement):
 
 | Item | File | Status |
 |---|---|---|
-| State.psm1 expand | `src/LiteModules/State.psm1` | N/A — excluded |
-| Execution.psm1 circular import | `src/LiteModules/Execution.psm1` | N/A — excluded |
-| Guardrails.psm1 Export-ModuleMember | `src/LiteModules/Guardrails.psm1` | N/A — excluded |
-| Evidence.psm1 file locking | `src/LiteModules/Evidence.psm1` | N/A — excluded |
-| Auth.psm1 scope consolidation | `src/LiteModules/Auth.psm1` | N/A — excluded |
+| State.psm1 expand | `src/LiteModules/State.psm1` | N/A -- excluded |
+| Execution.psm1 circular import | `src/LiteModules/Execution.psm1` | N/A -- excluded |
+| Guardrails.psm1 Export-ModuleMember | `src/LiteModules/Guardrails.psm1` | N/A -- excluded |
+| Evidence.psm1 file locking | `src/LiteModules/Evidence.psm1` | N/A -- excluded |
+| Auth.psm1 scope consolidation | `src/LiteModules/Auth.psm1` | N/A -- excluded |
 
 ---
 
@@ -251,28 +251,28 @@ The following Phase 1 items from the original plan were confirmed to target `src
 
 | Phase | Task | Status | Blocker |
 |---|---|---|---|
-| Phase 2 | Discovery.psm1 decomposition — 7 dot-sourced helpers; 2584 -> 109 lines | **COMPLETE (commits e761f8a + 7204f3c, 2430/2430)** | N/A |
+| Phase 2 | Discovery.psm1 decomposition -- 7 dot-sourced helpers; 2584 -> 109 lines | **COMPLETE (commits e761f8a + 7204f3c, 2430/2430)** | N/A |
 | Phase 3 | Create `NhiPatterns.psm1` (shared pattern arrays) | **COMPLETE (commit 096f2cd)** | N/A |
 | Phase 3 | NhiActivityLog + NhiGraphApiAudit decomposition into private helpers (tasks 7-11) | **COMPLETE (commit 58dca9e, 2430/2430)** | N/A |
 | Phase 4 | Extract HTML template constants in Reporting.psm1 + NhiReporting.psm1 | **COMPLETE (commit 096f2cd)** | N/A |
 | Phase 5 | Split NhiControlledDecommission.psm1 into companions (Core/Gates/CleanupPlanning/PlanEvidence/LabRehearsal/Run4C) | **COMPLETE (commit fe4c7c0, 2430/2430)** | N/A |
 | Phase 6 | Verification (mandatory after each phase) | Pending | Per phase |
-| Phase 7 | Test consolidation — merge 28 per-Rev test files (Safety.Rev4x/NhiRun4C/NhiControlledDecommission.Rev4x) into 3 consolidated files | **COMPLETE (pending commit, 2418/2418)** | N/A |
+| Phase 7 | Test consolidation -- merge 28 per-Rev test files (Safety.Rev4x/NhiRun4C/NhiControlledDecommission.Rev4x) into 3 consolidated files | **COMPLETE (pending commit, 2418/2418)** | N/A |
 
 **Phase 2 COMPLETED (2026-07-04, commits e761f8a + 7204f3c):** Decomposed
 `Discovery.psm1` into 7 dot-sourced `.ps1` companion files. All helpers verified
 at 2430/2430, 0 failures. Line counts below are actual disk measurements.
 
 **Phase 2 extracted helpers (Gate-3 verified at 2430/2430, actual line counts):**
-- `Discovery.Coverage.ps1` — Get-DecomAvailableCommand, New-DecomCoverage (35 lines)
-- `Discovery.SyntheticFindings.ps1` — Get-DecomSyntheticFindings (652 lines)
-- `Discovery.UserGuestFindings.ps1` — _Get-DecomUserFindings, _Get-DecomGuestFindings, _Get-DecomGuestSponsorMetadata, _Get-DecomOwnedObjectFindings (357 lines)
-- `Discovery.PimCaExclusion.ps1` — _Get-DecomPimCaFindings (332 lines)
-- `Discovery.AccessReview.ps1` — _Get-DecomAccessReviewData (194 lines)
-- `Discovery.AccessPackages.ps1` — _Get-DecomAccessPackageFindings (182 lines)
-- `Discovery.ReviewCorrelation.ps1` — _Get-DecomReviewCorrelationFindings (594 lines)
+- `Discovery.Coverage.ps1` -- Get-DecomAvailableCommand, New-DecomCoverage (35 lines)
+- `Discovery.SyntheticFindings.ps1` -- Get-DecomSyntheticFindings (652 lines)
+- `Discovery.UserGuestFindings.ps1` -- _Get-DecomUserFindings, _Get-DecomGuestFindings, _Get-DecomGuestSponsorMetadata, _Get-DecomOwnedObjectFindings (357 lines)
+- `Discovery.PimCaExclusion.ps1` -- _Get-DecomPimCaFindings (332 lines)
+- `Discovery.AccessReview.ps1` -- _Get-DecomAccessReviewData (194 lines)
+- `Discovery.AccessPackages.ps1` -- _Get-DecomAccessPackageFindings (182 lines)
+- `Discovery.ReviewCorrelation.ps1` -- _Get-DecomReviewCorrelationFindings (594 lines)
 
-**Final `Discovery.psm1`: 109 lines** — dot-source loader + thin orchestrator.
+**Final `Discovery.psm1`: 109 lines** -- dot-source loader + thin orchestrator.
 
 **Phase 2 file layout (e761f8a, actual disk line counts):**
 ```
@@ -327,14 +327,14 @@ Phase 3 is complete (NhiActivityLog + NhiGraphApiAudit: 9 private helpers extrac
 5915 lines to 66 lines. All verified at 2430/2430, 0 failures.
 
 **Phase 5 companion files (fe4c7c0, actual disk line counts):**
-- `NhiControlledDecommission.Core.ps1` — 258 lines, 8 functions
-- `NhiControlledDecommission.Gates.ps1` — 431 lines, 11 functions (377 at extraction; the surviving strict `New-NhiControlledGateVerdict` was added during the slim)
-- `NhiControlledDecommission.CleanupPlanning.ps1` — 581 lines, 12 functions
-- `NhiControlledDecommission.PlanEvidence.ps1` — 675 lines, 13 functions
-- `NhiControlledDecommission.LabRehearsal.ps1` — 1529 lines, 6 functions
-- `NhiControlledDecommission.Run4C.ps1` — 2382 lines, 14 functions
+- `NhiControlledDecommission.Core.ps1` -- 258 lines, 8 functions
+- `NhiControlledDecommission.Gates.ps1` -- 431 lines, 11 functions (377 at extraction; the surviving strict `New-NhiControlledGateVerdict` was added during the slim)
+- `NhiControlledDecommission.CleanupPlanning.ps1` -- 581 lines, 12 functions
+- `NhiControlledDecommission.PlanEvidence.ps1` -- 675 lines, 13 functions
+- `NhiControlledDecommission.LabRehearsal.ps1` -- 1529 lines, 6 functions
+- `NhiControlledDecommission.Run4C.ps1` -- 2382 lines, 14 functions
 
-**Final `NhiControlledDecommission.psm1`: 66 lines** — dot-source loader + Export-ModuleMember.
+**Final `NhiControlledDecommission.psm1`: 66 lines** -- dot-source loader + Export-ModuleMember.
 
 ---
 
@@ -347,7 +347,7 @@ files). Per the v2 plan, this required a STOP for Albert's approval of the kill-
 file was written.
 
 **M7.2 (consolidation, 2026-07-05):** Each of the 48 flagged names was verified by reading the
-actual assertion body in every file it appeared in — not just matched by name. Two parallel
+actual assertion body in every file it appeared in -- not just matched by name. Two parallel
 subagents were dispatched (independent problem domains, no shared state) to handle the NhiRun4C
 and NhiControlledDecommission.Rev4x groups; the Safety.Rev4x group was consolidated first as a
 smaller pilot and used to establish the pattern.
@@ -359,7 +359,7 @@ other **39 were false positives** and were correctly kept as separate tests to a
 coverage loss:
 
 - **Safety.Rev4x (8 -> 1 file):** all 7 flagged names were genuine duplicates or semantically
-  identical merges (one pair — "additive module...cmdlets" vs "controlled module...patterns" —
+  identical merges (one pair -- "additive module...cmdlets" vs "controlled module...patterns" --
   tested the exact same `$script:ModuleSource` regex-list check under different phrasing across
   revs). Consolidated to `tests/Safety.NhiControlled.Consolidated.Tests.ps1`: **54 tests (was 66,
   -12)**. One real bug found and fixed during consolidation: a `Get-ChildItem -LiteralPath
@@ -367,7 +367,7 @@ coverage loss:
   wildcards; restored to the original exact literal-path + count assertion. Two of the 7 names
   were also found still physically duplicated (copy-pasted into two `Describe` blocks instead of
   actually merged) and were collapsed to one occurrence each.
-- **NhiRun4C (12 -> 1 file):** all 27 flagged names were false positives — every occurrence invoked
+- **NhiRun4C (12 -> 1 file):** all 27 flagged names were false positives -- every occurrence invoked
   a different underlying `New-NhiRun4C*`/`Invoke-NhiControlledLab*` function per revision (e.g.
   "Package writes JSON artifact locally" checks 9 different artifact-id properties across its 9
   files). Zero merges were safe; consolidated to `tests/NhiRun4C.Consolidated.Tests.ps1` for
@@ -381,9 +381,9 @@ coverage loss:
   null-check) was reproduced verbatim, not fixed, per the zero-behavior-change mandate.
 - **NhiControlledDecommission.Rev4x (8 -> 1 file):** of 14 flagged names, only 2 were genuine
   duplicates (byte-identical assertions against different sample fixtures, collapsed into
-  `-ForEach`); the other 12 were false positives (same name, different private gate function —
+  `-ForEach`); the other 12 were false positives (same name, different private gate function --
   e.g. Metadata-cleanup vs Grant-cleanup vs Managed-Identity readiness gates). Consolidated to
-  `tests/NhiControlledDecommission.Rev4x.Consolidated.Tests.ps1`: **315 tests (unchanged)** — the
+  `tests/NhiControlledDecommission.Rev4x.Consolidated.Tests.ps1`: **315 tests (unchanged)** -- the
   M7.1 inventory's static count of 215 undercounted because several `It`s use `-ForEach` and
   running each of the 8 original files individually and summing confirms 315 was always the real
   discovered/executed count.
@@ -398,13 +398,13 @@ positives, correctly kept separate to avoid coverage loss.
 2. Full suite run with all 28 old files + 3 new files coexisting: **3029/3029, 0 failures**
    (= 2430 baseline + 599 new-file total, confirming zero interaction effects between old and new).
 3. The 28 superseded files removed via `git rm` (confirmed tracked in git first).
-4. Full suite re-run: **2418/2418, 0 failures** — exact match to the pre-computed expectation.
+4. Full suite re-run: **2418/2418, 0 failures** -- exact match to the pre-computed expectation.
 
 **Docs updated:** `docs/test-consolidation-inventory.md` (all 48 verdict cells resolved from
 `[TODO]` to MERGED / KEPT SEPARATE with reasoning), this section, section 5.5 table, section 5.7
 agent dispatch log, section 5.8 resumability checkpoint.
 
-**Not yet done:** commit. Per CLAUDE.md, Albert commits/pushes manually — this is proposed but
+**Not yet done:** commit. Per CLAUDE.md, Albert commits/pushes manually -- this is proposed but
 not yet executed.
 
 ---
@@ -419,7 +419,7 @@ asserts on the entry point's source text as each region moved.
 
 **Trade-off (signed off by Albert at Gate 1, full detail in
 `docs/entrypoint-decomposition-plan.md` section 1):** the pre-decomposition file
-was a deliberately monolithic auditable artifact — 9+ test files proved safety
+was a deliberately monolithic auditable artifact -- 9+ test files proved safety
 properties (no mutation cmdlets, SelfTest-before-Graph ordering) by scanning ONE
 file. Mitigated by the M8 closed-set safety test (`tests/EntryPointClosedSet.Tests.ps1`),
 which makes the companion set itself machine-checked: main must dot-source
@@ -430,14 +430,14 @@ must contain exactly those 6 files.
 
 | Milestone | Region | Companion | Commit | Lines extracted |
 |---|---|---|---|---|
-| M1 | — (assertion-migration table) | — | `89cfcb0` | — |
-| M2 | D — controlled NHI decommission | `ControlledNhiDecommission.ps1` | `7a332b0`/`52a4f3a` (PR #21) | 443 |
-| M3 | E — Rev4.0 M35 NHI execution guard | `NhiExecutionFlow.ps1` | `6420c45` | 317 |
-| M4 | F — assessment/write-readiness/Graph connect | `AssessmentFlow.ps1` | `6469099` | 286 |
-| M5 | G — NHI governance pack + demo block | `NhiGovernancePack.ps1` | `8857b21` | 368 |
-| M6 | H — Rev3.4 hardening outputs | `HardeningOutputs.ps1` | `c54b40c` | 217 |
-| M7 | I — Rev3.5 NHI governance pack | `Rev35GovernancePack.ps1` | `ed755ac` | 75 |
-| M8 | closed-set safety test + docs | — | (this commit) | — |
+| M1 | -- (assertion-migration table) | -- | `89cfcb0` | -- |
+| M2 | D -- controlled NHI decommission | `ControlledNhiDecommission.ps1` | `7a332b0`/`52a4f3a` (PR #21) | 443 |
+| M3 | E -- Rev4.0 M35 NHI execution guard | `NhiExecutionFlow.ps1` | `6420c45` | 317 |
+| M4 | F -- assessment/write-readiness/Graph connect | `AssessmentFlow.ps1` | `6469099` | 286 |
+| M5 | G -- NHI governance pack + demo block | `NhiGovernancePack.ps1` | `8857b21` | 368 |
+| M6 | H -- Rev3.4 hardening outputs | `HardeningOutputs.ps1` | `c54b40c` | 217 |
+| M7 | I -- Rev3.5 NHI governance pack | `Rev35GovernancePack.ps1` | `ed755ac` | 75 |
+| M8 | closed-set safety test + docs | -- | (this commit) | -- |
 
 Entry point: **1906 -> 209 lines** (param block + setup/imports + SelfTest +
 6 dot-source lines). Canonical test count grew from 2408 (pre-decomposition
@@ -454,7 +454,7 @@ missed every time:
   never caught because nobody ran that specific file until M4's full-suite gate).
 - M6 and M7 confirmed the opposite case: when recon predicted near-zero or exact
   failure counts for genuinely low-coverage regions, the full-suite run matched
-  the prediction precisely (1 failure at M6, 2 at M7, both exactly as forecast) —
+  the prediction precisely (1 failure at M6, 2 at M7, both exactly as forecast) --
   validating that the recon agents' region-by-region test-anchor tracing was
   reliable once cross-checked against ground truth, not merely trusted blind.
 
@@ -464,7 +464,75 @@ a Rev3.0 error string attributed to region E, actually region B) were found and
 corrected post-M3, before they could cause confusion at the milestone that
 actually needed to act on them.
 
-**Not yet done:** M9 (external review — CodeRabbit + `/code-review` — and PR to
+**Not yet done:** M9 (external review -- CodeRabbit + `/code-review` -- and PR to
 main). Per CLAUDE.md, Albert pushes/merges manually.
+
+---
+
+## 6. Section 10 Refactoring Plan (post-COMPLETED) -- `/improve-codebase-architecture` Candidates
+
+Separate track from the 10-target plan above (which is fully COMPLETED, section 1-5).
+Run on 2026-07-09 against the post-COMPLETED codebase to surface further deepening
+opportunities. Four candidates were identified; three were feasible and merged to
+main, one remains speculative.
+
+| # | Target | Recommendation | Status |
+|---|---|---|---|
+| 1 | `ApprovalManifest.psm1` -- flatten 54-field canonical schema into 9 typed sub-objects | Strong | **COMPLETE** (PR #31, `60db1d1`, 2459/2459) |
+| 2 | `NhiReporting.psm1` -- extract inline CSS here-string to `NhiReporting.Templates.ps1` (mirrors Target J) | Worth exploring | **COMPLETE** (PR #32, `b1d6de7`, 2457/2459) |
+| 3 | `Utilities.psm1` -- convert facade to interface-only module | Speculative (revisit when a sub-module exceeds 400L) | **COMPLETE** (PR #33, `9bde9c6`, 2457/2459) -- see note below |
+| 4 | `EvidenceBundle.psm1` -- narrow the 5-param `New-DecomEvidenceBundle` interface | Speculative (revisit if more functions are added) | **NOT STARTED** -- trigger condition unchanged (still 6 exported functions) |
+
+### Candidate 1 -- ApprovalManifest.psm1 hierarchical sub-object schema (PR #31)
+
+`Convert-DecomActionToCanonical` flattened a 54-field canonical action structure
+into 9 typed sub-objects populated only when relevant: `RoleAssignment`,
+`AccessPackage`, `GuestMetadata`, `Readiness`, `GroupMembership`, `Credential`,
+`Ownership`, `Application`, `CAExclusion`. `New-DecomWhatIfActionPlan` and
+`Test-DecomApprovalManifest` updated to navigate sub-object paths. A CodeRabbit
+review on the PR caught one real bug (stale `$caExcl` in the CA duplicate-detection
+loop, not rebound per-iteration) -- fixed before merge. 2459/2459 passing.
+
+### Candidate 2 -- NhiReporting.psm1 CSS template extraction (PR #32)
+
+Extracted the inline `$_NHI_DASHBOARD_CSS` here-string into
+`NhiReporting.Templates.ps1`, mirroring the Target J pattern already applied to
+`Reporting.psm1`/`Reporting.Templates.ps1`. `NhiReporting.psm1` now dot-sources
+the template file and calls `Get-NhiReportingTemplateDashboardCss` at render
+time. No behavioral change -- dashboard HTML output verified byte-identical.
+2457/2459 passing (2 pre-existing `HtmlEncoding.Rev36.Tests.ps1` cross-test
+contamination failures, unrelated to this change, confirmed present on the
+main baseline in the same run configuration).
+
+### Candidate 3 -- Utilities.psm1 facade / NhiFinding.psm1 decomposition (PR #33)
+
+`Utilities.psm1` was already interface-only (12 lines, pure re-export facade)
+at the time of the architecture review -- that part of the candidate was
+already satisfied by an earlier refactor. The report's stated revisit
+condition ("revisit when NhiConsole, CapabilityState, GraphUtility, or
+NhiFinding independently exceed 400L") had fired: `NhiFinding.psm1` had grown
+to 624 lines mixing 3 concerns. Split into 3 dot-sourced companions:
+- `NhiFinding.GraphIdentity.ps1` -- Graph property extraction and identity
+  normalization
+- `NhiFinding.PlatformCatalog.ps1` -- platform identity catalog + Microsoft
+  classification
+- `NhiFinding.Core.ps1` -- finding construction and trace-context propagation
+
+`NhiFinding.psm1` reduced to a 7-line dot-source loader. Public contract
+(function names/signatures, `Utilities.psm1` re-export) unchanged -- verified
+via functional smoke test across all 3 new file boundaries (trace-context
+propagation from `PlatformCatalog` through `Core`). Merged on explicit
+override before CodeRabbit's rate-limited review cleared; manual diff review
+and full gate verification (parse, import, functional, 2457/2459 suite)
+performed in its place. 2457/2459 passing, matches main baseline exactly.
+
+### Candidate 4 -- EvidenceBundle.psm1 param narrowing (not started)
+
+`New-DecomEvidenceBundle` still has 5 mandatory parameters (Fingerprint,
+Findings, SessionActions, Context, OutputDir) and `EvidenceBundle.psm1` still
+exports exactly 6 functions -- the same counts as at the time of the
+architecture review. The stated revisit trigger ("if more functions are
+added or if similar wide-interface patterns emerge in sister modules") has
+not fired. Remains speculative; no action taken.
 
 ---
