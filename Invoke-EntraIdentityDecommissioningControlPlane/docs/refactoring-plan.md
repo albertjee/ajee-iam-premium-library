@@ -468,3 +468,71 @@ actually needed to act on them.
 main). Per CLAUDE.md, Albert pushes/merges manually.
 
 ---
+
+## 6. Section 10 Refactoring Plan (post-COMPLETED) -- `/improve-codebase-architecture` Candidates
+
+Separate track from the 10-target plan above (which is fully COMPLETED, section 1-5).
+Run on 2026-07-09 against the post-COMPLETED codebase to surface further deepening
+opportunities. Four candidates were identified; three were feasible and merged to
+main, one remains speculative.
+
+| # | Target | Recommendation | Status |
+|---|---|---|---|
+| 1 | `ApprovalManifest.psm1` -- flatten 54-field canonical schema into 9 typed sub-objects | Strong | **COMPLETE** (PR #31, `60db1d1`, 2459/2459) |
+| 2 | `NhiReporting.psm1` -- extract inline CSS here-string to `NhiReporting.Templates.ps1` (mirrors Target J) | Worth exploring | **COMPLETE** (PR #32, `b1d6de7`, 2457/2459) |
+| 3 | `Utilities.psm1` -- convert facade to interface-only module | Speculative (revisit when a sub-module exceeds 400L) | **COMPLETE** (PR #33, `9bde9c6`, 2457/2459) -- see note below |
+| 4 | `EvidenceBundle.psm1` -- narrow the 5-param `New-DecomEvidenceBundle` interface | Speculative (revisit if more functions are added) | **NOT STARTED** -- trigger condition unchanged (still 6 exported functions) |
+
+### Candidate 1 -- ApprovalManifest.psm1 hierarchical sub-object schema (PR #31)
+
+`Convert-DecomActionToCanonical` flattened a 54-field canonical action structure
+into 9 typed sub-objects populated only when relevant: `RoleAssignment`,
+`AccessPackage`, `GuestMetadata`, `Readiness`, `GroupMembership`, `Credential`,
+`Ownership`, `Application`, `CAExclusion`. `New-DecomWhatIfActionPlan` and
+`Test-DecomApprovalManifest` updated to navigate sub-object paths. A CodeRabbit
+review on the PR caught one real bug (stale `$caExcl` in the CA duplicate-detection
+loop, not rebound per-iteration) -- fixed before merge. 2459/2459 passing.
+
+### Candidate 2 -- NhiReporting.psm1 CSS template extraction (PR #32)
+
+Extracted the inline `$_NHI_DASHBOARD_CSS` here-string into
+`NhiReporting.Templates.ps1`, mirroring the Target J pattern already applied to
+`Reporting.psm1`/`Reporting.Templates.ps1`. `NhiReporting.psm1` now dot-sources
+the template file and calls `Get-NhiReportingTemplateDashboardCss` at render
+time. No behavioral change -- dashboard HTML output verified byte-identical.
+2457/2459 passing (2 pre-existing `HtmlEncoding.Rev36.Tests.ps1` cross-test
+contamination failures, unrelated to this change, confirmed present on the
+main baseline in the same run configuration).
+
+### Candidate 3 -- Utilities.psm1 facade / NhiFinding.psm1 decomposition (PR #33)
+
+`Utilities.psm1` was already interface-only (12 lines, pure re-export facade)
+at the time of the architecture review -- that part of the candidate was
+already satisfied by an earlier refactor. The report's stated revisit
+condition ("revisit when NhiConsole, CapabilityState, GraphUtility, or
+NhiFinding independently exceed 400L") had fired: `NhiFinding.psm1` had grown
+to 624 lines mixing 3 concerns. Split into 3 dot-sourced companions:
+- `NhiFinding.GraphIdentity.ps1` -- Graph property extraction and identity
+  normalization
+- `NhiFinding.PlatformCatalog.ps1` -- platform identity catalog + Microsoft
+  classification
+- `NhiFinding.Core.ps1` -- finding construction and trace-context propagation
+
+`NhiFinding.psm1` reduced to a 7-line dot-source loader. Public contract
+(function names/signatures, `Utilities.psm1` re-export) unchanged -- verified
+via functional smoke test across all 3 new file boundaries (trace-context
+propagation from `PlatformCatalog` through `Core`). Merged on explicit
+override before CodeRabbit's rate-limited review cleared; manual diff review
+and full gate verification (parse, import, functional, 2457/2459 suite)
+performed in its place. 2457/2459 passing, matches main baseline exactly.
+
+### Candidate 4 -- EvidenceBundle.psm1 param narrowing (not started)
+
+`New-DecomEvidenceBundle` still has 5 mandatory parameters (Fingerprint,
+Findings, SessionActions, Context, OutputDir) and `EvidenceBundle.psm1` still
+exports exactly 6 functions -- the same counts as at the time of the
+architecture review. The stated revisit trigger ("if more functions are
+added or if similar wide-interface patterns emerge in sister modules") has
+not fired. Remains speculative; no action taken.
+
+---
